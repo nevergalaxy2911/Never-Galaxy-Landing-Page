@@ -11,7 +11,7 @@ import { useReveal } from "@/hooks/useReveal";
  * • Update socials → edit SOCIALS array (icon + href).
  * • Recolor → change `sec-cyan` on the <section>.
  * --------------------------------------------------------------------------- */
-const EMAIL = "hello@nevergalaxy.studio";
+const EMAIL = "nevergalaxy2911@gmail.com";
 const SOCIALS = [
   { icon: Instagram, label: "Instagram", href: "#" },
   { icon: Youtube,   label: "YouTube",   href: "#" },
