@@ -13,7 +13,7 @@ import { useReveal } from "@/hooks/useReveal";
  * --------------------------------------------------------------------------- */
 const EMAIL = "nevergalaxy2911@gmail.com";
 const SOCIALS = [
-  { icon: Instagram, label: "Instagram", href: "#" },
+  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/nevergalaxystudio/" },
   { icon: Youtube,   label: "YouTube",   href: "#" },
   { icon: Globe,     label: "Behance",   href: "#" },
 ];
