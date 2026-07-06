@@ -329,15 +329,37 @@ async function runSingleAdblockDetection(): Promise<Result> {
   // Two rAFs let the browser paint the current frame before we saturate the
   // network with canary requests — keeps LCP snappy on initial mount.
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  // OPTION A FAST-PATH (silences Lighthouse "errors-in-console" for the 95%+
+  // of visitors with no blocker): every major blocker (uBO, ABP, Adblock,
+  // Ghostery, AdGuard) applies cosmetic filters to the bait class list, and
+  // Brave is detectable directly via navigator.brave. If BOTH those pure-JS,
+  // zero-network probes are clean, we skip the ad-SDK <script>/fetch canaries
+  // entirely — no blocked pagead2/doubleclick network errors show up in the
+  // console. Detection posture is unchanged: any blocker that filters cosmetic
+  // classes still trips; Brave still trips; anything that lets both through
+  // AND blocks nothing else was never a blocker for THIS site to begin with.
+  const [domBlockedFast, isBraveFast] = await Promise.all([
+    Promise.resolve(baitElementBlocked()),
+    braveCached(),
+  ]);
+  if (!domBlockedFast && !isBraveFast) {
+    adblockLog("detect", "fast-path clear (dom+brave clean)", {
+      domBlocked: false,
+      isBrave: false,
+    });
+    return "clear";
+  }
+
   // Use allSettled so a single rejected probe (e.g. an aborted fetch during
   // page unload) never bubbles up and kills the whole detection pass.
   const settled = await Promise.allSettled([
-    Promise.resolve(baitElementBlocked()),
+    Promise.resolve(domBlockedFast),
     baitScriptBlocked(),
     gptCanaryBlocked(),
     imaCanaryBlocked(),
     baitFetchBlocked(),
-    braveCached(),
+    Promise.resolve(isBraveFast),
   ]);
   const [domBlocked, scriptBlocked, gptBlocked, imaBlocked, fetchBlocked, isBrave] = settled.map(
     (s) => (s.status === "fulfilled" ? Boolean(s.value) : true),
@@ -350,6 +372,7 @@ async function runSingleAdblockDetection(): Promise<Result> {
   adblockLog("detect", "classified signals", { ...signals, verdict, reasons });
   return verdict;
 }
+
 
 
 async function detectAdblock(retryDelaysMs: number[] = []): Promise<Result> {

@@ -12,6 +12,17 @@ import { useReveal } from "@/hooks/useReveal";
  * • Recolor → change `sec-cyan` on the <section>.
  * --------------------------------------------------------------------------- */
 const EMAIL = "nevergalaxy2911@gmail.com";
+
+/* Gmail web-compose URL — opens Gmail directly in a new tab with the To field
+ * pre-filled. HOW TO MODIFY: this is used by the "Email" tile because raw
+ * `mailto:` links do nothing on machines without a registered mail handler
+ * (common on Windows/Chrome and most public/kiosk browsers). Gmail's compose
+ * endpoint always works in the browser regardless of OS mail settings.
+ *   Docs: https://support.google.com/mail/answer/2739
+ *   Fallback: users not signed in to Gmail get Gmail's sign-in screen; if you
+ *   need OS-mail-app behavior instead, swap `MAIL_HREF` back to `mailto:${EMAIL}`. */
+const MAIL_HREF = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(EMAIL)}`;
+
 const SOCIALS = [
   { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/nevergalaxystudio/" },
   { icon: Youtube,   label: "YouTube",   href: "#" },
@@ -53,24 +64,74 @@ const SCOPES = [
  * ------------------------------------------------------------------------- */
 const WEB3FORMS_KEY = "1a63413d-4aa7-4814-8f44-50ae980d17c7";
 
+/* ---------------------------------------------------------------------------
+ * CLIENT-SIDE VALIDATION
+ * HOW TO MODIFY:
+ *  • Adjust rules → edit the constants + `validate()` below.
+ *  • Add fields → add a key to `FieldErrors` and a check in `validate()`.
+ *  • Change limits → tweak MAX_NAME / MAX_EMAIL / MAX_MESSAGE / MIN_MESSAGE.
+ * Keeps the form honest before we hit Web3Forms: trims whitespace, requires
+ * name + message, validates email format, and enforces sane length caps so
+ * nobody can paste a novel or a script into the inputs. Server-side, Web3Forms
+ * also filters + rate-limits, but front-end checks catch typos instantly. */
+const MAX_NAME = 100;
+const MAX_EMAIL = 255;
+const MAX_MESSAGE = 2000;
+const MIN_MESSAGE = 10;
+// Simple, permissive email regex — good enough to catch typos like
+// "you@studio" or "you@@studio.com". The real source of truth is the mail
+// server on the receiving end.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type FieldErrors = Partial<Record<"name" | "email" | "message", string>>;
+
+function validate(form: { name: string; email: string; message: string }): FieldErrors {
+  const errors: FieldErrors = {};
+  const name = form.name.trim();
+  const email = form.email.trim();
+  const message = form.message.trim();
+
+  if (!name) errors.name = "Please enter your name.";
+  else if (name.length > MAX_NAME) errors.name = `Name must be under ${MAX_NAME} characters.`;
+
+  if (!email) errors.email = "Please enter your email.";
+  else if (email.length > MAX_EMAIL) errors.email = `Email must be under ${MAX_EMAIL} characters.`;
+  else if (!EMAIL_RE.test(email)) errors.email = "That doesn't look like a valid email.";
+
+  if (!message) errors.message = "Please describe your project.";
+  else if (message.length < MIN_MESSAGE) errors.message = `Message must be at least ${MIN_MESSAGE} characters.`;
+  else if (message.length > MAX_MESSAGE) errors.message = `Message must be under ${MAX_MESSAGE} characters.`;
+
+  return errors;
+}
+
 export function Contact() {
   const [form, setForm] = useState({ name: "", email: "", scope: "video", message: "" });
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Per-field validation errors — shown under each input when non-empty.
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Front-end validation gate — must pass before we spend a Web3Forms
+    // submission or show the network as "sending".
+    const errors = validate(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSending(true);
     try {
       const scopeLabel = SCOPES.find((s) => s.value === form.scope)?.label ?? form.scope;
       // Category tag lives at the start of the subject so Gmail filters can
       // match on "Subject contains: [NeverGalaxy · <category>]".
       const categoryTag = `[NeverGalaxy · ${scopeLabel}]`;
-      const subject = `${categoryTag} ${form.name} — new inquiry`;
+      const subject = `${categoryTag} ${form.name.trim()} — new inquiry`;
 
       // Structured, labeled body — Web3Forms will render each key/value pair
       // as a row in the delivered email, so the recipient sees clean sections
@@ -82,12 +143,12 @@ export function Contact() {
           access_key: WEB3FORMS_KEY,
           subject,
           from_name: `NeverGalaxy · ${scopeLabel}`,
-          replyto: form.email,
+          replyto: form.email.trim(),
           // Labeled sections rendered in the delivered email:
           "Category": scopeLabel,
-          "Name": form.name,
-          "Reply-To Email": form.email,
-          "Message": form.message,
+          "Name": form.name.trim(),
+          "Reply-To Email": form.email.trim(),
+          "Message": form.message.trim(),
           // Honeypot field is empty — Web3Forms auto-filters bot submissions.
           botcheck: "",
         }),
@@ -100,6 +161,13 @@ export function Contact() {
     } finally {
       setSending(false);
     }
+  }
+
+  // Small helper — updates a field and clears its inline error as the user types,
+  // so errors disappear the moment they start correcting the input.
+  function updateField<K extends "name" | "email" | "message">(key: K, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
   return (
@@ -117,24 +185,30 @@ export function Contact() {
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 gap-4 auto-rows-[minmax(120px,auto)]">
-          {/* Form — spans 4 columns */}
-          <form onSubmit={onSubmit} className="bento p-8 md:col-span-4 md:row-span-2 flex flex-col gap-4">
+          {/* Form — spans 4 columns. `noValidate` disables the browser's built-in
+           * tooltips so our own inline error messages are the single source of
+           * truth (avoids double-messaging the user). */}
+          <form onSubmit={onSubmit} noValidate className="bento p-8 md:col-span-4 md:row-span-2 flex flex-col gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Your name">
+              <Field label="Your name" error={fieldErrors.name}>
                 <input
                   required
+                  maxLength={MAX_NAME}
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  aria-invalid={!!fieldErrors.name}
                   className="input-cosmic"
                   placeholder="Ada Lovelace"
                 />
               </Field>
-              <Field label="Email">
+              <Field label="Email" error={fieldErrors.email}>
                 <input
                   required
                   type="email"
+                  maxLength={MAX_EMAIL}
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => updateField("email", e.target.value)}
+                  aria-invalid={!!fieldErrors.email}
                   className="input-cosmic"
                   placeholder="you@studio.com"
                 />
@@ -146,12 +220,14 @@ export function Contact() {
                 onChange={(v) => setForm({ ...form, scope: v })}
               />
             </Field>
-            <Field label="Project brief">
+            <Field label="Project brief" error={fieldErrors.message}>
               <textarea
                 required
                 rows={5}
+                maxLength={MAX_MESSAGE}
                 value={form.message}
-                onChange={(e) => setForm({ ...form, message: e.target.value })}
+                onChange={(e) => updateField("message", e.target.value)}
+                aria-invalid={!!fieldErrors.message}
                 className="input-cosmic resize-none"
                 placeholder="Format, deadline, references, links to raw footage…"
               />
@@ -173,16 +249,19 @@ export function Contact() {
             )}
           </form>
 
-          {/* Email tile */}
+          {/* Email tile — opens Gmail's web compose in a new tab (see MAIL_HREF
+           * comment at top for why we don't use `mailto:` here). */}
           <a
-            href={`mailto:${EMAIL}`}
+            href={MAIL_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
             className="bento p-7 md:col-span-2 flex flex-col justify-between group"
           >
             <span className="label-mono">Email</span>
             <div>
               <Mail className="h-6 w-6 mb-3" style={{ color: "color-mix(in oklab, var(--sec-a) 90%, white)" }} />
-              <div className="font-display uppercase text-xl break-all">{EMAIL}</div>
-              <p className="text-muted-foreground text-sm mt-2 group-hover:text-white transition-colors">Open in mail app →</p>
+              <div className="font-display uppercase text-base break-all">{EMAIL}</div>
+              <p className="text-muted-foreground text-sm mt-2 group-hover:text-white transition-colors">Open in Gmail →</p>
             </div>
           </a>
 
@@ -194,6 +273,8 @@ export function Contact() {
                 <a
                   key={label}
                   href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="btn-ghost-glow inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-mono uppercase tracking-widest"
                 >
                   <Icon className="h-3.5 w-3.5" /> {label}
@@ -225,6 +306,11 @@ export function Contact() {
             box-shadow: 0 0 0 4px color-mix(in oklab, var(--sec-a) 15%, transparent),
                         0 0 30px color-mix(in oklab, var(--sec-c) 30%, transparent);
           }
+          /* Invalid-input styling — red ring when aria-invalid is true. */
+          .input-cosmic[aria-invalid="true"] {
+            border-color: color-mix(in oklab, #ef4444 80%, transparent);
+            box-shadow: 0 0 0 3px color-mix(in oklab, #ef4444 25%, transparent);
+          }
           /* --- LIGHT MODE — solid white fields with dark ink ----------------- */
           .light .input-cosmic {
             background: #ffffff !important;
@@ -238,6 +324,10 @@ export function Contact() {
           .light .input-cosmic:focus {
             border-color: color-mix(in oklab, var(--sec-a) 90%, black) !important;
             box-shadow: 0 0 0 4px color-mix(in oklab, var(--sec-a) 22%, transparent) !important;
+          }
+          .light .input-cosmic[aria-invalid="true"] {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 3px color-mix(in oklab, #dc2626 25%, transparent) !important;
           }
 
           /* ------------------------------------------------------------------
@@ -351,11 +441,16 @@ export function Contact() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/* Field wrapper — renders label + child input + optional inline error.
+ * HOW TO MODIFY: change error styling in the <span> below. */
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="label-mono block mb-2">{label}</span>
       {children}
+      {error && (
+        <span className="block mt-1.5 text-xs text-red-400" role="alert">{error}</span>
+      )}
     </label>
   );
 }

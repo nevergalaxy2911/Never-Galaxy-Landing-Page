@@ -32,7 +32,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/public/icons/favicon.ico" },
+      { rel: "icon", type: "image/x-icon", href: "/icons/NeverGalaxy.ico" },
       { rel: "canonical", href: "https://nevergalaxy.vercel.app/" },
       // Fonts are now self-hosted via @fontsource in src/styles.css — no
       // Google Fonts <link> or drift-prone hard-coded preload. Kills the
