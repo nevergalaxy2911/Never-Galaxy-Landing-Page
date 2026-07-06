@@ -1,0 +1,74 @@
+/* =============================================================================
+ * NEVER GALAXY — GLOBAL STYLES (entry file)
+ * -----------------------------------------------------------------------------
+ * This file is a THIN ENTRY that composes the modular stylesheets under
+ * `src/styles/`. Rule of thumb for where to add a new style:
+ *
+ *   • Design tokens / color palettes / .sec-* / @layer base   → tokens.css
+ *   • Page-wide backdrop / body::before nebula / text-glow    → backdrop.css
+ *   • .bento surface + hotspot + border wedge + light mode    → cards.css
+ *   • Buttons, labels, chips, dividers, reveal, service-chip  → buttons.css
+ *   • Portfolio tab pills, tile surfaces, coming-soon chrome  → portfolio.css
+ *   • Small-screen / touch / reduced-perf overrides           → mobile.css
+ *
+ * Tailwind v4 note: `@import` rules MUST come first, before any other rule
+ * (per Lightning CSS). All @theme and @custom-variant declarations therefore
+ * live directly in this file, below the imports.
+ * =========================================================================== */
+
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/* Self-hosted fonts (A.6 render-blocking chain fix). Latin subsets only — the
+ * site is English-only, so shipping Devanagari/latin-ext would waste bytes.
+ * Fontsource CSS files set font-display: swap by default. */
+@import "@fontsource/archivo-black/latin-400.css";
+@import "@fontsource/hind/latin-300.css";
+@import "@fontsource/hind/latin-400.css";
+@import "@fontsource/hind/latin-500.css";
+@import "@fontsource/hind/latin-600.css";
+@import "@fontsource/hind/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+
+@import "./styles/tokens.css";
+@import "./styles/backdrop.css";
+@import "./styles/cards.css";
+@import "./styles/buttons.css";
+@import "./styles/portfolio.css";
+@import "./styles/mobile.css";
+
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-display: "Archivo Black", "Space Grotesk", sans-serif;
+  --font-body: "Hind", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}

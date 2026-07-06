@@ -1,0 +1,72 @@
+/* -----------------------------------------------------------------------------
+ * backdrop.css — page-wide cosmic gradient + single continuous nebula wash.
+ *
+ * There is ONE fixed pseudo behind the whole app (body::before). Because it
+ * is `fixed`, it can never produce a seam between sections — the gradient
+ * is the same pixels no matter which section is on screen.
+ * --------------------------------------------------------------------------- */
+
+@utility bg-cosmic-gradient {
+  background-image:
+    radial-gradient(ellipse at 18% 5%,  oklch(0.20 0.11 235 / 0.50), transparent 55%),
+    radial-gradient(ellipse at 82% 20%, oklch(0.18 0.13 215 / 0.40), transparent 60%),
+    radial-gradient(ellipse at 50% 90%, oklch(0.15 0.10 250 / 0.40), transparent 55%),
+    linear-gradient(180deg, oklch(0.022 0.010 240), oklch(0.010 0.006 240));
+}
+
+.light .bg-cosmic-gradient {
+  background-image:
+    radial-gradient(ellipse at 18% 5%,  oklch(0.88 0.10 25 / 0.55), transparent 60%),
+    radial-gradient(ellipse at 82% 20%, oklch(0.86 0.11 355 / 0.50), transparent 65%),
+    radial-gradient(ellipse at 50% 90%, oklch(0.90 0.08 45 / 0.50), transparent 60%),
+    linear-gradient(180deg, oklch(0.968 0.028 30), oklch(0.945 0.032 20));
+}
+
+/* nebula-wash is a no-op marker retained so section files don't need edits;
+ * the actual wash is the single body::before layer below. */
+@utility nebula-wash {
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 90% 55% at 15% 8%,   oklch(0.32 0.14 265 / 0.42), transparent 65%),
+    radial-gradient(ellipse 85% 50% at 88% 28%,  oklch(0.30 0.16 235 / 0.38), transparent 65%),
+    radial-gradient(ellipse 95% 55% at 12% 60%,  oklch(0.28 0.15 295 / 0.36), transparent 65%),
+    radial-gradient(ellipse 90% 55% at 90% 82%,  oklch(0.32 0.15 250 / 0.40), transparent 65%),
+    radial-gradient(ellipse 120% 65% at 50% 100%, oklch(0.22 0.12 275 / 0.35), transparent 70%),
+    linear-gradient(180deg, oklch(0.030 0.012 260), oklch(0.020 0.008 250) 50%, oklch(0.028 0.014 275));
+}
+
+.light body::before {
+  background:
+    radial-gradient(ellipse 90% 55% at 15% 8%,   oklch(0.86 0.10 30  / 0.55), transparent 65%),
+    radial-gradient(ellipse 85% 50% at 88% 28%,  oklch(0.84 0.11 15  / 0.50), transparent 65%),
+    radial-gradient(ellipse 95% 55% at 12% 60%,  oklch(0.88 0.09 45  / 0.50), transparent 65%),
+    radial-gradient(ellipse 90% 55% at 90% 82%,  oklch(0.84 0.10 355 / 0.50), transparent 65%),
+    radial-gradient(ellipse 120% 65% at 50% 100%, oklch(0.82 0.09 25  / 0.45), transparent 70%),
+    linear-gradient(180deg, oklch(0.965 0.028 30), oklch(0.955 0.032 20) 50%, oklch(0.962 0.030 40));
+}
+
+@utility text-gradient-nebula {
+  background-image: linear-gradient(120deg,
+    oklch(0.98 0.02 300) 0%,
+    color-mix(in oklab, var(--sec-a) 85%, white) 35%,
+    color-mix(in oklab, var(--sec-c) 80%, white) 70%,
+    oklch(0.98 0.02 300) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@utility text-glow {
+  text-shadow:
+    0 0 24px color-mix(in oklab, var(--sec-a) 55%, transparent),
+    0 0 55px color-mix(in oklab, var(--sec-b) 35%, transparent);
+}

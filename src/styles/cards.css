@@ -1,0 +1,244 @@
+/* -----------------------------------------------------------------------------
+ * cards.css — bento tile: surface, 3D tilt, cone border glow, hotspot.
+ *
+ * Runtime CSS vars written by src/hooks/useInteractiveCards.ts:
+ *   --mx / --my  : cursor position within the card (%)     — spotlight + hotspot
+ *   --tx / --ty  : tilt rotation on X / Y axes (deg)       — 3D perspective
+ *   --active     : 0..1 hover fade (spotlight + border glow)
+ *   --edge       : 0..1 proximity-to-edge, thresholded     — border glow gate
+ *   --angle      : cursor angle from center (0deg = top)   — border wedge center
+ *   --hue        : motion-driven hue shift on the border wedge (deg)
+ *
+ * Tunable properties (defaults on `.bento`, override per-card via inline
+ * style={{ "--glow-radius": "260px" }} etc.):
+ *   --glow-radius  : surface spotlight radius (px)
+ *   --hotspot      : bright white core radius (px)
+ *   --cone         : half-width of border wedge (% of border loop)
+ *   --cone-fade    : soft fade past the wedge (%)
+ *   --glow-power   : global multiplier on border-glow bloom (0..2)
+ * --------------------------------------------------------------------------- */
+
+@utility bento {
+  --mx: 50%;
+  --my: 50%;
+  --tx: 0deg;
+  --ty: 0deg;
+  --active: 0;
+  --edge: 0;
+  --angle: 0deg;
+
+  --glow-radius: 150px;
+  --hotspot: 44px;
+  --cone: 4%;
+  --cone-fade: 5%;
+  --glow-power: 1.15;
+
+  position: relative;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  background:
+    linear-gradient(160deg,
+      color-mix(in oklab, var(--sec-a) 14%, #0a0812) 0%,
+      #0a0812 55%,
+      color-mix(in oklab, var(--sec-c) 10%, #0a0812) 100%);
+  border: 1px solid color-mix(in oklab, var(--sec-a) 26%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 6%, transparent),
+    0 30px 80px -40px color-mix(in oklab, var(--sec-a) 55%, transparent);
+  transform-style: preserve-3d;
+  transform: perspective(1100px) rotateX(var(--tx)) rotateY(var(--ty));
+  transition:
+    transform 0.45s cubic-bezier(.2,.7,.2,1),
+    box-shadow 0.5s cubic-bezier(.2,.7,.2,1),
+    border-color 0.5s ease;
+  will-change: transform;
+}
+
+/* Surface spotlight — golden lamp; colors DO NOT hue-shift with cursor motion. */
+.bento::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      var(--hotspot) circle at var(--mx) var(--my),
+      rgba(255, 248, 220, 0.95) 0%,
+      rgba(255, 224, 150, 0.55) 30%,
+      rgba(255, 200, 110, 0.18) 55%,
+      transparent 75%
+    ),
+    radial-gradient(
+      var(--glow-radius) circle at var(--mx) var(--my),
+      rgba(255, 210, 130, 0.35) 0%,
+      rgba(255, 170, 90, 0.15) 25%,
+      rgba(255, 140, 70, 0.05) 50%,
+      transparent 70%
+    );
+  opacity: var(--active);
+  transition: opacity 0.4s cubic-bezier(.2,.7,.2,1);
+  z-index: 0;
+  mix-blend-mode: screen;
+  filter: blur(1px);
+}
+
+/* Cone border glow — tight wedge lit toward the cursor. Hue cycles via --hue. */
+.bento::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--angle) at 50% 50%,
+    rgba(255, 255, 255, 1) 0%,
+    color-mix(in oklab, white 80%, var(--sec-a)) 4%,
+    color-mix(in oklab, var(--sec-a) 90%, white) 10%,
+    color-mix(in oklab, var(--sec-b) 90%, transparent) 18%,
+    color-mix(in oklab, var(--sec-c) 80%, transparent) 26%,
+    color-mix(in oklab, oklch(0.75 0.22 200) 60%, transparent) 32%,
+    color-mix(in oklab, oklch(0.70 0.25 330) 55%, transparent) 36%,
+    transparent 40%,
+    transparent 60%,
+    color-mix(in oklab, oklch(0.70 0.25 330) 55%, transparent) 64%,
+    color-mix(in oklab, oklch(0.75 0.22 200) 60%, transparent) 68%,
+    color-mix(in oklab, var(--sec-c) 80%, transparent) 74%,
+    color-mix(in oklab, var(--sec-b) 90%, transparent) 82%,
+    color-mix(in oklab, var(--sec-a) 90%, white) 90%,
+    color-mix(in oklab, white 80%, var(--sec-a)) 96%,
+    rgba(255, 255, 255, 1) 100%
+  );
+  -webkit-mask:
+    conic-gradient(
+      from var(--angle) at 50% 50%,
+      #000 0%,
+      #000 var(--cone),
+      transparent calc(var(--cone) + var(--cone-fade)),
+      transparent calc(100% - var(--cone) - var(--cone-fade)),
+      #000 calc(100% - var(--cone)),
+      #000 100%
+    ),
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: source-in, xor;
+          mask-composite: intersect, exclude;
+  opacity: calc(var(--edge) * var(--active));
+  filter:
+    hue-rotate(var(--hue, 0deg))
+    saturate(calc(180% * var(--glow-power)))
+    brightness(calc(1.15 * var(--glow-power)))
+    drop-shadow(0 0 4px rgba(255, 250, 235, 0.95))
+    drop-shadow(0 0 14px color-mix(in oklab, var(--sec-a) 80%, transparent))
+    drop-shadow(0 0 28px color-mix(in oklab, var(--sec-c) 65%, transparent))
+    drop-shadow(0 0 44px color-mix(in oklab, oklch(0.72 0.24 200) 55%, transparent))
+    drop-shadow(0 0 60px color-mix(in oklab, oklch(0.68 0.26 330) 45%, transparent));
+  transition: opacity 0.3s cubic-bezier(.2,.7,.2,1);
+  z-index: 1;
+}
+
+/* Per-section GLOW BOOST — bump Portfolio ("Work") cards. */
+.sec-plum .bento {
+  --glow-radius: 220px;
+  --hotspot: 60px;
+  --glow-power: 1.8;
+}
+
+.bento > * { position: relative; z-index: 2; }
+
+.bento:hover {
+  border-color: color-mix(in oklab, var(--sec-a) 45%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 12%, transparent),
+    0 40px 100px -30px color-mix(in oklab, var(--sec-a) 65%, transparent),
+    0 0 60px color-mix(in oklab, var(--sec-c) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento { transform: none !important; transition: none; }
+  .bento::before, .bento::after { display: none; }
+}
+
+/* ------- LIGHT-MODE cards ------- */
+.light .bento {
+  /* SOLID white surface — no transparency bleed, no rainbow wash-through */
+  background: #ffffff;
+  border-color: color-mix(in oklab, var(--sec-a) 55%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 90%, transparent),
+    0 24px 70px -30px color-mix(in oklab, var(--sec-a) 55%, transparent);
+}
+
+/* Light-mode edge glow — high-contrast dark berry→rose→amber ring so the
+ * border wedge actually reads against the cream/white card surface. */
+.light .bento::after {
+  opacity: calc(var(--edge) * var(--active));
+  filter: hue-rotate(var(--hue, 0deg)) saturate(160%) brightness(0.95)
+          drop-shadow(0 0 10px color-mix(in oklab, oklch(0.35 0.20 340) 75%, transparent));
+  background: conic-gradient(
+    from var(--angle) at 50% 50%,
+    oklch(0.22 0.14 340) 0%,
+    oklch(0.32 0.22 340) 4%,
+    oklch(0.42 0.24 350) 10%,
+    oklch(0.52 0.24 20) 18%,
+    oklch(0.58 0.22 60) 26%,
+    color-mix(in oklab, oklch(0.45 0.24 280) 75%, transparent) 32%,
+    color-mix(in oklab, oklch(0.50 0.26 200) 70%, transparent) 36%,
+    transparent 40%,
+    transparent 60%,
+    color-mix(in oklab, oklch(0.50 0.26 200) 70%, transparent) 64%,
+    color-mix(in oklab, oklch(0.45 0.24 280) 75%, transparent) 68%,
+    oklch(0.58 0.22 60) 74%,
+    oklch(0.52 0.24 20) 82%,
+    oklch(0.42 0.24 350) 90%,
+    oklch(0.32 0.22 340) 96%,
+    oklch(0.22 0.14 340) 100%
+  );
+}
+
+.light .bento::before {
+  mix-blend-mode: multiply;
+  opacity: calc(var(--active) * 0.85);
+  background:
+    radial-gradient(
+      var(--hotspot) circle at var(--mx) var(--my),
+      rgba(230, 150, 40, 0.55) 0%,
+      rgba(220, 130, 30, 0.28) 35%,
+      transparent 70%
+    ),
+    radial-gradient(
+      var(--glow-radius) circle at var(--mx) var(--my),
+      rgba(220, 130, 30, 0.20) 0%,
+      rgba(200, 100, 40, 0.08) 40%,
+      transparent 70%
+    );
+}
+
+.light .bento,
+.light .bento * {
+  color: oklch(0.13 0.03 240);
+}
+
+.light .text-gradient-nebula {
+  background-image: linear-gradient(120deg,
+    oklch(0.18 0.10 245) 0%,
+    color-mix(in oklab, var(--sec-a) 95%, black) 35%,
+    color-mix(in oklab, var(--sec-c) 90%, black) 70%,
+    oklch(0.18 0.10 245) 100%);
+}
+.light .text-glow { text-shadow: none; }
+.light .label-mono,
+.light .label-chip { color: color-mix(in oklab, var(--sec-a) 90%, black); }
+
+/* Glowing halo behind a bento — apply on a child ::before if desired */
+@utility bento-halo {
+  position: absolute;
+  inset: -30% -20%;
+  background: radial-gradient(circle at 30% 30%,
+    color-mix(in oklab, var(--sec-a) 55%, transparent),
+    transparent 60%);
+  filter: blur(60px);
+  pointer-events: none;
+  opacity: 0.55;
+}

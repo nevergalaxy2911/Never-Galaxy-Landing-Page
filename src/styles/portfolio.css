@@ -1,0 +1,70 @@
+/* -----------------------------------------------------------------------------
+ * portfolio.css — tab switcher pills + tile surface + coming-soon chrome.
+ *
+ * HOW TO MODIFY:
+ * • Tab pill look → edit `.portfolio-tab` (base) + `[data-active="true"]`.
+ * • Light-mode contrast → edit `.light .portfolio-tab*` and coming-soon.
+ * • Mobile centering of the filter row lives in Portfolio.tsx (self-center
+ *   / self-end + mx-auto), not in CSS.
+ * --------------------------------------------------------------------------- */
+
+.portfolio-tabs {
+  border: 1px solid color-mix(in oklab, var(--sec-a) 35%, transparent);
+  background: color-mix(in oklab, black 55%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+.portfolio-tab {
+  color: color-mix(in oklab, white 78%, var(--sec-a));
+}
+.portfolio-tab:hover { color: white; background: color-mix(in oklab, var(--sec-a) 18%, transparent); }
+.portfolio-tab[data-active="true"] {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--sec-a) 95%, white),
+    color-mix(in oklab, var(--sec-c) 95%, white));
+  color: oklch(0.06 0.01 240);
+  box-shadow:
+    0 0 22px color-mix(in oklab, var(--sec-a) 55%, transparent),
+    inset 0 0 12px color-mix(in oklab, white 35%, transparent);
+}
+
+/* Light-mode: high-contrast dark chrome so pills read on white bg */
+.light .portfolio-tabs {
+  background: color-mix(in oklab, var(--sec-a) 12%, white);
+  border-color: color-mix(in oklab, var(--sec-a) 45%, transparent);
+}
+.light .portfolio-tab {
+  color: color-mix(in oklab, var(--sec-a) 80%, black);
+}
+.light .portfolio-tab:hover {
+  background: color-mix(in oklab, var(--sec-a) 20%, white);
+  color: color-mix(in oklab, var(--sec-a) 95%, black);
+}
+.light .portfolio-tab[data-active="true"] {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--sec-a) 92%, black),
+    color-mix(in oklab, var(--sec-b) 92%, black));
+  color: white;
+  box-shadow:
+    0 6px 20px -6px color-mix(in oklab, var(--sec-a) 70%, transparent),
+    inset 0 0 10px color-mix(in oklab, white 25%, transparent);
+}
+
+/* Video/graphic tile inner surface — themable */
+.tile-surface { background: color-mix(in oklab, black 45%, transparent); }
+.light .tile-surface { background: color-mix(in oklab, var(--sec-a) 8%, white); }
+
+.coming-soon-icon {
+  background: color-mix(in oklab, var(--sec-a) 25%, black);
+  color: white;
+  box-shadow: 0 0 30px color-mix(in oklab, var(--sec-a) 45%, transparent);
+}
+.light .coming-soon-icon {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--sec-a) 90%, white),
+    color-mix(in oklab, var(--sec-b) 90%, white));
+  color: white;
+  box-shadow: 0 8px 24px -6px color-mix(in oklab, var(--sec-a) 60%, transparent);
+}
+.light .coming-soon-surface {
+  background-color: color-mix(in oklab, var(--sec-a) 6%, white);
+}

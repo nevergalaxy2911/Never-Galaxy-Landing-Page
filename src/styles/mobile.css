@@ -1,0 +1,146 @@
+/* -----------------------------------------------------------------------------
+ * mobile.css — small-screen / touch-device performance mode.
+ *
+ * Kills cursor-only lighting, 3D tilt, wide drop-shadow blooms, and
+ * backdrop-filter cost on every device that can't afford them. Also
+ * degrades gracefully all the dropdowns / pills / FAQ animations that
+ * otherwise cause scroll jank on cheap Androids.
+ *
+ * HOW TO MODIFY:
+ * • Tune the phone-breakpoint gate → change `max-width: 1023px` here.
+ * • Re-enable a bloom for tablets specifically → add another @media rule.
+ * --------------------------------------------------------------------------- */
+
+@media (max-width: 1023px), (pointer: coarse), (hover: none) {
+  .bento,
+  .btn-glow,
+  .btn-ghost-glow,
+  .btn-tilt {
+    transform: none !important;
+    transform-style: flat;
+    will-change: auto;
+  }
+
+  .bento {
+    border-radius: var(--radius-xl);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 5%, transparent),
+      0 18px 42px -30px color-mix(in oklab, var(--sec-a) 45%, transparent);
+  }
+
+  .bento::before,
+  .bento::after,
+  .btn-glow::after,
+  .btn-ghost-glow::after {
+    display: none;
+  }
+
+  .bento:hover,
+  .btn-glow:hover,
+  .btn-ghost-glow:hover {
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 7%, transparent),
+      0 18px 42px -30px color-mix(in oklab, var(--sec-a) 45%, transparent);
+    filter: none;
+  }
+
+  /* MOBILE: buttons are FLAT — no glow, no bloom. */
+  .btn-glow {
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+    transition: background 0.15s ease, opacity 0.15s ease !important;
+  }
+  .btn-glow:hover, .btn-glow:active {
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .btn-ghost-glow {
+    box-shadow: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease !important;
+  }
+  .btn-ghost-glow:hover, .btn-ghost-glow:active {
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  /* Mobile: soften the single page-wide wash slightly. */
+  body::before {
+    filter: blur(6px) saturate(1.05);
+    opacity: 0.95;
+  }
+
+  .reveal {
+    transition-duration: 0.38s;
+    will-change: auto;
+  }
+
+  .label-chip {
+    letter-spacing: 0.18em;
+  }
+
+  /* MOBILE: kill EVERY backdrop-filter on the site — #1 cause of Android jank. */
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Currency dropdown: solid background, no menu-in scale, zero jank. */
+  .cur-menu {
+    background: color-mix(in oklab, black 92%, var(--sec-a)) !important;
+    animation: none !important;
+    box-shadow: 0 12px 30px -12px color-mix(in oklab, var(--sec-a) 55%, transparent);
+  }
+  .cur-option { transition: none !important; }
+  .light .cur-menu {
+    background: color-mix(in oklab, white 96%, var(--sec-a)) !important;
+  }
+
+  /* Portfolio filter pills: drop animated glow so tapping is instant. */
+  .portfolio-tab,
+  .portfolio-tab[data-active="true"] {
+    transition: none !important;
+    box-shadow: none !important;
+  }
+  .portfolio-tab[data-active="true"] {
+    background: color-mix(in oklab, var(--sec-a) 85%, white) !important;
+    color: oklch(0.06 0.01 240) !important;
+  }
+
+  /* MOBILE: contact form scope dropdown — solid, no animation, no bloom. */
+  .scope-menu {
+    animation: none !important;
+    box-shadow: 0 12px 24px -12px rgba(0,0,0,0.5) !important;
+    background: color-mix(in oklab, black 92%, var(--sec-a)) !important;
+  }
+  .light .scope-menu {
+    background: #fff !important;
+    box-shadow: 0 12px 24px -12px color-mix(in oklab, var(--sec-a) 45%, transparent) !important;
+  }
+  .scope-option { transition: none !important; }
+  .scope-trigger, .scope-trigger:hover, .scope-trigger[data-open="true"] {
+    box-shadow: none !important;
+    transition: border-color 0.15s ease !important;
+  }
+  .input-cosmic:focus {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--sec-a) 40%, transparent) !important;
+  }
+
+  /* MOBILE: FAQ — instant show/hide instead of grid-template-rows collapse. */
+  .faq-panel {
+    transition: none !important;
+  }
+
+  /* MOBILE: bigger, more legible text baselines */
+  body { font-size: 15px; line-height: 1.55; }
+  .label-chip { font-size: 0.68rem; }
+  .label-mono { font-size: 0.7rem; }
+}
+
+@media (max-width: 379px) {
+  .label-chip {
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+  }
+}

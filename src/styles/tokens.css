@@ -1,0 +1,111 @@
+/* -----------------------------------------------------------------------------
+ * tokens.css — design tokens + per-section palettes + base element styling.
+ *
+ * HOW TO MODIFY:
+ * • Change the deep-black base → tweak `--background` in :root.
+ * • Add / adjust a section palette → edit the `.sec-*` blocks below.
+ *   Each section exposes 3 nebula colors as CSS vars: --sec-a, --sec-b, --sec-c
+ *   All glows, borders, gradients, and glass panels inside that section
+ *   automatically pick them up.
+ * • Light-mode overrides live in `.light { ... }` and `.light .sec-*`.
+ * --------------------------------------------------------------------------- */
+
+:root {
+  --radius: 1rem;
+
+  /* Base: BLACKISH + SKY BLUE cosmic — deep near-black surfaces, sky-blue accents */
+  --background: oklch(0.018 0.008 240);
+  --foreground: oklch(0.97 0.015 230);
+  --card: oklch(0.055 0.020 235);
+  --card-foreground: oklch(0.97 0.015 230);
+  --popover: oklch(0.055 0.020 235);
+  --popover-foreground: oklch(0.97 0.015 230);
+  --primary: oklch(0.78 0.15 230);
+  --primary-foreground: oklch(0.04 0.01 240);
+  --secondary: oklch(0.10 0.030 235);
+  --secondary-foreground: oklch(0.97 0.015 230);
+  --muted: oklch(0.09 0.025 235);
+  --muted-foreground: oklch(0.72 0.04 225);
+  --accent: oklch(0.80 0.14 215);
+  --accent-foreground: oklch(0.04 0.01 240);
+  --destructive: oklch(0.60 0.24 25);
+  --destructive-foreground: oklch(0.97 0.005 285);
+  --border: oklch(0.55 0.10 230 / 30%);
+  --input: oklch(0.10 0.030 235);
+  --ring: oklch(0.78 0.15 230);
+
+  /* Default nebula colors — sky-blue family */
+  --sec-a: oklch(0.78 0.15 230);
+  --sec-b: oklch(0.72 0.14 210);
+  --sec-c: oklch(0.82 0.12 245);
+}
+
+/* -------- LIGHT THEME OVERRIDES — CANDY / CREAM-PINK EDITION --------
+ * Warm cream base with rose + berry accents. Deep espresso ink for AAA
+ * contrast on the cream. */
+.light {
+  --background: oklch(0.965 0.028 30);
+  --foreground: oklch(0.20 0.05 25);
+  --card: oklch(0.99 0.010 30);
+  --card-foreground: oklch(0.18 0.05 25);
+  --popover: oklch(0.99 0.010 30);
+  --popover-foreground: oklch(0.18 0.05 25);
+  --primary: oklch(0.58 0.20 15);
+  --primary-foreground: oklch(0.99 0.005 30);
+  --secondary: oklch(0.93 0.035 25);
+  --secondary-foreground: oklch(0.20 0.05 25);
+  --muted: oklch(0.94 0.030 30);
+  --muted-foreground: oklch(0.35 0.06 25);
+  --accent: oklch(0.68 0.20 355);
+  --accent-foreground: oklch(0.99 0.005 30);
+  --border: oklch(0.35 0.10 20 / 22%);
+  --input: oklch(0.94 0.030 30);
+  --ring: oklch(0.58 0.20 15);
+
+  --sec-a: oklch(0.62 0.20 15);
+  --sec-b: oklch(0.58 0.22 355);
+  --sec-c: oklch(0.72 0.18 45);
+}
+
+/* -------- Per-section palettes (dark) — SKY-BLUE family, hue 195–260. */
+.sec-cyan     { --sec-a: oklch(0.80 0.14 210); --sec-b: oklch(0.72 0.13 225); --sec-c: oklch(0.85 0.11 195); }
+.sec-violet   { --sec-a: oklch(0.74 0.14 245); --sec-b: oklch(0.66 0.15 255); --sec-c: oklch(0.82 0.12 230); }
+.sec-magenta  { --sec-a: oklch(0.76 0.14 235); --sec-b: oklch(0.68 0.15 250); --sec-c: oklch(0.84 0.12 220); }
+.sec-teal     { --sec-a: oklch(0.78 0.13 200); --sec-b: oklch(0.70 0.14 220); --sec-c: oklch(0.84 0.11 190); }
+.sec-indigo   { --sec-a: oklch(0.70 0.16 250); --sec-b: oklch(0.62 0.17 260); --sec-c: oklch(0.80 0.13 235); }
+.sec-plum     { --sec-a: oklch(0.72 0.15 240); --sec-b: oklch(0.64 0.16 255); --sec-c: oklch(0.82 0.12 225); }
+.sec-aurora   { --sec-a: oklch(0.76 0.14 220); --sec-b: oklch(0.70 0.14 240); --sec-c: oklch(0.82 0.12 200); }
+.sec-nova     { --sec-a: oklch(0.78 0.14 215); --sec-b: oklch(0.70 0.15 235); --sec-c: oklch(0.84 0.12 245); }
+
+/* Light-mode section overrides — CANDY palette (peach, rose, pink, coral). */
+.light .sec-cyan     { --sec-a: oklch(0.68 0.19 40);  --sec-b: oklch(0.62 0.20 25);  --sec-c: oklch(0.78 0.14 55); }
+.light .sec-violet   { --sec-a: oklch(0.58 0.22 10);  --sec-b: oklch(0.52 0.24 355); --sec-c: oklch(0.68 0.19 25); }
+.light .sec-magenta  { --sec-a: oklch(0.60 0.22 350); --sec-b: oklch(0.54 0.24 340); --sec-c: oklch(0.70 0.19 5);  }
+.light .sec-teal     { --sec-a: oklch(0.66 0.19 30);  --sec-b: oklch(0.60 0.20 15);  --sec-c: oklch(0.76 0.14 45); }
+.light .sec-indigo   { --sec-a: oklch(0.56 0.22 5);   --sec-b: oklch(0.50 0.24 350); --sec-c: oklch(0.66 0.20 20); }
+.light .sec-plum     { --sec-a: oklch(0.58 0.22 340); --sec-b: oklch(0.52 0.24 350); --sec-c: oklch(0.68 0.19 15); }
+.light .sec-aurora   { --sec-a: oklch(0.66 0.19 55);  --sec-b: oklch(0.60 0.20 30);  --sec-c: oklch(0.78 0.14 20); }
+.light .sec-nova     { --sec-a: oklch(0.62 0.20 15);  --sec-b: oklch(0.56 0.22 350); --sec-c: oklch(0.72 0.18 40); }
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-body);
+    overflow-x: hidden;
+  }
+  /* Archivo Black is heavy by design; line-height 1.05 keeps descenders
+   * from clipping inside gradient bg-clip text. Do not drop below 1.0. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+    line-height: 1.05;
+    font-weight: 400;
+  }
+  .text-gradient-nebula {
+    padding-bottom: 0.08em;
+    display: inline-block;
+  }
+  body { font-weight: 400; }
+}

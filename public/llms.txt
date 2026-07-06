@@ -1,0 +1,7 @@
+# Never Galaxy
+
+> Cosmic-grade creative studio for cinematic video editing, motion graphics, and high-converting thumbnail design. Custom web design launching soon.
+
+## Pages
+
+- [Home](/): Studio overview, services, portfolio, process, pricing, FAQ, and contact.
