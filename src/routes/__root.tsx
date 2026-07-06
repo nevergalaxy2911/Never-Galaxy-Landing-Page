@@ -2,6 +2,12 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import appCss from "../styles.css?url";
+// H1 display font — preloaded so the LCP hero heading paints in Archivo Black
+// on first frame instead of waiting for the CSS @import chain to resolve the
+// woff2. Vite resolves this to the same hashed asset URL that the @fontsource
+// CSS references, so the browser sees a cache hit (no double download).
+import archivoBlackWoff2 from "@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2?url";
+
 
 /* -----------------------------------------------------------------------------
  * ROOT ROUTE — html shell + fonts + default meta.
@@ -34,6 +40,17 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/x-icon", href: "/icons/NeverGalaxy.ico" },
       { rel: "canonical", href: "https://nevergalaxy.vercel.app/" },
+      // Preload the H1 display font — cuts LCP element render delay because
+      // the hero heading no longer waits for the styles.css @import chain to
+      // discover this woff2. crossOrigin is required for font preloads even
+      // when same-origin, or the browser fetches twice.
+      {
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: archivoBlackWoff2,
+        crossOrigin: "anonymous",
+      },
       // Fonts are now self-hosted via @fontsource in src/styles.css — no
       // Google Fonts <link> or drift-prone hard-coded preload. Kills the
       // render-blocking network chain (A.6) and the 404'ing preload (A.2).
@@ -87,13 +104,20 @@ function RootDocument({ children }: { children: ReactNode }) {
     // this flag React logs a noisy hydration warning on every load, which also
     // costs a full client re-render of the root subtree. Silencing it fixes both.
     <html lang="en" className="light" suppressHydrationWarning>
-      <head>
+      {/* suppressHydrationWarning on <head> and the boot <script>: Lovable's
+          dev-only Vite plugin injects `data-tsd-source` attributes with
+          line-number values that differ between SSR and client renders (the
+          plugin runs at different points in each pipeline). It's dev
+          noise, not a real mismatch — silencing it avoids a full root
+          re-hydrate on every preview load. */}
+      <head suppressHydrationWarning>
         <HeadContent />
         {/* Pre-hydration theme boot — reads localStorage and applies the
             `.light`/`.dark` class BEFORE first paint, so users never see a
             wrong-theme flash. Default = LIGHT. Keep the key in sync with
             ThemeToggle.tsx (key: ng-theme). */}
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('ng-theme')||'light';var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
           }}
