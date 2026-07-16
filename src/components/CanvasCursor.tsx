@@ -1,4 +1,5 @@
 import useCanvasCursor from "@/hooks/use-canvasCursor";
+import { useCursorTrail } from "@/hooks/useCursorTrail";
 import { useEffect, useState } from "react";
 
 function canUseDesktopCursor() {
@@ -36,6 +37,7 @@ function DesktopCursorCanvas() {
  */
 export function CanvasCursor() {
   const [enabled, setEnabled] = useState(false);
+  const [trailPref] = useCursorTrail();
 
   useEffect(() => {
     const update = () => setEnabled(canUseDesktopCursor());
@@ -60,7 +62,8 @@ export function CanvasCursor() {
     };
   }, []);
 
-  if (!enabled) return null;
+  // User-facing toggle: even on capable desktops, respect the saved preference.
+  if (!enabled || !trailPref) return null;
   return <DesktopCursorCanvas />;
 }
 

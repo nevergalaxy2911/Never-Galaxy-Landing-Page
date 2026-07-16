@@ -1,6 +1,7 @@
 import { Menu, Orbit, X } from "lucide-react";
 import { useEffect, useState, type MouseEvent } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CursorTrailToggle } from "@/components/CursorTrailToggle";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 
 // Nav shortcut list — edit here to add/remove nav items.
@@ -147,6 +148,7 @@ export function Nav() {
               nav on scroll down and reappears on scroll up. */}
           <CurrencySwitcher />
           <ThemeToggle />
+          <CursorTrailToggle />
           <a
             href="#contact"
             onClick={(e) => handleNavClick(e, "#contact")}

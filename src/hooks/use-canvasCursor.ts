@@ -186,8 +186,8 @@ const useCanvasCursor = () => {
       // ---------------------------------------------------------------
       debug: true,
       friction: 0.5,
-      trails: 12,   // was 20 — leaner ribbon
-      size: 18,     // was 50 — much SHORTER trail
+      trails: 10,   // was 12 — leaner ribbon
+      size: 10,     // was 18 — even SHORTER tail
       dampening: 0.25,
       tension: 0.98,
     };
