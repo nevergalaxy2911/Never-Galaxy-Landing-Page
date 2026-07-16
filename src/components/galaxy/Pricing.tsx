@@ -1,71 +1,18 @@
 import { Check } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import { useCurrency } from "@/hooks/useCurrency";
+import { PRICING } from "@/config/site";
 
 /* -----------------------------------------------------------------------------
  * PRICING — three sample plans in bento tiles.
  * HOW TO MODIFY:
+ * • Plan data (name, price, features, highlighted flag) lives in
+ *   `src/config/site.ts` under the `PRICING` export. Edit there, not here.
  * • Prices are authored in INR (base currency). The header CurrencySwitcher
  *   converts them live via useCurrency().format(inr).
- * • Set `priceInr: null` for "Custom" tier (renders `customPrice` label).
- * • The `highlighted` plan gets a stronger glow and a "Most popular" ribbon.
- * • Recolor → change `sec-nova` on the <section>.
+ * • Recolor → change `sec-nova` on the <section> below.
  * --------------------------------------------------------------------------- */
-type Plan = {
-  name: string;
-  priceInr: number | null;
-  customPrice?: string;
-  pricePrefix?: string; // e.g. "From "
-  cadence: string;
-  body: string;
-  features: string[];
-  highlighted: boolean;
-};
-
-const PLANS: Plan[] = [
-  {
-    name: "Single project",
-    priceInr: 24999,
-    pricePrefix: "From ",
-    cadence: "per deliverable",
-    body: "Perfect for a one-off video, thumbnail set, or motion piece.",
-    features: [
-      "One deliverable",
-      "48h first draft",
-      "Unlimited revisions",
-      "1080p / 4K masters",
-    ],
-    highlighted: false,
-  },
-  {
-    name: "Creator monthly",
-    priceInr: 124999,
-    pricePrefix: "From ",
-    cadence: "/ month",
-    body: "For creators publishing weekly. Predictable output, fixed rate.",
-    features: [
-      "4 long-forms / month",
-      "8 thumbnails / month",
-      "Shorts add-on available",
-      "Priority queue",
-    ],
-    highlighted: true,
-  },
-  {
-    name: "Brand studio",
-    priceInr: null,
-    customPrice: "Custom",
-    cadence: "quote in 24h",
-    body: "For brands and businesses — bespoke scope with a dedicated team.",
-    features: [
-      "Discovery + brief",
-      "Motion identity system",
-      "Ongoing content engine",
-      "Direct Slack line",
-    ],
-    highlighted: false,
-  },
-];
+const PLANS = PRICING;
 
 export function Pricing() {
   const head = useReveal<HTMLDivElement>(0);

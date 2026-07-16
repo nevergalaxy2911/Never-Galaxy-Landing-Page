@@ -38,7 +38,8 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/x-icon", href: "/icons/NeverGalaxy.ico" },
+      { rel: "icon", type: "image/png", href: "/icons/NeverGalaxy.png" },
+      { rel: "apple-touch-icon", href: "/icons/NeverGalaxy.png" },
       { rel: "canonical", href: "https://nevergalaxy.vercel.app/" },
       // Preload the H1 display font — cuts LCP element render delay because
       // the hero heading no longer waits for the styles.css @import chain to

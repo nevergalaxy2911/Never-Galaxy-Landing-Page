@@ -2,31 +2,29 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Mail, Send, Instagram, Youtube, Globe, ChevronDown, Video, Sparkles, Image as ImageIcon, Globe2, Layers, Check } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
+import { CONTACT, SOCIALS, MAIL_HREF } from "@/config/site";
 
 /* -----------------------------------------------------------------------------
  * CONTACT — bento split: form + info tiles.
  * HOW TO MODIFY:
+ * • Change contact email, Web3Forms key, or any social URL →
+ *     edit `src/config/site.ts` (CONTACT / SOCIALS blocks). No changes here.
  * • Wire the form → send `form` state to your backend or a form service.
- * • Change contact email → update EMAIL constant.
- * • Update socials → edit SOCIALS array (icon + href).
  * • Recolor → change `sec-cyan` on the <section>.
  * --------------------------------------------------------------------------- */
-const EMAIL = "nevergalaxy2911@gmail.com";
+const EMAIL = CONTACT.email;
 
 /* Gmail web-compose URL — opens Gmail directly in a new tab with the To field
- * pre-filled. HOW TO MODIFY: this is used by the "Email" tile because raw
- * `mailto:` links do nothing on machines without a registered mail handler
- * (common on Windows/Chrome and most public/kiosk browsers). Gmail's compose
- * endpoint always works in the browser regardless of OS mail settings.
- *   Docs: https://support.google.com/mail/answer/2739
- *   Fallback: users not signed in to Gmail get Gmail's sign-in screen; if you
- *   need OS-mail-app behavior instead, swap `MAIL_HREF` back to `mailto:${EMAIL}`. */
-const MAIL_HREF = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(EMAIL)}`;
+ * pre-filled. Sourced from `src/config/site.ts` (MAIL_HREF) so the email is
+ * only defined in ONE place. Kept exported here as a local re-name so the
+ * rest of the file reads unchanged. */
 
-const SOCIALS = [
-  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/nevergalaxystudio/" },
-  { icon: Youtube,   label: "YouTube",   href: "#" },
-  { icon: Globe,     label: "Behance",   href: "#" },
+/* Socials list — icon + label live here, href comes from `src/config/site.ts`.
+ * An empty href renders the link as a disabled "coming soon" pill. */
+const SOCIALS_UI = [
+  { icon: Instagram, label: "Instagram", href: SOCIALS.instagram },
+  { icon: Youtube,   label: "YouTube",   href: SOCIALS.youtube },
+  { icon: Globe,     label: "Behance",   href: SOCIALS.behance },
 ];
 
 /* Scope options for the custom dropdown. HOW TO MODIFY: add/remove entries;
@@ -62,7 +60,7 @@ const SCOPES = [
  *   The email body also lists Category, Name, Reply-To email, and Message
  *   as clearly labeled sections.
  * ------------------------------------------------------------------------- */
-const WEB3FORMS_KEY = "1a63413d-4aa7-4814-8f44-50ae980d17c7";
+const WEB3FORMS_KEY = CONTACT.web3FormsKey;
 
 /* ---------------------------------------------------------------------------
  * CLIENT-SIDE VALIDATION
@@ -269,7 +267,7 @@ export function Contact() {
           <div className="bento p-7 md:col-span-2 flex flex-col justify-between">
             <span className="label-mono">Follow</span>
             <div className="flex gap-2 flex-wrap mt-4">
-              {SOCIALS.map(({ icon: Icon, label, href }) => (
+              {SOCIALS_UI.filter((s) => s.href).map(({ icon: Icon, label, href }) => (
                 <a
                   key={label}
                   href={href}
