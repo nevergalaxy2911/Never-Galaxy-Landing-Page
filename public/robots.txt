@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /unlock
+Disallow: /admin
+Disallow: /api-panel
 
 Sitemap: https://nevergalaxy.vercel.app/sitemap.xml

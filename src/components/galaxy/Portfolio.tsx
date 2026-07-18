@@ -1,47 +1,71 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Play, ImageIcon, Sparkles } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import type { VideoItem, GraphicItem } from "@/types/portfolio";
+import type { PublicPortfolioItem } from "@/lib/public-data.functions";
 
 /* -----------------------------------------------------------------------------
  * PORTFOLIO — bento gallery split into tabs (Video / Motion / Graphics).
- * HOW TO MODIFY:
- * • Add a video → push `{ id, title, youtubeId, span }` into VIDEO_WORK.
- *     The YouTube ID is the string after `v=` in a YouTube URL.
- * • Add an image → push `{ id, title, src, span }` into GRAPHIC_WORK.
- *     `src` can be a Lovable-hosted image or any absolute URL.
- * • Placeholder tiles labelled "Coming soon" are shown when a slot has no media.
- * • Recolor the section → change `sec-plum` on the <section> wrapper.
- * • Item shape lives in `src/types/portfolio.ts` — edit there to add new fields.
+ *
+ * DATA SOURCE (priority):
+ *   1. `liveItems` prop — fed by the route loader from Supabase
+ *      `portfolio_items` via getPublicPortfolio(). Rows are grouped by
+ *      `category` ("video" | "motion" | "graphic") and mapped into the
+ *      tile shape below. Spans cycle through a preset pattern so grids
+ *      always fill cleanly regardless of how many rows exist.
+ *   2. Static fallbacks (VIDEO_WORK / MOTION_WORK / GRAPHIC_WORK) when the
+ *      DB is empty for that category. Edit those arrays to change defaults.
+ *
+ * HOW TO ADD WORK (LIVE, no code):
+ *   • /admin → Portfolio → add row with category video|motion|graphic,
+ *     title, url (YouTube URL for videos; image URL for graphics),
+ *     thumb_url (optional graphic image), published=true. Save.
  * --------------------------------------------------------------------------- */
 
 type Tab = "video" | "motion" | "graphic";
 
+const VIDEO_SPANS = [
+  "md:col-span-4 md:row-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-3",
+  "md:col-span-3",
+];
+const MOTION_SPANS = [
+  "md:col-span-3 md:row-span-2",
+  "md:col-span-3",
+  "md:col-span-3",
+  "md:col-span-3",
+];
+const GRAPHIC_SPANS = [
+  "md:col-span-4 md:row-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-3",
+  "md:col-span-3",
+];
+
 const VIDEO_WORK: VideoItem[] = [
-  { id: "v1", title: "Long-form YouTube edit",  kind: "Long-form · YouTube", span: "md:col-span-4 md:row-span-2" },
-  { id: "v2", title: "Brand film — 60s",         kind: "Brand · 60s",         span: "md:col-span-2" },
-  { id: "v3", title: "Short-form reel",          kind: "Short-form · 45s",    span: "md:col-span-2" },
-  { id: "v4", title: "Podcast highlight cut",    kind: "Podcast · 8m",        span: "md:col-span-3" },
-  { id: "v5", title: "Product launch film",      kind: "Launch · 90s",        span: "md:col-span-3" },
+  { id: "v1", title: "Long-form YouTube edit",  kind: "Long-form · YouTube", span: VIDEO_SPANS[0] },
+  { id: "v2", title: "Brand film — 60s",         kind: "Brand · 60s",         span: VIDEO_SPANS[1] },
+  { id: "v3", title: "Short-form reel",          kind: "Short-form · 45s",    span: VIDEO_SPANS[2] },
+  { id: "v4", title: "Podcast highlight cut",    kind: "Podcast · 8m",        span: VIDEO_SPANS[3] },
+  { id: "v5", title: "Product launch film",      kind: "Launch · 90s",        span: VIDEO_SPANS[4] },
 ];
 
 const MOTION_WORK: VideoItem[] = [
-  { id: "m1", title: "Kinetic type sequence",    kind: "Motion · 20s",  span: "md:col-span-3 md:row-span-2" },
-  { id: "m2", title: "Logo sting",               kind: "Motion · 6s",   span: "md:col-span-3" },
-  { id: "m3", title: "Animated explainer",       kind: "Motion · 45s",  span: "md:col-span-3" },
-  { id: "m4", title: "UI reveal animation",      kind: "Motion · 12s",  span: "md:col-span-3" },
+  { id: "m1", title: "Kinetic type sequence",    kind: "Motion · 20s",  span: MOTION_SPANS[0] },
+  { id: "m2", title: "Logo sting",               kind: "Motion · 6s",   span: MOTION_SPANS[1] },
+  { id: "m3", title: "Animated explainer",       kind: "Motion · 45s",  span: MOTION_SPANS[2] },
+  { id: "m4", title: "UI reveal animation",      kind: "Motion · 12s",  span: MOTION_SPANS[3] },
 ];
 
-/* Graphics grid — spans chosen so every row fills all 6 columns cleanly.
-   Row 1: g1(4, rowspan 2) + g2(2) = 6
-   Row 2: g1 (cont.)        + g3(2) + g4(? see below) — see note.
-   To add tiles, keep each row's total col-span at 6 to avoid gaps. */
 const GRAPHIC_WORK: GraphicItem[] = [
-  { id: "g1", title: "YouTube thumbnail set",    kind: "YouTube · Series",   span: "md:col-span-4 md:row-span-2" },
-  { id: "g2", title: "Print poster",             kind: "Print · A2",         span: "md:col-span-2" },
-  { id: "g3", title: "Podcast cover art",        kind: "Podcast cover",      span: "md:col-span-2" },
-  { id: "g4", title: "Social carousel pack",     kind: "IG · Carousel",      span: "md:col-span-3" },
-  { id: "g5", title: "Brand mark",               kind: "Identity",           span: "md:col-span-3" },
+  { id: "g1", title: "YouTube thumbnail set",    kind: "YouTube · Series",   span: GRAPHIC_SPANS[0] },
+  { id: "g2", title: "Print poster",             kind: "Print · A2",         span: GRAPHIC_SPANS[1] },
+  { id: "g3", title: "Podcast cover art",        kind: "Podcast cover",      span: GRAPHIC_SPANS[2] },
+  { id: "g4", title: "Social carousel pack",     kind: "IG · Carousel",      span: GRAPHIC_SPANS[3] },
+  { id: "g5", title: "Brand mark",               kind: "Identity",           span: GRAPHIC_SPANS[4] },
 ];
 
 const TABS: { id: Tab; label: string; icon: typeof Play }[] = [
@@ -50,10 +74,55 @@ const TABS: { id: Tab; label: string; icon: typeof Play }[] = [
   { id: "graphic", label: "Graphics",        icon: ImageIcon },
 ];
 
-export function Portfolio() {
+function pickSpan(cycle: string[], i: number): string {
+  return cycle[i % cycle.length];
+}
+
+export function Portfolio({ liveItems }: { liveItems?: PublicPortfolioItem[] }) {
   const [tab, setTab] = useState<Tab>("video");
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
+
+  // Map DB rows → tile shapes. Fall back to static arrays per category.
+  const { videos, motions, graphics } = useMemo(() => {
+    if (!liveItems || liveItems.length === 0) {
+      return { videos: VIDEO_WORK, motions: MOTION_WORK, graphics: GRAPHIC_WORK };
+    }
+    const grouped: Record<string, PublicPortfolioItem[]> = { video: [], motion: [], graphic: [] };
+    for (const it of liveItems) {
+      if (grouped[it.category]) grouped[it.category].push(it);
+    }
+    const videos: VideoItem[] = grouped.video.length
+      ? grouped.video.map((it, i) => ({
+          id: it.id,
+          title: it.title,
+          kind: it.subtitle || "Video",
+          youtubeId: it.youtubeId,
+          span: pickSpan(VIDEO_SPANS, i),
+        }))
+      : VIDEO_WORK;
+    const motions: VideoItem[] = grouped.motion.length
+      ? grouped.motion.map((it, i) => ({
+          id: it.id,
+          title: it.title,
+          kind: it.subtitle || "Motion",
+          youtubeId: it.youtubeId,
+          span: pickSpan(MOTION_SPANS, i),
+        }))
+      : MOTION_WORK;
+    const graphics: GraphicItem[] = grouped.graphic.length
+      ? grouped.graphic.map((it, i) => ({
+          id: it.id,
+          title: it.title,
+          kind: it.subtitle || "Graphic",
+          src: it.thumbUrl || it.url,
+          span: pickSpan(GRAPHIC_SPANS, i),
+        }))
+      : GRAPHIC_WORK;
+    return { videos, motions, graphics };
+  }, [liveItems]);
+
+
 
   return (
     <section id="portfolio" className="sec-plum nebula-wash relative py-28">
@@ -91,9 +160,9 @@ export function Portfolio() {
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">
-          {tab === "video" && VIDEO_WORK.map((v) => <VideoTile key={v.id} item={v} />)}
-          {tab === "motion" && MOTION_WORK.map((v) => <VideoTile key={v.id} item={v} />)}
-          {tab === "graphic" && GRAPHIC_WORK.map((g) => <GraphicTile key={g.id} item={g} />)}
+          {tab === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
+          {tab === "motion" && motions.map((v) => <VideoTile key={v.id} item={v} />)}
+          {tab === "graphic" && graphics.map((g) => <GraphicTile key={g.id} item={g} />)}
         </div>
       </div>
     </section>

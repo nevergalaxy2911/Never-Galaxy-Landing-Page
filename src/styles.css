@@ -72,3 +72,55 @@
   --font-body: "Hind", "Inter", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
+
+/* -----------------------------------------------------------------------------
+ * ADMIN CONSOLE UTILITIES — used by /admin, /api-panel, /unlock.
+ * These do NOT leak into the public site (only referenced by _gated routes).
+ * --------------------------------------------------------------------------- */
+@utility input {
+  width: 100%;
+  border-radius: 0.5rem;
+  background: rgb(0 0 0 / 0.4);
+  border: 1px solid rgb(255 255 255 / 0.15);
+  padding: 0.5rem 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+}
+@utility input {
+  &:focus { outline: none; border-color: rgb(217 70 239); }
+}
+@utility btn-primary {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background: rgb(192 38 211);
+  color: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+@utility btn-primary {
+  &:hover { background: rgb(217 70 239); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+@utility btn-secondary {
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.15);
+  color: white;
+  font-size: 0.8rem;
+}
+@utility btn-secondary {
+  &:hover { background: rgb(255 255 255 / 0.15); }
+}
+@utility btn-danger {
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  background: rgb(239 68 68 / 0.15);
+  border: 1px solid rgb(239 68 68 / 0.4);
+  color: rgb(252 165 165);
+  font-size: 0.8rem;
+}
+@utility btn-danger {
+  &:hover { background: rgb(239 68 68 / 0.3); }
+}

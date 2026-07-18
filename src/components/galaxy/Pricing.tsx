@@ -1,23 +1,24 @@
 import { Check } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import { useCurrency } from "@/hooks/useCurrency";
-import { PRICING } from "@/config/site";
+import { PRICING, type PricingPlan } from "@/config/site";
 
 /* -----------------------------------------------------------------------------
- * PRICING — three sample plans in bento tiles.
- * HOW TO MODIFY:
- * • Plan data (name, price, features, highlighted flag) lives in
- *   `src/config/site.ts` under the `PRICING` export. Edit there, not here.
- * • Prices are authored in INR (base currency). The header CurrencySwitcher
- *   converts them live via useCurrency().format(inr).
- * • Recolor → change `sec-nova` on the <section> below.
+ * PRICING — bento tiles.
+ * DATA SOURCE (priority):
+ *   1. `plans` prop — fed by the route loader from Supabase `pricing_plans`
+ *      via getPublicPricing(). Lets /admin edits appear live on the site.
+ *   2. Static fallback in `src/config/site.ts` (PRICING export). Used when
+ *      Supabase is unreachable, unconfigured, or the table has no published rows.
+ * Edit fallback copy in src/config/site.ts; edit live copy in /admin.
  * --------------------------------------------------------------------------- */
-const PLANS = PRICING;
-
-export function Pricing() {
+export function Pricing({ plans }: { plans?: PricingPlan[] }) {
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
   const { format } = useCurrency();
+  const PLANS = plans && plans.length > 0 ? plans : PRICING;
+
+
 
 
   return (
