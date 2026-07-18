@@ -1,14 +1,14 @@
 /* ============================================================================
- * /api/public/adblock-diagnostics — hidden diagnostics endpoint
+ * /api/public/adblock-diagnostics, hidden diagnostics endpoint
  * ----------------------------------------------------------------------------
  * GET  → returns the current policy (thresholds, probes, override precedence,
  *        version). Useful for support: "which classifier decided you were
- *        blocked?" — you can inspect it without opening devtools.
+ *        blocked?", you can inspect it without opening devtools.
  *
  * POST → accepts a JSON body of client probe outcomes matching DetectionSignals
  *        and returns the exact classification the server would apply. This is
  *        what "reliable server-side detection with quorum" looks like when the
- *        actual probes must run in the visitor's browser (they must — an ad
+ *        actual probes must run in the visitor's browser (they must, an ad
  *        blocker only affects the visitor's environment). The server owns the
  *        RULE, the client owns the SIGNALS, and the server hands the visitor
  *        back a verdict they can trust.
@@ -100,7 +100,7 @@ export const Route = createFileRoute("/api/public/adblock-diagnostics")({
           return json(
             {
               error:
-                "expected { signals: { domBlocked, scriptBlocked, gptBlocked, imaBlocked, fetchBlocked, isBrave } } — all booleans",
+                "expected { signals: { domBlocked, scriptBlocked, gptBlocked, imaBlocked, fetchBlocked, isBrave } }, all booleans",
             },
             400,
           );

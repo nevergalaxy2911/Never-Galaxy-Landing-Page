@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 
 /* -----------------------------------------------------------------------------
- * DeferredAdblockGate — mounts <AdblockGate /> after first paint.
+ * DeferredAdblockGate, mounts <AdblockGate /> after first paint.
  *
  * WHY: AdblockGate loads 3 external ad-network probe scripts (adsbygoogle,
  * gpt.js, ima3.js) and runs a bait-element sweep on every visit. Doing that
@@ -12,12 +12,12 @@ import { lazy, Suspense, useEffect, useState } from "react";
  *   2) delay mounting until requestIdleCallback (or a short setTimeout on
  *      Safari) so first paint & LCP are never blocked by probe work
  *
- * SECURITY / DETECTION POSTURE: the gate itself is unchanged — same bait
+ * SECURITY / DETECTION POSTURE: the gate itself is unchanged, same bait
  * elements, same script canaries, same Brave detection, same fail-closed
  * strictness. We're only changing WHEN it mounts, not WHAT it does. Because
  * the overlay is fixed / top-layer and blocks interaction as soon as it
  * appears, deferring the mount by ~1 frame does not let a blocked page render
- * as if unblocked — clicks/scroll on the overlay-less window during the tiny
+ * as if unblocked, clicks/scroll on the overlay-less window during the tiny
  * pre-mount gap trigger no page state that couldn't be re-triggered after
  * the gate resolves.
  * --------------------------------------------------------------------------- */
@@ -38,7 +38,7 @@ export function DeferredAdblockGate() {
     if (typeof w.requestIdleCallback === "function") {
       idleId = w.requestIdleCallback(() => setReady(true), { timeout: 1500 });
     } else {
-      // Safari fallback — small delay past the first paint burst.
+      // Safari fallback, small delay past the first paint burst.
       timeoutId = window.setTimeout(() => setReady(true), 600);
     }
     return () => {

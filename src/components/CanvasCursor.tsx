@@ -28,7 +28,7 @@ function DesktopCursorCanvas() {
 }
 
 /**
- * CanvasCursor — mounts a full-viewport canvas and drives it via
+ * CanvasCursor, mounts a full-viewport canvas and drives it via
  * useCanvasCursor. Produces a silky, wavy multi-line cursor trail.
  * z-index sits above content but ignores pointer events.
  *

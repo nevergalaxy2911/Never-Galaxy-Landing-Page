@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Interactive starfield — WHITE stars over a deep purple/black wash.
+ * Interactive starfield, WHITE stars over a deep purple/black wash.
  * - Random twinkling + gentle drift around each star's anchor.
  * - Cursor gravity: nearby stars are softly pulled toward the mouse,
  *   then spring back with damping when the cursor moves away.
@@ -27,11 +27,11 @@ export function StarfieldBackground() {
   const mouseRef = useRef({ x: -9999, y: -9999, active: false });
 
   // MOBILE / TOUCH / SMALL SCREENS: skip the starfield entirely. Fully flat
-  // mobile experience — no canvas, no RAF, no cursor listeners.
+  // mobile experience, no canvas, no RAF, no cursor listeners.
   //
   // HYDRATION (A.1 fix): initial state MUST match server render. SSR has no
   // `window`, so it always renders the canvas (skip=false). The client then
-  // measures viewport in a post-mount effect and flips `skip` — same pattern
+  // measures viewport in a post-mount effect and flips `skip`, same pattern
   // as CanvasCursor. Prevents React error #418.
   const [skip, setSkip] = useState(false);
 
@@ -103,8 +103,8 @@ export function StarfieldBackground() {
      * Cursor-vs-UI shielding:
      * The canvas has pointer-events:none, so document.elementFromPoint returns
      * whatever real UI element is under the cursor. If that element (or any
-     * ancestor) is an interactive surface — button, link, form field, or a
-     * `.bento` card / `[data-star-shield]` opt-in — we mark the mouse as
+     * ancestor) is an interactive surface, button, link, form field, or a
+     * `.bento` card / `[data-star-shield]` opt-in, we mark the mouse as
      * "shielded" and the render loop skips gravity + drops the cursor influence.
      * HOW TO MODIFY: extend the CSS selector below to shield more surfaces.
      */
@@ -117,7 +117,7 @@ export function StarfieldBackground() {
     };
 
     // Raw mousemove events fire up to ~1000/sec on high-poll mice, and each
-    // call to `isShielded` runs `document.elementFromPoint` — a forced sync
+    // call to `isShielded` runs `document.elementFromPoint`, a forced sync
     // layout hit. Coalesce to one shield check per animation frame: store
     // the latest coords on move, evaluate inside the RAF tick that already
     // runs. Zero behaviour change; big main-thread win on desktop.
@@ -156,7 +156,7 @@ export function StarfieldBackground() {
       window.addEventListener("mouseleave", onLeave, { passive: true });
     }
 
-    // Pause the RAF loop while the tab is hidden — a background tab burning
+    // Pause the RAF loop while the tab is hidden, a background tab burning
     // 60fps of canvas draws for nothing is a battery/CPU tax and, on some
     // browsers, keeps a "high performance" GPU context alive.
     const onVisibility = () => {
@@ -179,11 +179,11 @@ export function StarfieldBackground() {
       flushMouse();
       ctx.clearRect(0, 0, width, height);
 
-      /* RGB cycling — active only in LIGHT mode (experimental).
+      /* RGB cycling, active only in LIGHT mode (experimental).
          HOW TO REVERT: delete this block + the `isLight ? ... : ...` in the
          fillStyle/shadowColor below, and the stars are pure white again. */
       const isLight = document.documentElement.classList.contains("light");
-      const CYCLE_SPEED = 0.03; // deg per ms — higher = faster rainbow
+      const CYCLE_SPEED = 0.03; // deg per ms, higher = faster rainbow
 
 
       if (!perfMode) {
@@ -243,9 +243,9 @@ export function StarfieldBackground() {
           /* Dark-pink cycle: hue oscillates within a narrow pink band
              (~310°–345°, magenta→rose), with low lightness for "dark" pinks.
              HOW TO TWEAK:
-             • PINK_CENTER / PINK_RANGE — shift or widen the hue band.
-             • Lightness (28–42%) — lower = darker, higher = brighter pink.
-             • Saturation (85%) — lower = dustier, higher = more vivid. */
+             • PINK_CENTER / PINK_RANGE, shift or widen the hue band.
+             • Lightness (28–42%), lower = darker, higher = brighter pink.
+             • Saturation (85%), lower = dustier, higher = more vivid. */
           const PINK_CENTER = 328;
           const PINK_RANGE = 18;
           const wobble = Math.sin((t * CYCLE_SPEED + s.hueOffset) * (Math.PI / 180));

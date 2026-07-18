@@ -1,13 +1,13 @@
 import { exportModificationReport } from "@/lib/modificationReport";
 
 /* ============================================================================
- * ADBLOCK DEBUG — tiny ring-buffer logger + optional on-screen overlay
+ * ADBLOCK DEBUG, tiny ring-buffer logger + optional on-screen overlay
  * ----------------------------------------------------------------------------
  * WHY:
  *   The gate has multiple defensive systems (scroll lock, tamper watchdog,
  *   focus recheck). When something goes wrong (freeze, false positive, missed
  *   detection) we need a lightweight breadcrumb trail without opening devtools
- *   — because opening devtools is exactly when some of these bugs appeared.
+ *  , because opening devtools is exactly when some of these bugs appeared.
  *
  * HOW TO ENABLE:
  *   • Append `?adblock_debug=1` to the URL, OR
@@ -102,7 +102,7 @@ export function subscribeAdblockLog(l: Listener): () => void {
 import { useEffect, useState } from "react";
 
 export function AdblockDebugOverlay() {
-  // Render nothing during SSR to avoid a hydration mismatch — the debug flag
+  // Render nothing during SSR to avoid a hydration mismatch, the debug flag
   // (URL param / localStorage) is only readable on the client.
   const [mounted, setMounted] = useState(false);
   const [enabled, setEnabled] = useState(false);

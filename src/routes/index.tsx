@@ -18,7 +18,7 @@ import { getPublicPricing, getPublicPortfolio, type PublicPortfolioItem } from "
 import type { PricingPlan } from "@/config/site";
 
 /* ============================================================================
- * NEVER GALAXY — LANDING PAGE (Bento / Multi-Nebula edition)
+ * NEVER GALAXY, LANDING PAGE (Bento / Multi-Nebula edition)
  * ----------------------------------------------------------------------------
  * Section order (edit by re-ordering the JSX below):
  *   Nav → Hero → Services → Portfolio → Process → Pricing → FAQ → Contact → Footer
@@ -39,13 +39,13 @@ export const Route = createFileRoute("/")({
   notFoundComponent: () => <Index />,
   head: () => ({
     meta: [
-      { title: "Never Galaxy — Premium video, motion & design studio" },
+      { title: "Never Galaxy | Premium video, motion & design studio" },
       {
         name: "description",
         content:
           "Never Galaxy is a creative studio for cinematic video editing, motion graphics, and high-converting thumbnails. Custom web design launching soon.",
       },
-      { property: "og:title", content: "Never Galaxy — Premium creative studio" },
+      { property: "og:title", content: "Never Galaxy | Premium creative studio" },
       {
         property: "og:description",
         content: "Cinematic video, motion graphics, and thumbnails engineered for attention.",
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/")({
     ],
     links: [{ rel: "canonical", href: "https://nevergalaxy.vercel.app/" }],
 
-    // FAQPage + Service schemas — mirror the on-page FAQ (galaxy/FAQ.tsx)
+    // FAQPage + Service schemas, mirror the on-page FAQ (galaxy/FAQ.tsx)
     // and the offered services (galaxy/Services.tsx) so Google can render
     // FAQ rich results and understand the studio's offerings.
     scripts: [
@@ -67,10 +67,10 @@ export const Route = createFileRoute("/")({
           "@type": "FAQPage",
           mainEntity: [
             { q: "How fast do you deliver?", a: "First drafts land within 48 hours for most video and thumbnail work. Larger scope like brand films or motion identities take 1–2 weeks." },
-            { q: "Do you really do unlimited revisions?", a: "Yes. We iterate until the piece feels right — no revision-count games, no upsell traps." },
+            { q: "Do you really do unlimited revisions?", a: "Yes. We iterate until the piece feels right, no revision-count games, no upsell traps." },
             { q: "Can I hire you for a single project?", a: "Absolutely. Most clients start with one deliverable, then move to a monthly retainer once they see the workflow." },
             { q: "Do you provide raw project files?", a: "Project-package clients receive source files on delivery. Monthly plans keep sources archived with us." },
-            { q: "Do you take on custom web design?", a: "Yes — early-access slots are open now. Mention 'custom web' when you get in touch and we'll scope it with you." },
+            { q: "Do you take on custom web design?", a: "Yes, early-access slots are open now. Mention 'custom web' when you get in touch and we'll scope it with you." },
             { q: "How do payments work?", a: "50% to kick off a project, 50% on delivery. Monthly plans bill on the 1st. Bank transfer, card, or crypto." },
           ].map((f) => ({
             "@type": "Question",

@@ -1,5 +1,5 @@
 /**
- * /admin — main content editor.
+ * /admin, main content editor.
  * Tabs: Site Settings, Pricing, Portfolio.
  */
 import { createFileRoute } from "@tanstack/react-router";
@@ -12,6 +12,7 @@ import {
   listPricing,
   upsertPricing,
   deletePricing,
+  resetPricingToDefaults,
   listPortfolio,
   upsertPortfolio,
   deletePortfolio,
@@ -27,8 +28,8 @@ function AdminPage() {
   const [tab, setTab] = useState<Tab>("settings");
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl font-semibold flex-1">Site Editor</h1>
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <h1 className="text-2xl font-semibold flex-1 min-w-full sm:min-w-0">Site Editor</h1>
         <TabBtn active={tab === "settings"} onClick={() => setTab("settings")}>
           Site Settings
         </TabBtn>
@@ -58,11 +59,7 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`text-sm px-3 py-1.5 rounded-md border ${
-        active
-          ? "bg-fuchsia-600 border-fuchsia-500"
-          : "border-white/15 hover:bg-white/10"
-      }`}
+      className={active ? "nav-pill nav-pill-active" : "nav-pill border border-white/10"}
     >
       {children}
     </button>
@@ -139,7 +136,7 @@ function SettingsEditor() {
         <h2 className="text-lg font-semibold mb-2">Add / update setting</h2>
         <p className="text-sm text-white/60 mb-4">
           Key is dot-notation (e.g. <code className="text-fuchsia-300">brand.name</code>).
-          Value is JSON — quote strings.
+          Value is JSON, quote strings.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-2">
           <input
@@ -226,8 +223,10 @@ function PricingEditor() {
   const load = useServerFn(listPricing);
   const upsert = useServerFn(upsertPricing);
   const del = useServerFn(deletePricing);
+  const reset = useServerFn(resetPricingToDefaults);
   const [rows, setRows] = useState<any[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const refresh = useCallback(async () => {
     const r = await load(); setRows(r.rows); setErr(r.error);
@@ -254,22 +253,34 @@ function PricingEditor() {
     await refresh();
   }
 
+  async function onReset() {
+    if (!confirm("Wipe all current plans and restore the 3 default plans from site.ts?")) return;
+    setResetting(true);
+    try { await reset(); await refresh(); }
+    catch (e) { setErr((e as Error).message); }
+    finally { setResetting(false); }
+  }
+
   return (
     <section className="space-y-4">
       {err && <ErrorBanner msg={err} />}
-      <div>
-        <button
-          className="btn-primary"
-          onClick={() => onSave(emptyPricing())}
-        >
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary" onClick={() => onSave(emptyPricing())}>
           + Add plan
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={onReset}
+          disabled={resetting}
+        >
+          {resetting ? "Resetting…" : "↺ Reset to defaults (3 plans)"}
         </button>
       </div>
       {rows.map((r) => (
         <PricingRow key={r.id} row={r} onSave={onSave} onDelete={onDelete} />
       ))}
       {rows.length === 0 && (
-        <p className="text-white/50 text-sm">No pricing plans yet. Click "Add plan".</p>
+        <p className="text-white/50 text-sm">No pricing plans yet. Click "Add plan" or "Reset to defaults".</p>
       )}
     </section>
   );

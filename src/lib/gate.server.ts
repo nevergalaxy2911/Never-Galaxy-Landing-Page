@@ -1,6 +1,6 @@
 /**
  * Server-only gate helpers. Filename-blocked from client bundles.
- * Do NOT import this file from any client-reachable module at top level —
+ * Do NOT import this file from any client-reachable module at top level ,
  * always use `await import("./gate.server")` inside a server fn handler.
  */
 import { useSession } from "@tanstack/react-start/server";

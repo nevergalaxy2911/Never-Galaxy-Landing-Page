@@ -5,7 +5,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 
 
 /* -----------------------------------------------------------------------------
- * CurrencySwitcher — compact glass pill dropdown that lets visitors view all
+ * CurrencySwitcher, compact glass pill dropdown that lets visitors view all
  * site pricing in their preferred currency. Reads live FX rates from
  * open.er-api.com (see src/lib/fx.functions.ts) with base = INR.
  *
@@ -97,7 +97,7 @@ export function CurrencySwitcher() {
     el?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, open]);
 
-  // Keyboard nav — bound to the search input and the trigger. Arrow keys move
+  // Keyboard nav, bound to the search input and the trigger. Arrow keys move
   // through the FILTERED list, Enter selects, Esc closes and refocuses trigger.
   const onNavKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -194,7 +194,7 @@ export function CurrencySwitcher() {
           - Middle .cur-tilt-host carries the btn-tilt 3D wobble; because tilt
             rotates around this host (not the anchor) and the host has NO
             translate of its own, the panel no longer feels pinned by its
-            top-middle corner — the whole card wobbles as one piece.
+            top-middle corner, the whole card wobbles as one piece.
           - Inner .cur-menu animates a soft fade + scale from its own center. */}
       {open && !isMobile && (
         <div className="cur-anchor">
@@ -244,7 +244,7 @@ export function CurrencySwitcher() {
 
 
 
-      {/* Mobile: centered modal with backdrop — dropdowns on a tiny pill
+      {/* Mobile: centered modal with backdrop, dropdowns on a tiny pill
           trigger always look off-axis on phones, so we escape the flow. */}
       {open && isMobile && (
         <div
@@ -268,7 +268,7 @@ export function CurrencySwitcher() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            {/* Search — filters by code, name, or symbol as the user types. */}
+            {/* Search, filters by code, name, or symbol as the user types. */}
             <label className="cur-search">
               <Search className="h-4 w-4 opacity-70" aria-hidden />
               <input
@@ -315,7 +315,7 @@ export function CurrencySwitcher() {
 
 
       {/* -----------------------------------------------------------------
-       * Scoped styles — mirrors the Contact scope-menu glassmorphism so the
+       * Scoped styles, mirrors the Contact scope-menu glassmorphism so the
        * switcher blends with the site's overall aesthetic. Light-mode
        * overrides at the bottom keep contrast readable on white paper.
        * ----------------------------------------------------------------- */}
@@ -423,7 +423,7 @@ export function CurrencySwitcher() {
         }
         .cur-search--desktop input { font-size: 12px; }
 
-        /* Opacity-only intro — animating transform would clobber btn-tilt. */
+        /* Opacity-only intro, animating transform would clobber btn-tilt. */
         @keyframes cur-menu-in {
           from { opacity: 0; }
           to   { opacity: 1; }
@@ -445,7 +445,7 @@ export function CurrencySwitcher() {
 
 
 
-        /* Mobile modal — full-viewport backdrop + centered sheet. */
+        /* Mobile modal, full-viewport backdrop + centered sheet. */
         .cur-modal-backdrop {
           position: fixed;
           inset: 0;
@@ -580,7 +580,7 @@ export function CurrencySwitcher() {
           background: color-mix(in oklab, var(--sec-a) 30%, transparent);
           color: white;
         }
-        /* Keyboard-highlighted row — a bold, unmistakable ring + glow so users
+        /* Keyboard-highlighted row, a bold, unmistakable ring + glow so users
            can track the ArrowUp/ArrowDown position at a glance. Uses ring +
            inset accent bar + brighter bg, all layered so it wins over hover. */
         .cur-option.is-highlight {
@@ -613,7 +613,7 @@ export function CurrencySwitcher() {
         }
         .cur-opt-label { flex: 1; }
 
-        /* Light mode — dark ink on soft tinted paper for legibility. */
+        /* Light mode, dark ink on soft tinted paper for legibility. */
         .light .cur-trigger {
           background: color-mix(in oklab, var(--sec-a) 8%, white);
           border-color: color-mix(in oklab, var(--sec-a) 55%, black);

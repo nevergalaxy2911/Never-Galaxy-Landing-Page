@@ -1,19 +1,19 @@
 /* =============================================================================
- * SITE CONFIG — one file to change every price, link, email, and handle.
+ * SITE CONFIG, one file to change every price, link, email, and handle.
  * -----------------------------------------------------------------------------
  * This is the single source of truth for anything a NON-CODER might want to
  * update on the live site without touching component code:
  *
- *   • PRICING   — the three plans shown on the Pricing section
- *   • CONTACT   — the destination email + form service key
- *   • SOCIALS   — Instagram / YouTube / Behance / etc. shown on the site
- *   • BRAND     — canonical URL, brand name, tagline used in <head> tags
+ *   • PRICING  , the three plans shown on the Pricing section
+ *   • CONTACT  , the destination email + form service key
+ *   • SOCIALS  , Instagram / YouTube / Behance / etc. shown on the site
+ *   • BRAND    , canonical URL, brand name, tagline used in <head> tags
  *
  * HOW TO EDIT (ELI10):
  *   1. Open this file.
  *   2. Find the section you want to change (e.g. PRICING).
  *   3. Change the value inside the quotes / numbers.
- *   4. Save. The site updates on the next reload — no build needed in dev.
+ *   4. Save. The site updates on the next reload, no build needed in dev.
  *
  * Keep this file dependency-free (no React, no CSS) so it can be imported
  * from ANY component, server function, or test without pulling in extras.
@@ -27,13 +27,13 @@
  * JSON-LD schema, and copyright lines.
  * --------------------------------------------------------------------------- */
 export const BRAND = {
-  /** Public brand name — appears in title bars, og:site_name, footer. */
+  /** Public brand name, appears in title bars, og:site_name, footer. */
   name: "Never Galaxy",
 
   /** One-liner used as the fallback site description in <head>. */
   tagline: "Cosmic-grade creative studio for video, motion, and design.",
 
-  /** Absolute production URL — used for canonical + og:url. Update when the
+  /** Absolute production URL, used for canonical + og:url. Update when the
    *  real domain is live (e.g. "https://nevergalaxy.com/"). Keep the trailing "/". */
   canonicalUrl: "https://nevergalaxy.vercel.app/",
 } as const;
@@ -47,11 +47,11 @@ export const BRAND = {
 export const CONTACT = {
   /** The email inbox that receives form submissions and Gmail-compose clicks.
    *  IMPORTANT: changing this here does NOT change where Web3Forms delivers
-   *  mail — Web3Forms binds the destination inbox to the ACCESS KEY below.
+   *  mail, Web3Forms binds the destination inbox to the ACCESS KEY below.
    *  See CONTACT.web3FormsKey for how to rotate the inbox. */
   email: "nevergalaxy2911@gmail.com",
 
-  /** Web3Forms access key — controls which inbox receives the form.
+  /** Web3Forms access key, controls which inbox receives the form.
    *  ▶ To send inquiries to a different email:
    *      1. Sign up at https://web3forms.com using the NEW email.
    *      2. Copy the access key from the Web3Forms dashboard.
@@ -86,7 +86,7 @@ export const SOCIALS = {
  * PRICE UNITS:
  *   • `priceInr` is the base price in INDIAN RUPEES (₹). The header currency
  *     switcher converts it live for viewers using useCurrency().format(inr).
- *   • Set `priceInr: null` for a "quote-only" tier — then `customPrice`
+ *   • Set `priceInr: null` for a "quote-only" tier, then `customPrice`
  *     (e.g. "Custom") is shown instead.
  *   • `pricePrefix` prepends something like "From " to the price string.
  *
@@ -107,7 +107,7 @@ export type PricingPlan = {
   cadence: string;
   /** One-paragraph pitch for this tier. */
   body: string;
-  /** Bullet list — order matters, top three read first. */
+  /** Bullet list, order matters, top three read first. */
   features: string[];
   /** If true: adds glow + "Most popular" ribbon. Pick ONE plan. */
   highlighted: boolean;
@@ -147,7 +147,7 @@ export const PRICING: PricingPlan[] = [
     priceInr: null,
     customPrice: "Custom",
     cadence: "quote in 24h",
-    body: "For brands and businesses — bespoke scope with a dedicated team.",
+    body: "For brands and businesses, bespoke scope with a dedicated team.",
     features: [
       "Discovery + brief",
       "Motion identity system",
@@ -160,7 +160,7 @@ export const PRICING: PricingPlan[] = [
 
 
 /* -----------------------------------------------------------------------------
- * DERIVED HELPERS — do not hand-edit; these compose the values above.
+ * DERIVED HELPERS, do not hand-edit; these compose the values above.
  * --------------------------------------------------------------------------- */
 
 /** Gmail web-compose URL prefilled with the CONTACT.email address.

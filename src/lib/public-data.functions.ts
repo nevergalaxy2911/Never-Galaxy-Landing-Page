@@ -1,5 +1,5 @@
 /* =============================================================================
- * PUBLIC DATA — server functions that read PUBLISHED rows for the public site.
+ * PUBLIC DATA, server functions that read PUBLISHED rows for the public site.
  * -----------------------------------------------------------------------------
  * Ungated (no requireUnlocked). Use the anon-safe publishable key; public RLS
  * policies restrict them to `published = true` rows.

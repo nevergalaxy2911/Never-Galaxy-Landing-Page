@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { getFxRates } from "@/lib/fx.functions";
 
 /* -----------------------------------------------------------------------------
- * useCurrency — global currency selector for the whole site.
+ * useCurrency, global currency selector for the whole site.
  *
  * Pricing is authored in INR (see Pricing.tsx). This provider:
  *   1. Fetches live INR-based FX rates via a TanStack server function
@@ -63,7 +63,7 @@ const STORAGE_KEY = "ng.currency";
 const STORAGE_DEFAULT = "USD";
 
 /* -----------------------------------------------------------------------------
- * niceRound — tiered "attractive but fair" price rounder.
+ * niceRound, tiered "attractive but fair" price rounder.
  *   • x < 10       → next whole X.99          (e.g. 4.2  → 4.99,  7 → 7.99)
  *   • x < 100      → next 5-step ending .99   (e.g. 13.5 → 14.99, 22 → 24.99)
  *   • x < 1000     → next 10-step ending 9    (e.g. 516  → 519,  832 → 839)
@@ -114,7 +114,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setRates(res.rates);
       })
       .catch((err) => {
-        // Non-fatal — INR keeps working, other currencies just wait/retry.
+        // Non-fatal, INR keeps working, other currencies just wait/retry.
         console.warn("FX rates failed to load", err);
       });
     return () => {

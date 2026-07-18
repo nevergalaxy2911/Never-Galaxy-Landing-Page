@@ -4,7 +4,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CursorTrailToggle } from "@/components/CursorTrailToggle";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 
-// Nav shortcut list — edit here to add/remove nav items.
+// Nav shortcut list, edit here to add/remove nav items.
 const links = [
   { label: "Services", href: "#services",     num: "01" },
   { label: "Work",     href: "#portfolio",    num: "02" },
@@ -143,7 +143,7 @@ export function Nav() {
         </ul>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {/* Currency dropdown — lives at the beginning of the page inside the
+          {/* Currency dropdown, lives at the beginning of the page inside the
               nav's right cluster; visible on every section, hides with the
               nav on scroll down and reappears on scroll up. */}
           <CurrencySwitcher />

@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * useCanvasCursor — silky wavy multi-line cursor trail.
+ * useCanvasCursor, silky wavy multi-line cursor trail.
  *
  * Renders 20 spring-coupled polylines that follow the cursor with slightly
  * varied spring/friction values. Stroke hue slowly oscillates via a sine
@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 
 function supportsDesktopCursor() {
   if (typeof window === 'undefined') return false;
-  // Match the a11y gate used by StarfieldBackground / useInteractiveCards —
+  // Match the a11y gate used by StarfieldBackground / useInteractiveCards ,
   // users who opted into reduced motion should NOT get the ribbon trail
   // (previously this was the only decorative effect that ignored the OS
   // preference).
@@ -136,7 +136,7 @@ const useCanvasCursor = () => {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.globalCompositeOperation = 'lighter';
       // -----------------------------------------------------------------
-      // TRAIL COLOR — cycles WHITE → GOLD → YELLOW → RED → back.
+      // TRAIL COLOR, cycles WHITE → GOLD → YELLOW → RED → back.
       // The `f` oscillator (see renderCanvas below) sweeps a 0..1 phase;
       // we map that phase into a warm palette. To change palette, edit
       // the `stops` array (must be [r, g, b] tuples, 0..255).
@@ -178,7 +178,7 @@ const useCanvasCursor = () => {
     lines = [],
     E = {
       // ---------------------------------------------------------------
-      // TRAIL SHAPE — how long / dense the tail is.
+      // TRAIL SHAPE, how long / dense the tail is.
       //   trails  : number of parallel wavy lines (more = fuller ribbon)
       //   size    : number of nodes per line (more = LONGER trail)
       //   friction: 0..1, how quickly nodes settle (lower = snappier)
@@ -186,8 +186,8 @@ const useCanvasCursor = () => {
       // ---------------------------------------------------------------
       debug: true,
       friction: 0.5,
-      trails: 10,   // was 12 — leaner ribbon
-      size: 10,     // was 18 — even SHORTER tail
+      trails: 10,   // was 12, leaner ribbon
+      size: 10,     // was 18, even SHORTER tail
       dampening: 0.25,
       tension: 0.98,
     };
@@ -199,7 +199,7 @@ const useCanvasCursor = () => {
   }
 
   // Refs kept in closure scope so cleanup can remove the exact function
-  // references we added (removing an inline arrow does nothing — that was
+  // references we added (removing an inline arrow does nothing, that was
   // the previous focus/blur leak).
   let onFocus: (() => void) | null = null;
   let onBlur: (() => void) | null = null;
@@ -231,7 +231,7 @@ const useCanvasCursor = () => {
     onBlur = () => {
       ctx.running = false;
     };
-    // Pause the ribbon RAF loop when the tab is hidden — same reasoning as
+    // Pause the ribbon RAF loop when the tab is hidden, same reasoning as
     // the starfield: no need to burn frames the user can't see.
     onVisibility = () => {
       if (document.hidden) {

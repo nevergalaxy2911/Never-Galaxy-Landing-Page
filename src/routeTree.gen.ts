@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnlockRouteImport } from './routes/unlock'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as GatedRouteRouteImport } from './routes/_gated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,6 +21,11 @@ import { Route as ApiPublicAdblockDiagnosticsRouteImport } from './routes/api/pu
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -56,6 +62,7 @@ const ApiPublicAdblockDiagnosticsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
   '/api-panel': typeof GatedApiPanelRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
   '/api-panel': typeof GatedApiPanelRoute
@@ -74,6 +82,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_gated': typeof GatedRouteRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
   '/_gated/admin': typeof GatedAdminRoute
   '/_gated/api-panel': typeof GatedApiPanelRoute
@@ -84,6 +93,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sitemap.xml'
+    | '/terms'
     | '/unlock'
     | '/admin'
     | '/api-panel'
@@ -92,6 +102,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sitemap.xml'
+    | '/terms'
     | '/unlock'
     | '/admin'
     | '/api-panel'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_gated'
     | '/sitemap.xml'
+    | '/terms'
     | '/unlock'
     | '/_gated/admin'
     | '/_gated/api-panel'
@@ -111,6 +123,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GatedRouteRoute: typeof GatedRouteRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   UnlockRoute: typeof UnlockRoute
   ApiPublicAdblockDiagnosticsRoute: typeof ApiPublicAdblockDiagnosticsRoute
 }
@@ -122,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof UnlockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -187,6 +207,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GatedRouteRoute: GatedRouteRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   UnlockRoute: UnlockRoute,
   ApiPublicAdblockDiagnosticsRoute: ApiPublicAdblockDiagnosticsRoute,
 }

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 /* -----------------------------------------------------------------------------
- * FX rates — fetches live INR-based exchange rates from open.er-api.com.
+ * FX rates, fetches live INR-based exchange rates from open.er-api.com.
  * The endpoint is free, key-less, and returns ~160 currencies.
  *
  * We cache in a module-level object with a 1h TTL so page loads don't hammer
@@ -11,7 +11,7 @@ import { createServerFn } from "@tanstack/react-start";
  * HOW TO MODIFY:
  *   - Change `BASE` if your pricing base currency ever moves off INR.
  *   - Change `TTL_MS` to cache rates longer or shorter.
- *   - Swap the provider by editing the fetch URL — response must expose
+ *   - Swap the provider by editing the fetch URL, response must expose
  *     `{ rates: { <ISO>: <rate vs BASE> } }`.
  * --------------------------------------------------------------------------- */
 

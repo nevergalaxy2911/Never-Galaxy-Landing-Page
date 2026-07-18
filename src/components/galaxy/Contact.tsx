@@ -5,7 +5,7 @@ import { useReveal } from "@/hooks/useReveal";
 import { CONTACT, SOCIALS, MAIL_HREF } from "@/config/site";
 
 /* -----------------------------------------------------------------------------
- * CONTACT — bento split: form + info tiles.
+ * CONTACT, bento split: form + info tiles.
  * HOW TO MODIFY:
  * • Change contact email, Web3Forms key, or any social URL →
  *     edit `src/config/site.ts` (CONTACT / SOCIALS blocks). No changes here.
@@ -14,12 +14,12 @@ import { CONTACT, SOCIALS, MAIL_HREF } from "@/config/site";
  * --------------------------------------------------------------------------- */
 const EMAIL = CONTACT.email;
 
-/* Gmail web-compose URL — opens Gmail directly in a new tab with the To field
+/* Gmail web-compose URL, opens Gmail directly in a new tab with the To field
  * pre-filled. Sourced from `src/config/site.ts` (MAIL_HREF) so the email is
  * only defined in ONE place. Kept exported here as a local re-name so the
  * rest of the file reads unchanged. */
 
-/* Socials list — icon + label live here, href comes from `src/config/site.ts`.
+/* Socials list, icon + label live here, href comes from `src/config/site.ts`.
  * An empty href renders the link as a disabled "coming soon" pill. */
 const SOCIALS_UI = [
   { icon: Instagram, label: "Instagram", href: SOCIALS.instagram },
@@ -44,7 +44,7 @@ const SCOPES = [
  * every submission to the inbox tied to the access key below.
  *
  * ▶ HOW TO CHANGE THE RECIPIENT EMAIL (currently: nevergalaxy2911@gmail.com)
- *   Web3Forms binds the destination inbox to the access key — you cannot set
+ *   Web3Forms binds the destination inbox to the access key, you cannot set
  *   the "To:" address from the code. To change who receives inquiries:
  *     1. Go to https://web3forms.com and sign up / log in using the email
  *        you want inquiries delivered to (e.g. nevergalaxy2911@gmail.com).
@@ -54,7 +54,7 @@ const SCOPES = [
  *
  * ▶ CATEGORIZATION
  *   Every email arrives with a category tag in the subject line, e.g.:
- *     [NeverGalaxy · Video editing] Ada Lovelace — new inquiry
+ *     [NeverGalaxy · Video editing] Ada Lovelace, new inquiry
  *   That makes it trivial to filter/label in Gmail (Filters → "Subject
  *   contains: [NeverGalaxy · Video editing]" → apply label "Video").
  *   The email body also lists Category, Name, Reply-To email, and Message
@@ -76,7 +76,7 @@ const MAX_NAME = 100;
 const MAX_EMAIL = 255;
 const MAX_MESSAGE = 2000;
 const MIN_MESSAGE = 10;
-// Simple, permissive email regex — good enough to catch typos like
+// Simple, permissive email regex, good enough to catch typos like
 // "you@studio" or "you@@studio.com". The real source of truth is the mail
 // server on the receiving end.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -108,7 +108,7 @@ export function Contact() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Per-field validation errors — shown under each input when non-empty.
+  // Per-field validation errors, shown under each input when non-empty.
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
@@ -117,7 +117,7 @@ export function Contact() {
     e.preventDefault();
     setError(null);
 
-    // Front-end validation gate — must pass before we spend a Web3Forms
+    // Front-end validation gate, must pass before we spend a Web3Forms
     // submission or show the network as "sending".
     const errors = validate(form);
     setFieldErrors(errors);
@@ -129,9 +129,9 @@ export function Contact() {
       // Category tag lives at the start of the subject so Gmail filters can
       // match on "Subject contains: [NeverGalaxy · <category>]".
       const categoryTag = `[NeverGalaxy · ${scopeLabel}]`;
-      const subject = `${categoryTag} ${form.name.trim()} — new inquiry`;
+      const subject = `${categoryTag} ${form.name.trim()}, new inquiry`;
 
-      // Structured, labeled body — Web3Forms will render each key/value pair
+      // Structured, labeled body, Web3Forms will render each key/value pair
       // as a row in the delivered email, so the recipient sees clean sections
       // instead of a wall of text.
       const res = await fetch("https://api.web3forms.com/submit", {
@@ -147,7 +147,7 @@ export function Contact() {
           "Name": form.name.trim(),
           "Reply-To Email": form.email.trim(),
           "Message": form.message.trim(),
-          // Honeypot field is empty — Web3Forms auto-filters bot submissions.
+          // Honeypot field is empty, Web3Forms auto-filters bot submissions.
           botcheck: "",
         }),
       });
@@ -161,7 +161,7 @@ export function Contact() {
     }
   }
 
-  // Small helper — updates a field and clears its inline error as the user types,
+  // Small helper, updates a field and clears its inline error as the user types,
   // so errors disappear the moment they start correcting the input.
   function updateField<K extends "name" | "email" | "message">(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -183,7 +183,7 @@ export function Contact() {
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 gap-4 auto-rows-[minmax(120px,auto)]">
-          {/* Form — spans 4 columns. `noValidate` disables the browser's built-in
+          {/* Form, spans 4 columns. `noValidate` disables the browser's built-in
            * tooltips so our own inline error messages are the single source of
            * truth (avoids double-messaging the user). */}
           <form onSubmit={onSubmit} noValidate className="bento p-8 md:col-span-4 md:row-span-2 flex flex-col gap-4">
@@ -237,7 +237,7 @@ export function Contact() {
               className="btn-glow inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 font-display text-sm uppercase tracking-widest mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {sent
-                ? "Received — we'll reply soon"
+                ? "Received, we'll reply soon"
                 : sending
                   ? "Transmitting…"
                   : (<>Send transmission <Send className="h-4 w-4" /></>)}
@@ -247,7 +247,7 @@ export function Contact() {
             )}
           </form>
 
-          {/* Email tile — opens Gmail's web compose in a new tab (see MAIL_HREF
+          {/* Email tile, opens Gmail's web compose in a new tab (see MAIL_HREF
            * comment at top for why we don't use `mailto:` here). */}
           <a
             href={MAIL_HREF}
@@ -282,7 +282,7 @@ export function Contact() {
           </div>
         </div>
 
-        {/* Local styles for form inputs — kept scoped with a plain <style> tag.
+        {/* Local styles for form inputs, kept scoped with a plain <style> tag.
          * IMPORTANT: `!important` on light-mode overrides forces them to win
          * against any parent (.light .bento *) color cascades that might
          * otherwise tint the field gray. */}
@@ -304,12 +304,12 @@ export function Contact() {
             box-shadow: 0 0 0 4px color-mix(in oklab, var(--sec-a) 15%, transparent),
                         0 0 30px color-mix(in oklab, var(--sec-c) 30%, transparent);
           }
-          /* Invalid-input styling — red ring when aria-invalid is true. */
+          /* Invalid-input styling, red ring when aria-invalid is true. */
           .input-cosmic[aria-invalid="true"] {
             border-color: color-mix(in oklab, #ef4444 80%, transparent);
             box-shadow: 0 0 0 3px color-mix(in oklab, #ef4444 25%, transparent);
           }
-          /* --- LIGHT MODE — solid white fields with dark ink ----------------- */
+          /* --- LIGHT MODE, solid white fields with dark ink ----------------- */
           .light .input-cosmic {
             background: #ffffff !important;
             color: #0b1220 !important;
@@ -329,7 +329,7 @@ export function Contact() {
           }
 
           /* ------------------------------------------------------------------
-           * CHARMING SCOPE SELECT — custom dropdown replacing native <select>.
+           * CHARMING SCOPE SELECT, custom dropdown replacing native <select>.
            * HOW TO MODIFY:
            *  • Add/remove options → edit SCOPES array at top of file.
            *  • Change trigger height/padding → .scope-trigger.
@@ -410,7 +410,7 @@ export function Contact() {
           .scope-option .check { margin-left: auto; opacity: 0; transition: opacity .2s ease; }
           .scope-option[data-selected="true"] .check { opacity: 1; }
 
-          /* --- LIGHT MODE scope trigger + menu — white surface, dark ink --- */
+          /* --- LIGHT MODE scope trigger + menu, white surface, dark ink --- */
           .light .scope-trigger {
             background: #ffffff !important;
             color: #0b1220 !important;
@@ -439,7 +439,7 @@ export function Contact() {
   );
 }
 
-/* Field wrapper — renders label + child input + optional inline error.
+/* Field wrapper, renders label + child input + optional inline error.
  * HOW TO MODIFY: change error styling in the <span> below. */
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
@@ -454,7 +454,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 /* ---------------------------------------------------------------------------
- * ScopeSelect — accessible custom dropdown replacing the plain <select>.
+ * ScopeSelect, accessible custom dropdown replacing the plain <select>.
  * Keyboard: Enter/Space to open, Esc to close, click-outside to dismiss.
  * Visual polish: icon chip per option, animated chevron, checkmark on active.
  * ------------------------------------------------------------------------- */
@@ -463,7 +463,7 @@ function ScopeSelect({ value, onChange }: { value: string; onChange: (v: string)
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  // Fixed-position menu geometry — recalculated each open + on scroll/resize,
+  // Fixed-position menu geometry, recalculated each open + on scroll/resize,
   // so the dropdown escapes the parent .bento's `overflow: hidden` clipping.
   const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const current = SCOPES.find((s) => s.value === value) ?? SCOPES[0];

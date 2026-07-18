@@ -1,15 +1,15 @@
 import { useReveal } from "@/hooks/useReveal";
 
 /* -----------------------------------------------------------------------------
- * PROCESS — 4-step working method in a bento layout.
+ * PROCESS, 4-step working method in a bento layout.
  * HOW TO MODIFY:
  * • Add / edit a step → adjust the STEPS array.
  * • Recolor → change `sec-magenta` on the <section>.
  * --------------------------------------------------------------------------- */
 const STEPS = [
-  { n: "01", title: "Brief",     body: "You share the goal, references and raw footage. We reply with scope, timeline, and price — usually within a day." },
+  { n: "01", title: "Brief",     body: "You share the goal, references and raw footage. We reply with scope, timeline, and price, usually within a day." },
   { n: "02", title: "Craft",     body: "We cut, animate, and design. Draft one lands in your inbox within 48 hours on most projects." },
-  { n: "03", title: "Refine",    body: "You review with time-coded notes. We iterate — unlimited revisions until it hits." },
+  { n: "03", title: "Refine",    body: "You review with time-coded notes. We iterate, unlimited revisions until it hits." },
   { n: "04", title: "Deliver",   body: "Final masters in every format you need, with source files if you're on a project package." },
 ];
 
@@ -26,7 +26,7 @@ export function Process() {
             Four steps.<br /> Zero <span className="text-gradient-nebula">friction</span>.
           </h2>
           <p className="mt-5 text-muted-foreground text-lg">
-            A simple, transparent workflow — so you always know where the project
+            A simple, transparent workflow, so you always know where the project
             is and what happens next.
           </p>
         </div>

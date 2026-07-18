@@ -1,5 +1,5 @@
 /**
- * Supabase ADMIN client — service role key, BYPASSES RLS.
+ * Supabase ADMIN client, service role key, BYPASSES RLS.
  *
  * SERVER-ONLY. Never import from a browser-reachable module. The `.server.ts`
  * extension makes TanStack's bundler refuse any client import, failing fast.

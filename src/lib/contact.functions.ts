@@ -1,7 +1,7 @@
 /**
- * PUBLIC (no gate) — logs a contact form submission to Supabase.
+ * PUBLIC (no gate), logs a contact form submission to Supabase.
  * Called from the Contact section in addition to (not instead of) Web3Forms.
- * Fails silently on the client — never blocks the form UX.
+ * Fails silently on the client, never blocks the form UX.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestIP, getRequestHeader } from "@tanstack/react-start/server";

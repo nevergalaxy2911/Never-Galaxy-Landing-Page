@@ -1,7 +1,7 @@
 import { useInteractiveCards } from "@/hooks/useInteractiveCards";
 
 /**
- * InteractiveCards — thin mount for the global card interactivity system.
+ * InteractiveCards, thin mount for the global card interactivity system.
  *
  * All RAF, pointer, and tilt logic lives in `useInteractiveCards` so it
  * can be reused/tested in isolation. This component just runs the hook

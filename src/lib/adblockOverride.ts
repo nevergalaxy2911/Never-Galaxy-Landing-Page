@@ -1,5 +1,5 @@
 /* ============================================================================
- * ADBLOCK OVERRIDE — admin/user/environment kill switch for the gate
+ * ADBLOCK OVERRIDE, admin/user/environment kill switch for the gate
  * ----------------------------------------------------------------------------
  * WHY:
  *   Detectors sometimes disagree (corp proxy vs Brave vs uBO vs regional

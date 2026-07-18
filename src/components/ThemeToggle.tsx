@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 /* -----------------------------------------------------------------------------
- * ThemeToggle — dark ↔ light switch, persisted in localStorage.
+ * ThemeToggle, dark ↔ light switch, persisted in localStorage.
  *
  * How it works:
  *   • On mount, reads `ng-theme` from localStorage (default "dark").

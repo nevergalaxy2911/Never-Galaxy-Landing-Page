@@ -4,13 +4,13 @@ import { classify, type DetectionSignals } from "@/lib/adblockPolicy";
 import { readOverride } from "@/lib/adblockOverride";
 
 /* ============================================================================
- * ADBLOCK GATE — free, no-API adblock detector + friendly full-screen overlay
+ * ADBLOCK GATE, free, no-API adblock detector + friendly full-screen overlay
  * ----------------------------------------------------------------------------
  * WHY:
  *   Ad/tracker blockers (uBlock, AdBlock, Brave Shields, Pi-hole) frequently
  *   break the YouTube <iframe> embeds used in the Portfolio → Work section.
  *   We show no ads on this site, so we ask visitors to disable their blocker
- *   before they can enter — purely to keep the video player working.
+ *   before they can enter, purely to keep the video player working.
  *
  * HOW IT WORKS (strict, fail-closed signals):
  *   1) BAIT ELEMENT: Insert a hidden <div> whose classnames match ad-related
@@ -18,10 +18,10 @@ import { readOverride } from "@/lib/adblockOverride";
  *      "ads-container", "sponsored"). Blockers hide it → offsetHeight/parent
  *      becomes 0/null.
  *   2) BAIT SCRIPT + GLOBAL CHECK: Load pagead2 adsbygoogle.js as a <script>.
- *      Naive detectors just listen for onerror — that MISSES BRAVE, because
+ *      Naive detectors just listen for onerror, that MISSES BRAVE, because
  *      Brave Shields replaces the response with an empty 200 (onload fires
  *      normally). We defeat that by checking `window.adsbygoogle` after
- *      onload — the real SDK defines it, an empty replacement doesn't.
+ *      onload, the real SDK defines it, an empty replacement doesn't.
  *   3) EXTRA BRAVE CANARIES: Load Google Publisher Tag + IMA SDK canaries.
  *      Brave Shields may let one bait slip depending on cache/list updates,
  *      so we test multiple ad/video-ad endpoints and require all to behave
@@ -29,7 +29,7 @@ import { readOverride } from "@/lib/adblockOverride";
  *   4) BAIT FETCH: Fetch the same URL and inspect the payload size. Brave
  *      often returns 200 with 0 bytes; a real load is tens of KB. Also catches
  *      pure network blockers (uBO, Pi-hole) which throw TypeError.
- *   5) BRAVE DETECTION: `navigator.brave?.isBrave()` — first-party API.
+ *   5) BRAVE DETECTION: `navigator.brave?.isBrave()`, first-party API.
  *      Used for diagnostics; Shields state itself is intentionally not exposed.
  *
  * Strict mode means ANY failed signal blocks. While the check is running, the
@@ -39,7 +39,7 @@ import { readOverride } from "@/lib/adblockOverride";
  *
  * UX:
  *   • Overlay is a fixed, top-layer modal (z-index high, blocks scroll+clicks).
- *   • "I've turned it off — check again" button reloads into a slower,
+ *   • "I've turned it off, check again" button reloads into a slower,
  *     one-shot verification path so Brave has time to release old Shields
  *     decisions before we judge the browser clean/blocked.
  *   • Passes are not stored. Every load and every re-check probes from scratch.
@@ -70,9 +70,9 @@ const FOCUS_RECHECK_SETTLE_MS = 800;
 // Tune these without editing code by setting Vite env vars (`.env.local` or
 // build env). Fall back to safe defaults if unset or unparsable.
 //
-//   VITE_ADBLOCK_ENFORCE_WINDOW_MS       (default 500)  — rolling window
-//   VITE_ADBLOCK_ENFORCE_ESCALATE_AT     (default 12)   — hits in window → re-mount
-//   VITE_ADBLOCK_SWEEP_INTERVAL_MS       (default 1000) — DOM-presence sweep
+//   VITE_ADBLOCK_ENFORCE_WINDOW_MS       (default 500) , rolling window
+//   VITE_ADBLOCK_ENFORCE_ESCALATE_AT     (default 12)  , hits in window → re-mount
+//   VITE_ADBLOCK_SWEEP_INTERVAL_MS       (default 1000), DOM-presence sweep
 //   VITE_ADBLOCK_TAMPER_DISABLE          ("1" disables the tamper watchdog)
 function envNumber(name: string, fallback: number): number {
   try {
@@ -145,7 +145,7 @@ function reloadForManualRecheck() {
 }
 
 async function detectBrave(): Promise<boolean> {
-  // Brave exposes navigator.brave.isBrave() — returns a Promise<boolean>.
+  // Brave exposes navigator.brave.isBrave(), returns a Promise<boolean>.
   const nav = navigator as unknown as { brave?: { isBrave?: () => Promise<boolean> } };
   try {
     return (await nav.brave?.isBrave?.()) === true;
@@ -187,13 +187,13 @@ function clearWindowGlobal(key: AdGlobalKey) {
 
 function baitScriptBlocked(): Promise<boolean> {
   // NOTE ON BRAVE SHIELDS:
-  //   Brave doesn't error on blocked ad scripts — it silently replaces the
+  //   Brave doesn't error on blocked ad scripts, it silently replaces the
   //   response with an empty 200. So `<script>.onerror` never fires and
   //   `fetch()` returns an opaque response that "looks" fine. Same trick
   //   catches naive detectors (including the popular `adblock-detector` npm).
   //
   //   Real defense: after we THINK the script loaded, verify it actually
-  //   did what adsbygoogle.js does — define `window.adsbygoogle` as an
+  //   did what adsbygoogle.js does, define `window.adsbygoogle` as an
   //   Array (the SDK pushes ad slots onto it). If that global is missing
   //   after onload, Brave replaced the payload → blocked.
   clearWindowGlobal("adsbygoogle");
@@ -221,7 +221,7 @@ function baitScriptBlocked(): Promise<boolean> {
     };
     s.onerror = () => finish(true);
     document.head.appendChild(s);
-    // Safety timeout — some networks stall; treat stall as "unknown/blocked".
+    // Safety timeout, some networks stall; treat stall as "unknown/blocked".
     window.setTimeout(() => finish(true), 2500);
   });
 }
@@ -294,7 +294,7 @@ async function baitFetchBlocked(): Promise<boolean> {
   // Second Brave-aware check: fetch the same URL and inspect the payload
   // size. Brave/Shields returns 200 with 0 bytes; a real load is > 10 KB.
   // Wrapped in try/catch because pure network blockers (uBO, Pi-hole) throw
-  // TypeError on the fetch itself — which is also "blocked".
+  // TypeError on the fetch itself, which is also "blocked".
   try {
     const res = await fetch(withCacheBuster(BAIT_SCRIPT_URL), {
       method: "GET",
@@ -317,7 +317,7 @@ async function baitFetchBlocked(): Promise<boolean> {
 //   2. Brave AND (fetchBlocked OR ≥2 network failures)
 //   3. ≥3 network probes fail together (network quorum)
 
-// Brave detection is stable per page load — cache the promise so focus
+// Brave detection is stable per page load, cache the promise so focus
 // rechecks and initial detection don't hit navigator.brave twice.
 let braveOnce: Promise<boolean> | null = null;
 function braveCached(): Promise<boolean> {
@@ -327,7 +327,7 @@ function braveCached(): Promise<boolean> {
 
 async function runSingleAdblockDetection(): Promise<Result> {
   // Two rAFs let the browser paint the current frame before we saturate the
-  // network with canary requests — keeps LCP snappy on initial mount.
+  // network with canary requests, keeps LCP snappy on initial mount.
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   // OPTION A FAST-PATH (silences Lighthouse "errors-in-console" for the 95%+
@@ -335,7 +335,7 @@ async function runSingleAdblockDetection(): Promise<Result> {
   // Ghostery, AdGuard) applies cosmetic filters to the bait class list, and
   // Brave is detectable directly via navigator.brave. If BOTH those pure-JS,
   // zero-network probes are clean, we skip the ad-SDK <script>/fetch canaries
-  // entirely — no blocked pagead2/doubleclick network errors show up in the
+  // entirely, no blocked pagead2/doubleclick network errors show up in the
   // console. Detection posture is unchanged: any blocker that filters cosmetic
   // classes still trips; Brave still trips; anything that lets both through
   // AND blocks nothing else was never a blocker for THIS site to begin with.
@@ -388,7 +388,7 @@ export function AdblockGate() {
   const [result, setResult] = useState<Result>("clear");
   // Start hidden. The check runs silently in the background on mount and only
   // reveals the overlay if a blocker is actually confirmed. A manual recheck
-  // reload (after the user says "I've turned it off") is the one exception —
+  // reload (after the user says "I've turned it off") is the one exception ,
   // there we do show the "Checking…" state so the click has visible feedback.
   const [visible, setVisible] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -469,7 +469,7 @@ export function AdblockGate() {
       focusRechecksReadyRef.current = false;
       return;
     }
-    // Run on every mount — no localStorage/sessionStorage pass bypass. Manual
+    // Run on every mount, no localStorage/sessionStorage pass bypass. Manual
     // reloads get a longer settling delay + extra retry because Brave can keep
     // stale Shields decisions alive for a moment after the lion is turned off.
     const manualRecheck = consumeManualRecheckFlag();
@@ -479,7 +479,7 @@ export function AdblockGate() {
         retryDelaysMs: manualRecheck
           ? MANUAL_BLOCK_RETRY_DELAYS_MS
           : DEFAULT_BLOCK_RETRY_DELAYS_MS,
-        // Always silent — the gate stays hidden until we CONFIRM a blocker.
+        // Always silent, the gate stays hidden until we CONFIRM a blocker.
         // No "Checking browser" flash on initial load or after a manual reload;
         // we never want to interrupt visitors who don't have an ad blocker on.
         silent: true,
@@ -518,7 +518,7 @@ export function AdblockGate() {
     };
   }, [runCheck]);
 
-  // Lock scroll while the gate is up — desktop AND mobile. Just setting
+  // Lock scroll while the gate is up, desktop AND mobile. Just setting
   // body { overflow: hidden } is not enough on iOS Safari / Android Chrome:
   // touch scroll still bubbles to the document. So we also:
   //   • lock <html> overflow
@@ -562,7 +562,7 @@ export function AdblockGate() {
     };
     document.addEventListener("wheel", blockWheel, { passive: false });
 
-    // Keyboard scroll blockers — Space, PageUp/Down, arrows, Home/End.
+    // Keyboard scroll blockers, Space, PageUp/Down, arrows, Home/End.
     // Only preventDefault when the event target is OUTSIDE the modal so that
     // form-like elements inside the gate (buttons) still respond normally.
     // We do NOT swallow Tab (accessibility: focus must still cycle inside).
@@ -631,7 +631,7 @@ export function AdblockGate() {
     // Only escalate if a REQUIRED value is actually being reverted. In
     // hosted preview environments (Lovable, Storybook, etc.) the editor
     // may inject `data-*` / `class` attributes on our overlay frequently
-    // for tooling purposes — those are harmless and MUST NOT trigger the
+    // for tooling purposes, those are harmless and MUST NOT trigger the
     // escalation loop that used to freeze the page.
     const isActuallyTampered = (): boolean => {
       for (const [prop, val] of REQUIRED) {
@@ -667,7 +667,7 @@ export function AdblockGate() {
       } catch (err) {
         adblockLog("tamper", "restore failed", { err: String(err) });
       }
-      // Also re-lock scroll — the deletion may have taken our styles with it.
+      // Also re-lock scroll, the deletion may have taken our styles with it.
       document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
     };
@@ -712,7 +712,7 @@ export function AdblockGate() {
         if (!disposed) {
           selfObserver?.observe(root, {
             attributes: true,
-            attributeFilter: ["style", "hidden", "aria-hidden"], // NOT class — hosted editors mutate class harmlessly
+            attributeFilter: ["style", "hidden", "aria-hidden"], // NOT class, hosted editors mutate class harmlessly
           });
         }
       }
@@ -751,7 +751,7 @@ export function AdblockGate() {
   //   • Auto-focus the primary button on mount (so keyboard users don't have
   //     to Tab into the modal from wherever they were).
   //   • On Tab / Shift-Tab, keep focus cycling among focusable elements inside
-  //     the modal — never let it escape to background page content.
+  //     the modal, never let it escape to background page content.
   //   • Restore focus to the previously focused element on unmount.
   useEffect(() => {
     if (!visible) return;
@@ -883,12 +883,12 @@ export function AdblockGate() {
         >
           {checking ? (
             <>
-              Hang tight — we're checking for ad blockers and Brave Shields
+              Hang tight, we're checking for ad blockers and Brave Shields
               before opening the site. This only takes a moment.
             </>
           ) : (
             <>
-              We don't run ads, trackers, or pop-ups — promise. But ad
+              We don't run ads, trackers, or pop-ups, promise. But ad
               blockers (including <strong>Brave Shields</strong>) break the
               YouTube video embeds in our <strong>Work</strong> section, so
               you'd miss the good stuff. Turn it off for this site and
@@ -909,13 +909,13 @@ export function AdblockGate() {
               boxShadow: "0 10px 30px -8px rgba(168,85,247,0.55)",
             }}
           >
-            {checking ? "Checking…" : "I've turned it off — check again"}
+            {checking ? "Checking…" : "I've turned it off, check again"}
           </button>
         </div>
 
 
         <p className="mt-6 text-xs text-white/45">
-          Tip: Brave users — click the lion icon → Shields DOWN for this site,
+          Tip: Brave users, click the lion icon → Shields DOWN for this site,
           then reload and check again.
         </p>
       </div>

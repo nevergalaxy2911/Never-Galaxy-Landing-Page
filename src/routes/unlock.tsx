@@ -1,5 +1,5 @@
 /**
- * /unlock — shared-password gate form for /admin and /api-panel.
+ * /unlock, shared-password gate form for /admin and /api-panel.
  * Public route (no gate). Shows a minimal form, POSTs to unlockSite server fn.
  */
 import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
@@ -10,7 +10,7 @@ import { unlockSite, getUnlockState } from "@/lib/gate.functions";
 export const Route = createFileRoute("/unlock")({
   head: () => ({
     meta: [
-      { title: "Unlock — Never Galaxy" },
+      { title: "Unlock, Never Galaxy" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -60,7 +60,7 @@ function UnlockPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-8 shadow-2xl"
       >
-        <h1 className="text-2xl font-semibold mb-2">Never Galaxy — Admin</h1>
+        <h1 className="text-2xl font-semibold mb-2">Never Galaxy, Admin</h1>
         <p className="text-sm text-white/60 mb-6">Enter site password to continue.</p>
 
         <label className="block text-sm mb-2 text-white/80" htmlFor="password">

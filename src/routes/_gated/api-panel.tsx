@@ -1,5 +1,5 @@
 /**
- * /api-panel — feature flags, contact submissions log, system health.
+ * /api-panel, feature flags, contact submissions log, system health.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";

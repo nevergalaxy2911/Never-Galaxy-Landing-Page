@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 
 /* -----------------------------------------------------------------------------
- * useReveal — persistent scroll-triggered reveal.
+ * useReveal, persistent scroll-triggered reveal.
  * HOW IT WORKS:
  * • Attach the returned ref to any element that also has the `reveal` class.
  * • Once the element crosses the viewport threshold, we add `is-visible` and
- *   STOP observing — so scrolling past does NOT remove it (Master Rulebook §2).
+ *   STOP observing, so scrolling past does NOT remove it (Master Rulebook §2).
  * • Optional `delay` in ms staggers children when mapping.
  * --------------------------------------------------------------------------- */
 export function useReveal<T extends HTMLElement = HTMLDivElement>(delay = 0) {
@@ -26,7 +26,7 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>(delay = 0) {
       return;
     }
 
-    // ABOVE-THE-FOLD FAST PATH — if the element is already inside the
+    // ABOVE-THE-FOLD FAST PATH, if the element is already inside the
     // initial viewport at mount, reveal immediately (no IO, no delay). This
     // is critical for the hero: `useReveal(delay)` used to defer the LCP text
     // by up to ~360ms because the delay fired even when the element was
@@ -45,7 +45,7 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>(delay = 0) {
         for (const e of entries) {
           if (e.isIntersecting) {
             timeoutId = window.setTimeout(() => el.classList.add("is-visible"), delay);
-            io.unobserve(el); // persistent — never remove
+            io.unobserve(el); // persistent, never remove
           }
         }
       },

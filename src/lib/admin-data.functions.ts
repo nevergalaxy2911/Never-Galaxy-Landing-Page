@@ -1,5 +1,5 @@
 /**
- * Admin CRUD server functions — every handler starts with requireUnlocked()
+ * Admin CRUD server functions, every handler starts with requireUnlocked()
  * so nothing can be called without a valid gate cookie.
  *
  * Uses the service-role admin client (bypasses RLS). Loaded lazily inside
@@ -95,6 +95,42 @@ export const deletePricing = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Reset pricing_plans back to the 3 original default plans from
+ * src/config/site.ts. Wipes existing rows first, then bulk-inserts.
+ * Used by the admin "Reset to defaults" button.
+ */
+export const resetPricingToDefaults = createServerFn({ method: "POST" }).handler(
+  async () => {
+    await (await import("./gate.server")).requireUnlocked();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const { PRICING } = await import("@/config/site");
+    // Wipe existing plans (uuid-safe filter).
+    const { error: delErr } = await supabaseAdmin
+      .from("pricing_plans")
+      .delete()
+      .not("id", "is", null);
+    if (delErr) throw new Error(delErr.message);
+    const rows = PRICING.map((p, i) => ({
+      position: i,
+      name: p.name,
+      price_inr: p.priceInr,
+      custom_price: p.customPrice ?? null,
+      price_prefix: p.pricePrefix ?? "",
+      cadence: p.cadence,
+      body: p.body,
+      features: p.features,
+      highlighted: p.highlighted,
+      published: true,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabaseAdmin.from("pricing_plans").insert(rows);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: rows.length };
+  },
+);
 
 /* -------------------------------------------------------------------------- */
 /* PORTFOLIO                                                                  */
@@ -230,7 +266,7 @@ export const deleteSubmission = createServerFn({ method: "POST" })
   });
 
 /* -------------------------------------------------------------------------- */
-/* HEALTH — quick summary for /api-panel                                      */
+/* HEALTH, quick summary for /api-panel                                      */
 /* -------------------------------------------------------------------------- */
 
 export const getHealth = createServerFn({ method: "GET" }).handler(async () => {

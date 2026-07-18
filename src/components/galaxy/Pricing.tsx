@@ -4,9 +4,9 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { PRICING, type PricingPlan } from "@/config/site";
 
 /* -----------------------------------------------------------------------------
- * PRICING — bento tiles.
+ * PRICING, bento tiles.
  * DATA SOURCE (priority):
- *   1. `plans` prop — fed by the route loader from Supabase `pricing_plans`
+ *   1. `plans` prop, fed by the route loader from Supabase `pricing_plans`
  *      via getPublicPricing(). Lets /admin edits appear live on the site.
  *   2. Static fallback in `src/config/site.ts` (PRICING export). Used when
  *      Supabase is unreachable, unconfigured, or the table has no published rows.
@@ -31,7 +31,7 @@ export function Pricing({ plans }: { plans?: PricingPlan[] }) {
           </h2>
           <p className="mt-5 text-muted-foreground text-lg">
             Transparent starting rates. Every quote is tailored to your scope
-            — no surprise line items, no hidden add-ons.
+           , no surprise line items, no hidden add-ons.
           </p>
         </div>
 

@@ -3,17 +3,17 @@ import { Plus } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 
 /* -----------------------------------------------------------------------------
- * FAQ — accordion in a bento container.
+ * FAQ, accordion in a bento container.
  * HOW TO MODIFY:
  * • Add / edit a question → adjust FAQS array.
  * • Recolor → change `sec-aurora` on the <section>.
  * --------------------------------------------------------------------------- */
 const FAQS = [
   { q: "How fast do you deliver?", a: "First drafts land within 48 hours for most video and thumbnail work. Larger scope like brand films or motion identities take 1–2 weeks." },
-  { q: "Do you really do unlimited revisions?", a: "Yes. We iterate until the piece feels right — no revision-count games, no upsell traps." },
+  { q: "Do you really do unlimited revisions?", a: "Yes. We iterate until the piece feels right, no revision-count games, no upsell traps." },
   { q: "Can I hire you for a single project?", a: "Absolutely. Most clients start with one deliverable, then move to a monthly retainer once they see the workflow." },
   { q: "Do you provide raw project files?", a: "Project-package clients receive source files on delivery. Monthly plans keep sources archived with us." },
-  { q: "Do you take on custom web design?", a: "Yes — early-access slots are open now. Mention 'custom web' when you get in touch and we'll scope it with you." },
+  { q: "Do you take on custom web design?", a: "Yes, early-access slots are open now. Mention 'custom web' when you get in touch and we'll scope it with you." },
   { q: "How do payments work?", a: "50% to kick off a project, 50% on delivery. Monthly plans bill on the 1st. Bank transfer, card, or crypto." },
 ];
 

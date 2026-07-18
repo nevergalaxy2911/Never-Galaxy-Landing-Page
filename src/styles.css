@@ -77,6 +77,27 @@
  * ADMIN CONSOLE UTILITIES — used by /admin, /api-panel, /unlock.
  * These do NOT leak into the public site (only referenced by _gated routes).
  * --------------------------------------------------------------------------- */
+@utility nav-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.55rem;
+  font-size: 0.875rem;
+  color: rgb(255 255 255 / 0.8);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  user-select: none;
+}
+@utility nav-pill {
+  &:hover { background: rgb(255 255 255 / 0.1); color: white; }
+  &:active { transform: scale(0.96); }
+  &:focus-visible { outline: 2px solid rgb(217 70 239); outline-offset: 2px; }
+}
+@utility nav-pill-active {
+  background: linear-gradient(135deg, rgb(192 38 211), rgb(217 70 239));
+  color: white;
+  box-shadow: 0 3px 12px -4px rgb(217 70 239 / 0.6);
+}
 @utility input {
   width: 100%;
   border-radius: 0.5rem;
@@ -90,37 +111,70 @@
   &:focus { outline: none; border-color: rgb(217 70 239); }
 }
 @utility btn-primary {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  background: rgb(192 38 211);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(135deg, rgb(192 38 211), rgb(217 70 239));
   color: white;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
-  transition: background 0.15s;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  box-shadow: 0 4px 14px -4px rgb(217 70 239 / 0.55);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  will-change: transform;
+  cursor: pointer;
+  user-select: none;
 }
 @utility btn-primary {
-  &:hover { background: rgb(217 70 239); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover { filter: brightness(1.1); box-shadow: 0 6px 18px -4px rgb(217 70 239 / 0.75); }
+  &:active { transform: scale(0.96); filter: brightness(0.95); }
+  &:focus-visible { outline: 2px solid rgb(240 171 252); outline-offset: 2px; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 }
 @utility btn-secondary {
-  padding: 0.4rem 0.85rem;
-  border-radius: 0.5rem;
-  background: rgb(255 255 255 / 0.08);
-  border: 1px solid rgb(255 255 255 / 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.18);
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  user-select: none;
 }
 @utility btn-secondary {
-  &:hover { background: rgb(255 255 255 / 0.15); }
+  &:hover { background: rgb(255 255 255 / 0.14); border-color: rgb(255 255 255 / 0.3); }
+  &:active { transform: scale(0.96); background: rgb(255 255 255 / 0.2); }
+  &:focus-visible { outline: 2px solid rgb(217 70 239); outline-offset: 2px; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 }
 @utility btn-danger {
-  padding: 0.4rem 0.85rem;
-  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 0.6rem;
   background: rgb(239 68 68 / 0.15);
   border: 1px solid rgb(239 68 68 / 0.4);
   color: rgb(252 165 165);
-  font-size: 0.8rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  user-select: none;
 }
 @utility btn-danger {
-  &:hover { background: rgb(239 68 68 / 0.3); }
+  &:hover { background: rgb(239 68 68 / 0.3); color: white; }
+  &:active { transform: scale(0.96); background: rgb(239 68 68 / 0.5); color: white; }
+  &:focus-visible { outline: 2px solid rgb(248 113 113); outline-offset: 2px; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 }

@@ -5,10 +5,10 @@ import type { VideoItem, GraphicItem } from "@/types/portfolio";
 import type { PublicPortfolioItem } from "@/lib/public-data.functions";
 
 /* -----------------------------------------------------------------------------
- * PORTFOLIO — bento gallery split into tabs (Video / Motion / Graphics).
+ * PORTFOLIO, bento gallery split into tabs (Video / Motion / Graphics).
  *
  * DATA SOURCE (priority):
- *   1. `liveItems` prop — fed by the route loader from Supabase
+ *   1. `liveItems` prop, fed by the route loader from Supabase
  *      `portfolio_items` via getPublicPortfolio(). Rows are grouped by
  *      `category` ("video" | "motion" | "graphic") and mapped into the
  *      tile shape below. Spans cycle through a preset pattern so grids
@@ -47,7 +47,7 @@ const GRAPHIC_SPANS = [
 
 const VIDEO_WORK: VideoItem[] = [
   { id: "v1", title: "Long-form YouTube edit",  kind: "Long-form · YouTube", span: VIDEO_SPANS[0] },
-  { id: "v2", title: "Brand film — 60s",         kind: "Brand · 60s",         span: VIDEO_SPANS[1] },
+  { id: "v2", title: "Brand film, 60s",         kind: "Brand · 60s",         span: VIDEO_SPANS[1] },
   { id: "v3", title: "Short-form reel",          kind: "Short-form · 45s",    span: VIDEO_SPANS[2] },
   { id: "v4", title: "Podcast highlight cut",    kind: "Podcast · 8m",        span: VIDEO_SPANS[3] },
   { id: "v5", title: "Product launch film",      kind: "Launch · 90s",        span: VIDEO_SPANS[4] },
@@ -134,12 +134,12 @@ export function Portfolio({ liveItems }: { liveItems?: PublicPortfolioItem[] }) 
               A <span className="text-gradient-nebula">portfolio</span> in orbit.
             </h2>
             <p className="mt-4 text-muted-foreground text-lg">
-              A rotating showcase of the work we ship — video edits, motion
+              A rotating showcase of the work we ship, video edits, motion
               pieces, and graphics. Hover a tile, hit play.
             </p>
           </div>
 
-          {/* Tab switcher — high contrast in both themes via portfolio-tab classes (see styles.css).
+          {/* Tab switcher, high contrast in both themes via portfolio-tab classes (see styles.css).
               Mobile: `flex w-fit mx-auto` centers the pill row (mx-auto only works
               on block/flex, not inline-flex). Buttons shrink to compact size so all
               three fit comfortably on narrow phones without wrapping. */}
@@ -176,7 +176,7 @@ export function Portfolio({ liveItems }: { liveItems?: PublicPortfolioItem[] }) 
  * once the user clicks. Same UX, zero third-party JS until intent.
  * HOW TO TUNE:
  *   • Thumbnail quality: change `hqdefault` → `maxresdefault` for 1280×720
- *     (some videos don't have it — hqdefault always exists).
+ *     (some videos don't have it, hqdefault always exists).
  *   • Autoplay on click: `?autoplay=1` is already appended, remove if unwanted.
  * -------------------------------------------------------------------------- */
 function VideoTile({ item }: { item: VideoItem }) {

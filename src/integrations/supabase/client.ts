@@ -1,5 +1,5 @@
 /**
- * Supabase BROWSER client — uses the publishable (public) key.
+ * Supabase BROWSER client, uses the publishable (public) key.
  * Safe to import from React components. All reads/writes go through
  * Row-Level Security, so anon users only see rows explicitly allowed.
  */

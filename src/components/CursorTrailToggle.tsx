@@ -2,7 +2,7 @@ import { MousePointer2, MousePointerClick } from "lucide-react";
 import { useCursorTrail } from "@/hooks/useCursorTrail";
 
 /* -----------------------------------------------------------------------------
- * CursorTrailToggle — enable/disable the canvas ribbon cursor trail.
+ * CursorTrailToggle, enable/disable the canvas ribbon cursor trail.
  *
  * The trail itself is a desktop-only decorative effect (see CanvasCursor).
  * This button is hidden on small screens where the trail never runs anyway.

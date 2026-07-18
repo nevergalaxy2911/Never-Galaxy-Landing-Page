@@ -4,7 +4,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 
-/** POST /unlock — check password, set cookie. */
+/** POST /unlock, check password, set cookie. */
 export const unlockSite = createServerFn({ method: "POST" })
   .inputValidator((data: { password: string }) => {
     if (typeof data?.password !== "string" || data.password.length > 500) {
@@ -26,7 +26,7 @@ export const unlockSite = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** POST — clear cookie. */
+/** POST, clear cookie. */
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
   const { getSession } = await import("./gate.server");
   const session = await getSession();
@@ -34,7 +34,7 @@ export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
   return { ok: true as const };
 });
 
-/** GET — check unlock state without redirecting. */
+/** GET, check unlock state without redirecting. */
 export const getUnlockState = createServerFn({ method: "GET" }).handler(async () => {
   try {
     const { getSession } = await import("./gate.server");

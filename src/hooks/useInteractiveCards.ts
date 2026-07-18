@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 /* -----------------------------------------------------------------------------
- * useInteractiveCards — RAF-driven cursor tilt + border glow + surface
+ * useInteractiveCards, RAF-driven cursor tilt + border glow + surface
  * spotlight, applied to every `.bento` card and `.btn-tilt` element on the
  * page.
  *
@@ -16,16 +16,16 @@ import { useEffect } from "react";
  *   4. Motion-driven hue → --hue (only advances while the cursor moves)
  *
  * Gates: no-op on touch, `(hover: none)`, `(pointer: coarse)`, screens
- * below 1024px, or `prefers-reduced-motion` — so nothing paints on phones
+ * below 1024px, or `prefers-reduced-motion`, so nothing paints on phones
  * and the "glitch when at the edge of a card" story from small screens
  * never fires.
  *
  * TUNING (top of this file):
- *   MAX_TILT_CARD  — max rotation for `.bento` cards (deg)
- *   MAX_TILT_BTN   — max rotation for `.btn-tilt` elements (deg)
- *   LERP           — smoothing per frame (higher = snappier)
- *   EDGE_SENSITIVITY — 0..1 dead zone before border glow starts
- *   HUE_PER_PX     — deg of hue shift per pixel of cursor motion
+ *   MAX_TILT_CARD , max rotation for `.bento` cards (deg)
+ *   MAX_TILT_BTN  , max rotation for `.btn-tilt` elements (deg)
+ *   LERP          , smoothing per frame (higher = snappier)
+ *   EDGE_SENSITIVITY, 0..1 dead zone before border glow starts
+ *   HUE_PER_PX    , deg of hue shift per pixel of cursor motion
  * --------------------------------------------------------------------------- */
 
 // TUNING KNOBS ---------------------------------------------------------------
@@ -49,7 +49,7 @@ type CardState = {
   // current (rendered) values
   mx: number; my: number; tx: number; ty: number; act: number;
   angle: number; edge: number;
-  // motion-driven hue shift — only advances when the cursor is actually
+  // motion-driven hue shift, only advances when the cursor is actually
   // moving over the card. Standing still holds the current color.
   hue: number;
   lastPx: number; lastPy: number;
@@ -149,7 +149,7 @@ export function useInteractiveCards() {
       // pointerout fires when moving between child elements INSIDE the same
       // card (e.g. from a video preview into the title strip). Blind reset
       // here caused the "tilt animation glitch when I'm not over the
-      // dropdown" bug — only reset when the pointer truly leaves the card.
+      // dropdown" bug, only reset when the pointer truly leaves the card.
       const related = e.relatedTarget as Node | null;
       if (related && target.contains(related)) return;
       const s = getState(target);
@@ -199,7 +199,7 @@ export function useInteractiveCards() {
       }
       // PERF: only reschedule while there's work to do. Previously the loop
       // ran forever at 60fps for every desktop visit even when no card was
-      // hovered — a permanent main-thread tax on all sessions. onMove /
+      // hovered, a permanent main-thread tax on all sessions. onMove /
       // onLeave call ensureLoop() to restart it when new work arrives.
       if (active.size > 0) {
         raf = requestAnimationFrame(tick);

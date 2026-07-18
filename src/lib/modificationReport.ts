@@ -1,5 +1,5 @@
 /* ============================================================================
- * MODIFICATION REPORT — tiny JSON export for the current docs/code change set
+ * MODIFICATION REPORT, tiny JSON export for the current docs/code change set
  * ----------------------------------------------------------------------------
  * WHY:
  *   During freeze triage, it is useful to download one small JSON payload that
@@ -31,7 +31,7 @@ export function getModificationReport(): ModificationReport {
     url: typeof window !== "undefined" ? window.location.href : undefined,
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
     expectedGuideEntry:
-      "2026-07-04 — Adblock gate: overrides + diagnostics endpoint + quorum + Brave test + perf",
+      "2026-07-04, Adblock gate: overrides + diagnostics endpoint + quorum + Brave test + perf",
     performanceReportExpectedLines: 83,
     diffSummary: [
       {
@@ -55,7 +55,7 @@ export function getModificationReport(): ModificationReport {
       },
     ],
     adblockGate: {
-      detectionMode: "shared quorum classifier (src/lib/adblockPolicy.ts) — client + server agree",
+      detectionMode: "shared quorum classifier (src/lib/adblockPolicy.ts), client + server agree",
       falsePositiveFix:
         "Blocking requires DOM cosmetic filtering, Brave-shields network tampering, or ≥3 network probes failing together. A single flaky ad canary never opens the gate.",
       smokeCoverage: [

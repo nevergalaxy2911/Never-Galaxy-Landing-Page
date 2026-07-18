@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /* -----------------------------------------------------------------------------
- * useCursorTrail — user preference for the canvas ribbon cursor trail.
+ * useCursorTrail, user preference for the canvas ribbon cursor trail.
  *
  * Persists to `localStorage` under `ng-cursor-trail` ("on" | "off").
  * Default: "on". Broadcasts changes via a `ng-cursor-trail-change` CustomEvent
