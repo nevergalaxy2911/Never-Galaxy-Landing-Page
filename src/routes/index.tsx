@@ -14,8 +14,9 @@ import { Pricing } from "@/components/galaxy/Pricing";
 import { FAQ } from "@/components/galaxy/FAQ";
 import { Contact } from "@/components/galaxy/Contact";
 import { Footer } from "@/components/galaxy/Footer";
-import { getPublicPricing, getPublicPortfolio, type PublicPortfolioItem } from "@/lib/public-data.functions";
+import { getPublicPricing, getPublicPortfolio, getPublicCategories, type PublicPortfolioItem } from "@/lib/public-data.functions";
 import type { PricingPlan } from "@/config/site";
+import type { PortfolioCategory } from "@/lib/portfolio-config";
 
 /* ============================================================================
  * NEVER GALAXY, LANDING PAGE (Bento / Multi-Nebula edition)
@@ -29,11 +30,12 @@ export const Route = createFileRoute("/")({
   // Loader-fed live data: SSR fetches published plans + portfolio in parallel;
   // on any failure returns null and components fall back to static defaults.
   loader: async () => {
-    const [pricing, portfolio] = await Promise.all([
+    const [pricing, portfolio, categories] = await Promise.all([
       getPublicPricing(),
       getPublicPortfolio(),
+      getPublicCategories(),
     ]);
-    return { pricing, portfolio };
+    return { pricing, portfolio, categories };
   },
   errorComponent: () => <Index />,
   notFoundComponent: () => <Index />,
@@ -106,10 +108,11 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const data = Route.useLoaderData?.() as
-    | { pricing: PricingPlan[] | null; portfolio: PublicPortfolioItem[] | null }
+    | { pricing: PricingPlan[] | null; portfolio: PublicPortfolioItem[] | null; categories?: PortfolioCategory[] }
     | undefined;
   const livePricing = data?.pricing ?? null;
   const livePortfolio = data?.portfolio ?? null;
+  const liveCategories = data?.categories;
   return (
     <CurrencyProvider>
       <SmoothScroll>
@@ -123,7 +126,7 @@ function Index() {
             <main>
               <Hero />
               <Services />
-              <Portfolio liveItems={livePortfolio ?? undefined} />
+              <Portfolio liveItems={livePortfolio ?? undefined} categories={liveCategories} />
               <Process />
               <Pricing plans={livePricing ?? undefined} />
               <FAQ />

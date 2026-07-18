@@ -1,43 +1,37 @@
 import { useState, useMemo } from "react";
-import { Play, ImageIcon, Sparkles } from "lucide-react";
+import { Play, ImageIcon, Sparkles, Globe, Video, Camera, Palette, Music, Mic, Layers } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import type { VideoItem, GraphicItem } from "@/types/portfolio";
 import type { PublicPortfolioItem } from "@/lib/public-data.functions";
+import {
+  DEFAULT_CATEGORIES,
+  type PortfolioCategory,
+} from "@/lib/portfolio-config";
 
 /* -----------------------------------------------------------------------------
- * PORTFOLIO, bento gallery split into tabs (Video / Motion / Graphics).
+ * PORTFOLIO, bento gallery with ADMIN-EDITABLE FILTER TABS.
  *
- * DATA SOURCE (priority):
- *   1. `liveItems` prop, fed by the route loader from Supabase
- *      `portfolio_items` via getPublicPortfolio(). Rows are grouped by
- *      `category` ("video" | "motion" | "graphic") and mapped into the
- *      tile shape below. Spans cycle through a preset pattern so grids
- *      always fill cleanly regardless of how many rows exist.
- *   2. Static fallbacks (VIDEO_WORK / MOTION_WORK / GRAPHIC_WORK) when the
- *      DB is empty for that category. Edit those arrays to change defaults.
+ * TAB BAR — categories come from /admin → Filters (site_settings row
+ * `portfolio.categories`). Falls back to DEFAULT_CATEGORIES if the DB is
+ * empty or unreachable so the section always renders. Each category has a
+ * `kind`: "video" renders a YouTube-facade tile (needs a YouTube URL in the
+ * row's `url`); "image" renders an image tile (uses `thumb_url` or `url`).
+ * Toggling `enabled=false` in the admin hides the tab immediately.
  *
- * HOW TO ADD WORK (LIVE, no code):
- *   • /admin → Portfolio → add row with category video|motion|graphic,
- *     title, url (YouTube URL for videos; image URL for graphics),
- *     thumb_url (optional graphic image), published=true. Save.
+ * TILE DATA — `liveItems` (from getPublicPortfolio) is grouped by
+ * `item.category` matching a category `id`. When empty, we fall back to
+ * static placeholder tiles (STATIC_FALLBACK) so the layout doesn't collapse.
+ *
+ * LAYOUT — bento spans cycle through a preset pattern so any row count
+ * fills the 6-col grid cleanly. This matches the OG design exactly.
  * --------------------------------------------------------------------------- */
 
-type Tab = "video" | "motion" | "graphic";
+// Lucide icon map — keep in sync with ICON_CHOICES in portfolio-config.ts
+const ICONS: Record<string, typeof Play> = {
+  Play, Sparkles, ImageIcon, Globe, Video, Camera, Palette, Music, Mic, Layers,
+};
 
-const VIDEO_SPANS = [
-  "md:col-span-4 md:row-span-2",
-  "md:col-span-2",
-  "md:col-span-2",
-  "md:col-span-3",
-  "md:col-span-3",
-];
-const MOTION_SPANS = [
-  "md:col-span-3 md:row-span-2",
-  "md:col-span-3",
-  "md:col-span-3",
-  "md:col-span-3",
-];
-const GRAPHIC_SPANS = [
+const SPAN_CYCLE = [
   "md:col-span-4 md:row-span-2",
   "md:col-span-2",
   "md:col-span-2",
@@ -45,84 +39,76 @@ const GRAPHIC_SPANS = [
   "md:col-span-3",
 ];
 
-const VIDEO_WORK: VideoItem[] = [
-  { id: "v1", title: "Long-form YouTube edit",  kind: "Long-form · YouTube", span: VIDEO_SPANS[0] },
-  { id: "v2", title: "Brand film, 60s",         kind: "Brand · 60s",         span: VIDEO_SPANS[1] },
-  { id: "v3", title: "Short-form reel",          kind: "Short-form · 45s",    span: VIDEO_SPANS[2] },
-  { id: "v4", title: "Podcast highlight cut",    kind: "Podcast · 8m",        span: VIDEO_SPANS[3] },
-  { id: "v5", title: "Product launch film",      kind: "Launch · 90s",        span: VIDEO_SPANS[4] },
+// Static placeholder tiles per category kind, shown when a category has zero
+// live rows so the section never looks empty on a fresh deploy.
+const STATIC_VIDEO_FALLBACK: VideoItem[] = [
+  { id: "sv1", title: "Your next edit lands here", kind: "Add via /admin", span: SPAN_CYCLE[0] },
+  { id: "sv2", title: "Brand film",                kind: "Coming soon",    span: SPAN_CYCLE[1] },
+  { id: "sv3", title: "Short-form reel",           kind: "Coming soon",    span: SPAN_CYCLE[2] },
+  { id: "sv4", title: "Long-form cut",             kind: "Coming soon",    span: SPAN_CYCLE[3] },
+  { id: "sv5", title: "Launch trailer",            kind: "Coming soon",    span: SPAN_CYCLE[4] },
+];
+const STATIC_IMAGE_FALLBACK: GraphicItem[] = [
+  { id: "sg1", title: "Featured design lands here", kind: "Add via /admin", span: SPAN_CYCLE[0] },
+  { id: "sg2", title: "Poster",                     kind: "Coming soon",    span: SPAN_CYCLE[1] },
+  { id: "sg3", title: "Cover art",                  kind: "Coming soon",    span: SPAN_CYCLE[2] },
+  { id: "sg4", title: "Social carousel",            kind: "Coming soon",    span: SPAN_CYCLE[3] },
+  { id: "sg5", title: "Brand mark",                 kind: "Coming soon",    span: SPAN_CYCLE[4] },
 ];
 
-const MOTION_WORK: VideoItem[] = [
-  { id: "m1", title: "Kinetic type sequence",    kind: "Motion · 20s",  span: MOTION_SPANS[0] },
-  { id: "m2", title: "Logo sting",               kind: "Motion · 6s",   span: MOTION_SPANS[1] },
-  { id: "m3", title: "Animated explainer",       kind: "Motion · 45s",  span: MOTION_SPANS[2] },
-  { id: "m4", title: "UI reveal animation",      kind: "Motion · 12s",  span: MOTION_SPANS[3] },
-];
-
-const GRAPHIC_WORK: GraphicItem[] = [
-  { id: "g1", title: "YouTube thumbnail set",    kind: "YouTube · Series",   span: GRAPHIC_SPANS[0] },
-  { id: "g2", title: "Print poster",             kind: "Print · A2",         span: GRAPHIC_SPANS[1] },
-  { id: "g3", title: "Podcast cover art",        kind: "Podcast cover",      span: GRAPHIC_SPANS[2] },
-  { id: "g4", title: "Social carousel pack",     kind: "IG · Carousel",      span: GRAPHIC_SPANS[3] },
-  { id: "g5", title: "Brand mark",               kind: "Identity",           span: GRAPHIC_SPANS[4] },
-];
-
-const TABS: { id: Tab; label: string; icon: typeof Play }[] = [
-  { id: "video",   label: "Video",           icon: Play },
-  { id: "motion",  label: "Motion",          icon: Sparkles },
-  { id: "graphic", label: "Graphics",        icon: ImageIcon },
-];
-
-function pickSpan(cycle: string[], i: number): string {
-  return cycle[i % cycle.length];
+function pickSpan(i: number): string {
+  return SPAN_CYCLE[i % SPAN_CYCLE.length];
 }
 
-export function Portfolio({ liveItems }: { liveItems?: PublicPortfolioItem[] }) {
-  const [tab, setTab] = useState<Tab>("video");
+export function Portfolio({
+  liveItems,
+  categories,
+}: {
+  liveItems?: PublicPortfolioItem[];
+  categories?: PortfolioCategory[];
+}) {
+  const cats = useMemo(
+    () => (categories?.length ? categories : DEFAULT_CATEGORIES).filter((c) => c.enabled),
+    [categories],
+  );
+  const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
+  const activeCat = cats.find((c) => c.id === tab) ?? cats[0];
+
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
 
-  // Map DB rows → tile shapes. Fall back to static arrays per category.
-  const { videos, motions, graphics } = useMemo(() => {
-    if (!liveItems || liveItems.length === 0) {
-      return { videos: VIDEO_WORK, motions: MOTION_WORK, graphics: GRAPHIC_WORK };
-    }
-    const grouped: Record<string, PublicPortfolioItem[]> = { video: [], motion: [], graphic: [] };
-    for (const it of liveItems) {
-      if (grouped[it.category]) grouped[it.category].push(it);
-    }
-    const videos: VideoItem[] = grouped.video.length
-      ? grouped.video.map((it, i) => ({
-          id: it.id,
-          title: it.title,
-          kind: it.subtitle || "Video",
-          youtubeId: it.youtubeId,
-          span: pickSpan(VIDEO_SPANS, i),
-        }))
-      : VIDEO_WORK;
-    const motions: VideoItem[] = grouped.motion.length
-      ? grouped.motion.map((it, i) => ({
-          id: it.id,
-          title: it.title,
-          kind: it.subtitle || "Motion",
-          youtubeId: it.youtubeId,
-          span: pickSpan(MOTION_SPANS, i),
-        }))
-      : MOTION_WORK;
-    const graphics: GraphicItem[] = grouped.graphic.length
-      ? grouped.graphic.map((it, i) => ({
-          id: it.id,
-          title: it.title,
-          kind: it.subtitle || "Graphic",
-          src: it.thumbUrl || it.url,
-          span: pickSpan(GRAPHIC_SPANS, i),
-        }))
-      : GRAPHIC_WORK;
-    return { videos, motions, graphics };
+  // Group live items by category id.
+  const grouped = useMemo(() => {
+    const g: Record<string, PublicPortfolioItem[]> = {};
+    if (liveItems) for (const it of liveItems) (g[it.category] ??= []).push(it);
+    return g;
   }, [liveItems]);
 
+  if (!activeCat) return null;
 
+  const rows = grouped[activeCat.id] ?? [];
+  const videos: VideoItem[] = rows.length
+    ? rows.map((it, i) => ({
+        id: it.id,
+        title: it.title,
+        kind: it.subtitle || activeCat.label,
+        youtubeId: it.youtubeId,
+        span: pickSpan(i),
+      }))
+    : activeCat.kind === "video"
+      ? STATIC_VIDEO_FALLBACK
+      : [];
+  const graphics: GraphicItem[] = rows.length
+    ? rows.map((it, i) => ({
+        id: it.id,
+        title: it.title,
+        kind: it.subtitle || activeCat.label,
+        src: it.thumbUrl || it.url,
+        span: pickSpan(i),
+      }))
+    : activeCat.kind === "image"
+      ? STATIC_IMAGE_FALLBACK
+      : [];
 
   return (
     <section id="portfolio" className="sec-plum nebula-wash relative py-28">
@@ -139,46 +125,34 @@ export function Portfolio({ liveItems }: { liveItems?: PublicPortfolioItem[] }) 
             </p>
           </div>
 
-          {/* Tab switcher, high contrast in both themes via portfolio-tab classes (see styles.css).
-              Mobile: `flex w-fit mx-auto` centers the pill row (mx-auto only works
-              on block/flex, not inline-flex). Buttons shrink to compact size so all
-              three fit comfortably on narrow phones without wrapping. */}
-          <div className="portfolio-tabs mx-auto flex w-fit justify-center gap-1 self-center rounded-full p-1 md:mx-0 md:self-end">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                data-active={tab === id}
-                className="portfolio-tab inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider transition-all sm:gap-2 sm:px-4 sm:py-2 sm:text-xs sm:tracking-widest"
-              >
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </button>
-
-            ))}
+          {/* Filter tabs — driven by admin-editable categories list. */}
+          <div className="portfolio-tabs mx-auto flex w-fit flex-wrap justify-center gap-1 self-center rounded-full p-1 md:mx-0 md:self-end">
+            {cats.map((c) => {
+              const Icon = ICONS[c.icon] ?? ImageIcon;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setTab(c.id)}
+                  data-active={tab === c.id}
+                  className="portfolio-tab inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider transition-all sm:gap-2 sm:px-4 sm:py-2 sm:text-xs sm:tracking-widest"
+                >
+                  <Icon className="h-3.5 w-3.5" /> {c.label}
+                </button>
+              );
+            })}
           </div>
-
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">
-          {tab === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
-          {tab === "motion" && motions.map((v) => <VideoTile key={v.id} item={v} />)}
-          {tab === "graphic" && graphics.map((g) => <GraphicTile key={g.id} item={g} />)}
+          {activeCat.kind === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
+          {activeCat.kind === "image" && graphics.map((g) => <GraphicTile key={g.id} item={g} />)}
         </div>
       </div>
     </section>
   );
 }
 
-/* ---------- Video tile: click-to-play YouTube facade, else placeholder ----------
- * Why a facade: a raw YouTube <iframe> pulls ~1.3 MB of JS + spawns ~40
- * subrequests per embed, tanking LCP and blocking the main thread. We render
- * a static thumbnail + play button first, and only swap in the real iframe
- * once the user clicks. Same UX, zero third-party JS until intent.
- * HOW TO TUNE:
- *   • Thumbnail quality: change `hqdefault` → `maxresdefault` for 1280×720
- *     (some videos don't have it, hqdefault always exists).
- *   • Autoplay on click: `?autoplay=1` is already appended, remove if unwanted.
- * -------------------------------------------------------------------------- */
+/* ---------- Video tile: YouTube facade ---------- */
 function VideoTile({ item }: { item: VideoItem }) {
   const [playing, setPlaying] = useState(false);
   return (
@@ -218,7 +192,7 @@ function VideoTile({ item }: { item: VideoItem }) {
             </button>
           )
         ) : (
-          <ComingSoonSurface icon={<Play className="h-8 w-8" />} label="YouTube embed slot" />
+          <ComingSoonSurface icon={<Play className="h-8 w-8" />} label="YouTube URL slot" />
         )}
       </div>
       <div className="p-5 flex items-center justify-between gap-4">
@@ -232,7 +206,7 @@ function VideoTile({ item }: { item: VideoItem }) {
   );
 }
 
-/* ---------- Graphic tile: image if provided, else placeholder ---------- */
+/* ---------- Graphic tile: image or placeholder ---------- */
 function GraphicTile({ item }: { item: GraphicItem }) {
   return (
     <article className={`bento overflow-hidden flex flex-col ${item.span}`}>
@@ -248,7 +222,7 @@ function GraphicTile({ item }: { item: GraphicItem }) {
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : (
-          <ComingSoonSurface icon={<ImageIcon className="h-8 w-8" />} label="Image slot" />
+          <ComingSoonSurface icon={<ImageIcon className="h-8 w-8" />} label="Image URL slot" />
         )}
       </div>
       <div className="p-5 flex items-center justify-between gap-4">
@@ -262,7 +236,6 @@ function GraphicTile({ item }: { item: GraphicItem }) {
   );
 }
 
-/* ---------- Shared "Coming Soon" placeholder surface ---------- */
 function ComingSoonSurface({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div

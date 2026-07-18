@@ -13,6 +13,11 @@
  * ========================================================================== */
 import { createServerFn } from "@tanstack/react-start";
 import type { PricingPlan } from "@/config/site";
+import {
+  DEFAULT_CATEGORIES,
+  sanitizeCategories,
+  type PortfolioCategory,
+} from "@/lib/portfolio-config";
 
 type PricingRow = {
   name: string;
@@ -132,6 +137,30 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
       });
     } catch {
       return null;
+    }
+  },
+);
+
+/**
+ * Public read for portfolio categories/filter tabs. Stored as a single row
+ * in site_settings: `key = 'portfolio.categories'`, `value = PortfolioCategory[]`.
+ * Falls back to DEFAULT_CATEGORIES on ANY failure so the tab bar always
+ * renders.
+ */
+export const getPublicCategories = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PortfolioCategory[]> => {
+    try {
+      const sb = await client();
+      if (!sb) return DEFAULT_CATEGORIES;
+      const { data, error } = await sb
+        .from("site_settings")
+        .select("value")
+        .eq("key", "portfolio.categories")
+        .maybeSingle();
+      if (error || !data) return DEFAULT_CATEGORIES;
+      return sanitizeCategories((data as { value: unknown }).value);
+    } catch {
+      return DEFAULT_CATEGORIES;
     }
   },
 );

@@ -16,13 +16,20 @@ import {
   listPortfolio,
   upsertPortfolio,
   deletePortfolio,
+  getCategories,
+  saveCategories,
 } from "@/lib/admin-data.functions";
+import {
+  DEFAULT_CATEGORIES,
+  ICON_CHOICES,
+  type PortfolioCategory,
+} from "@/lib/portfolio-config";
 
 export const Route = createFileRoute("/_gated/admin")({
   component: AdminPage,
 });
 
-type Tab = "settings" | "pricing" | "portfolio";
+type Tab = "settings" | "pricing" | "portfolio" | "filters";
 
 function AdminPage() {
   const [tab, setTab] = useState<Tab>("settings");
@@ -39,10 +46,14 @@ function AdminPage() {
         <TabBtn active={tab === "portfolio"} onClick={() => setTab("portfolio")}>
           Portfolio
         </TabBtn>
+        <TabBtn active={tab === "filters"} onClick={() => setTab("filters")}>
+          Filters
+        </TabBtn>
       </div>
       {tab === "settings" && <SettingsEditor />}
       {tab === "pricing" && <PricingEditor />}
       {tab === "portfolio" && <PortfolioEditor />}
+      {tab === "filters" && <FiltersEditor />}
     </div>
   );
 }
@@ -361,14 +372,18 @@ const emptyPortfolio = () => ({
 
 function PortfolioEditor() {
   const load = useServerFn(listPortfolio);
+  const loadCats = useServerFn(getCategories);
   const upsert = useServerFn(upsertPortfolio);
   const del = useServerFn(deletePortfolio);
   const [rows, setRows] = useState<any[]>([]);
+  const [cats, setCats] = useState<PortfolioCategory[]>(DEFAULT_CATEGORIES);
   const [err, setErr] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const r = await load(); setRows(r.rows); setErr(r.error);
-  }, [load]);
+    const [r, c] = await Promise.all([load(), loadCats()]);
+    setRows(r.rows); setErr(r.error);
+    setCats(c.categories);
+  }, [load, loadCats]);
   useEffect(() => { void refresh(); }, [refresh]);
 
   async function onSave(row: any) {
@@ -383,11 +398,19 @@ function PortfolioEditor() {
   return (
     <section className="space-y-4">
       {err && <ErrorBanner msg={err} />}
-      <button className="btn-primary" onClick={() => onSave(emptyPortfolio())}>
-        + Add portfolio item
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className="btn-primary"
+          onClick={() => onSave({ ...emptyPortfolio(), category: cats[0]?.id ?? "video" })}
+        >
+          + Add portfolio item
+        </button>
+        <span className="text-xs text-white/50">
+          Filter tabs are managed in the <b>Filters</b> tab.
+        </span>
+      </div>
       {rows.map((r) => (
-        <PortfolioRow key={r.id} row={r} onSave={onSave} onDelete={onDelete} />
+        <PortfolioRow key={r.id} row={r} cats={cats} onSave={onSave} onDelete={onDelete} />
       ))}
       {rows.length === 0 && (
         <p className="text-white/50 text-sm">No portfolio items yet.</p>
@@ -396,9 +419,18 @@ function PortfolioEditor() {
   );
 }
 
-function PortfolioRow({ row, onSave, onDelete }: any) {
+function PortfolioRow({
+  row, cats, onSave, onDelete,
+}: {
+  row: any;
+  cats: PortfolioCategory[];
+  onSave: (r: any) => void;
+  onDelete: (id: string) => void;
+}) {
   const [d, setD] = useState({ ...row });
   const set = (k: string, v: any) => setD((prev: any) => ({ ...prev, [k]: v }));
+  const activeCat = cats.find((c) => c.id === d.category);
+  const isVideo = activeCat?.kind === "video";
   return (
     <Card>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -406,34 +438,71 @@ function PortfolioRow({ row, onSave, onDelete }: any) {
           <input type="number" className="input" value={d.position ?? 0}
             onChange={(e) => set("position", Number(e.target.value))} />
         </Field>
-        <Field label="Category">
+        <Field label="Category (filter tab)">
           <select className="input" value={d.category ?? "video"}
             onChange={(e) => set("category", e.target.value)}>
-            <option value="video">Video</option>
-            <option value="motion">Motion</option>
-            <option value="thumb">Thumbnail</option>
-            <option value="web">Web</option>
+            {cats.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label} ({c.kind === "video" ? "YouTube" : "Image"})
+              </option>
+            ))}
           </select>
         </Field>
         <Field label="Title">
           <input className="input" value={d.title ?? ""}
             onChange={(e) => set("title", e.target.value)} />
         </Field>
-        <Field label="Subtitle">
+        <Field label="Subtitle (small caption)">
           <input className="input" value={d.subtitle ?? ""}
             onChange={(e) => set("subtitle", e.target.value)} />
         </Field>
-        <Field label="URL (YouTube / Behance / link)">
-          <input className="input" value={d.url ?? ""}
-            onChange={(e) => set("url", e.target.value)} />
+        <Field
+          label={isVideo ? "YouTube URL (video link)" : "Link / URL (optional)"}
+          className="md:col-span-2"
+        >
+          <input
+            className="input"
+            value={d.url ?? ""}
+            placeholder={
+              isVideo
+                ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                : "https://your-project-link.com (optional)"
+            }
+            onChange={(e) => set("url", e.target.value)}
+          />
+          <p className="text-[11px] text-white/45 mt-1">
+            {isVideo
+              ? "Paste any YouTube URL — the tile auto-shows the thumbnail + play button."
+              : "For image tiles this is optional. Fill the Image URL below to show a picture."}
+          </p>
         </Field>
-        <Field label="Badge (e.g. Play, View, Soon)">
+        {!isVideo && (
+          <Field label="Image URL (shown on the tile)" className="md:col-span-2">
+            <input
+              className="input"
+              value={d.thumb_url ?? ""}
+              placeholder="https://cdn.example.com/screenshot.jpg"
+              onChange={(e) => set("thumb_url", e.target.value)}
+            />
+            <p className="text-[11px] text-white/45 mt-1">
+              For a Website tile, use a screenshot. For a Graphic tile, use the artwork.
+            </p>
+          </Field>
+        )}
+        {isVideo && (
+          <Field label="Custom thumbnail URL (optional — overrides YouTube's)" className="md:col-span-2">
+            <input
+              className="input"
+              value={d.thumb_url ?? ""}
+              placeholder="Leave empty to use YouTube's default thumbnail"
+              onChange={(e) => set("thumb_url", e.target.value)}
+            />
+          </Field>
+        )}
+        <Field label="Badge (small corner label)">
           <input className="input" value={d.badge ?? ""}
+            placeholder="Play / View / Soon"
             onChange={(e) => set("badge", e.target.value)} />
-        </Field>
-        <Field label="Thumbnail URL" className="md:col-span-2">
-          <input className="input" value={d.thumb_url ?? ""}
-            onChange={(e) => set("thumb_url", e.target.value)} />
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={!!d.published}
@@ -445,6 +514,157 @@ function PortfolioRow({ row, onSave, onDelete }: any) {
         <button className="btn-danger" onClick={() => onDelete(row.id)}>Delete</button>
       </div>
     </Card>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* FILTERS (portfolio categories / tabs)                                      */
+/* -------------------------------------------------------------------------- */
+
+function FiltersEditor() {
+  const load = useServerFn(getCategories);
+  const save = useServerFn(saveCategories);
+  const [cats, setCats] = useState<PortfolioCategory[]>(DEFAULT_CATEGORIES);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const r = await load();
+    setCats(r.categories);
+    setErr(r.error);
+    setDirty(false);
+  }, [load]);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  function update(i: number, patch: Partial<PortfolioCategory>) {
+    setCats((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+    setDirty(true);
+  }
+  function move(i: number, dir: -1 | 1) {
+    setCats((prev) => {
+      const next = [...prev];
+      const j = i + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+    setDirty(true);
+  }
+  function remove(i: number) {
+    if (!confirm(`Remove filter "${cats[i].label}"?`)) return;
+    setCats((prev) => prev.filter((_, idx) => idx !== i));
+    setDirty(true);
+  }
+  function add() {
+    setCats((prev) => [
+      ...prev,
+      { id: `new-${prev.length + 1}`, label: "New filter", icon: "ImageIcon", kind: "image", enabled: true },
+    ]);
+    setDirty(true);
+  }
+  async function persist() {
+    setBusy(true);
+    try {
+      await save({ data: { categories: cats } });
+      await refresh();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function reset() {
+    if (!confirm("Reset filters to defaults (Video, Motion, Graphics, Website)?")) return;
+    setBusy(true);
+    try {
+      await save({ data: { categories: DEFAULT_CATEGORIES } });
+      await refresh();
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <section className="space-y-4">
+      {err && <ErrorBanner msg={err} />}
+      <Card>
+        <p className="text-sm text-white/70">
+          These are the filter tabs shown on the public Portfolio section
+          (Video, Motion, Graphics, Website, …). Toggle enabled to hide a tab
+          without deleting it. Set kind to <b>YouTube</b> for video tiles or
+          <b> Image</b> for graphic/website tiles. Category <code>id</code>
+          must match the Category dropdown on each portfolio item.
+        </p>
+      </Card>
+
+      <div className="space-y-3">
+        {cats.map((c, i) => (
+          <Card key={i}>
+            <div className="grid grid-cols-1 md:grid-cols-[80px_1fr_1fr_140px_140px_auto] gap-3 items-end">
+              <Field label="Order">
+                <div className="flex gap-1">
+                  <button className="btn-secondary px-2" onClick={() => move(i, -1)} aria-label="Up">↑</button>
+                  <button className="btn-secondary px-2" onClick={() => move(i, +1)} aria-label="Down">↓</button>
+                </div>
+              </Field>
+              <Field label="ID (machine key)">
+                <input
+                  className="input font-mono text-sm"
+                  value={c.id}
+                  onChange={(e) => update(i, { id: e.target.value })}
+                />
+              </Field>
+              <Field label="Label (shown on tab)">
+                <input
+                  className="input"
+                  value={c.label}
+                  onChange={(e) => update(i, { label: e.target.value })}
+                />
+              </Field>
+              <Field label="Icon">
+                <select
+                  className="input"
+                  value={c.icon}
+                  onChange={(e) => update(i, { icon: e.target.value })}
+                >
+                  {ICON_CHOICES.map((ic) => (
+                    <option key={ic} value={ic}>{ic}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Kind">
+                <select
+                  className="input"
+                  value={c.kind}
+                  onChange={(e) => update(i, { kind: e.target.value as "video" | "image" })}
+                >
+                  <option value="video">YouTube (video)</option>
+                  <option value="image">Image (graphic/web)</option>
+                </select>
+              </Field>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={c.enabled}
+                    onChange={(e) => update(i, { enabled: e.target.checked })}
+                  />
+                  Enabled
+                </label>
+                <button className="btn-danger" onClick={() => remove(i)}>Remove</button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-2">
+        <button className="btn-secondary" onClick={add}>+ Add filter</button>
+        <button className="btn-primary" onClick={persist} disabled={busy || !dirty}>
+          {busy ? "Saving…" : dirty ? "Save changes" : "Saved"}
+        </button>
+        <button className="btn-secondary" onClick={reset} disabled={busy}>
+          ↺ Reset to defaults
+        </button>
+      </div>
+    </section>
   );
 }
 

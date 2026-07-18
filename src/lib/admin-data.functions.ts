@@ -302,3 +302,51 @@ export const getHealth = createServerFn({ method: "GET" }).handler(async () => {
     },
   };
 });
+
+/* -------------------------------------------------------------------------- */
+/* PORTFOLIO CATEGORIES (filter tabs)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Stored as ONE row in site_settings with key = 'portfolio.categories' and
+ * value = PortfolioCategory[]. Read publicly via getPublicCategories.
+ */
+export const getCategories = createServerFn({ method: "GET" }).handler(async () => {
+  await (await import("./gate.server")).requireUnlocked();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { DEFAULT_CATEGORIES, sanitizeCategories } = await import("./portfolio-config");
+  if (!supabaseAdmin) return { categories: DEFAULT_CATEGORIES, error: "Supabase not configured" };
+  const { data, error } = await supabaseAdmin
+    .from("site_settings")
+    .select("value")
+    .eq("key", "portfolio.categories")
+    .maybeSingle();
+  if (error) return { categories: DEFAULT_CATEGORIES, error: error.message };
+  const cats = data ? sanitizeCategories((data as { value: unknown }).value) : DEFAULT_CATEGORIES;
+  return { categories: cats, error: null as string | null };
+});
+
+export const saveCategories = createServerFn({ method: "POST" })
+  .inputValidator((d: { categories: unknown }) => {
+    if (!d || !Array.isArray(d.categories)) throw new Error("categories array required");
+    return d;
+  })
+  .handler(async ({ data }) => {
+    await (await import("./gate.server")).requireUnlocked();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sanitizeCategories } = await import("./portfolio-config");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const clean = sanitizeCategories(data.categories);
+    const { error } = await supabaseAdmin
+      .from("site_settings")
+      .upsert(
+        {
+          key: "portfolio.categories",
+          value: clean,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: clean.length };
+  });
