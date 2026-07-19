@@ -9,20 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as GatedRouteRouteImport } from './routes/_gated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GatedApiPanelRouteImport } from './routes/_gated/api-panel'
+import { Route as GatedAnalyticsRouteImport } from './routes/_gated/analytics'
 import { Route as GatedAdminRouteImport } from './routes/_gated/admin'
 import { Route as ApiPublicAdblockDiagnosticsRouteImport } from './routes/api/public/adblock-diagnostics'
 
-const UnlockRoute = UnlockRouteImport.update({
-  id: '/unlock',
-  path: '/unlock',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -31,6 +27,11 @@ const TermsRoute = TermsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GatedRouteRoute = GatedRouteRouteImport.update({
@@ -47,6 +48,11 @@ const GatedApiPanelRoute = GatedApiPanelRouteImport.update({
   path: '/api-panel',
   getParentRoute: () => GatedRouteRoute,
 } as any)
+const GatedAnalyticsRoute = GatedAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => GatedRouteRoute,
+} as any)
 const GatedAdminRoute = GatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -61,19 +67,21 @@ const ApiPublicAdblockDiagnosticsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
+  '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
+  '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
@@ -81,10 +89,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_gated': typeof GatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/_gated/admin': typeof GatedAdminRoute
+  '/_gated/analytics': typeof GatedAnalyticsRoute
   '/_gated/api-panel': typeof GatedApiPanelRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
@@ -92,29 +101,32 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/admin'
+    | '/analytics'
     | '/api-panel'
     | '/api/public/adblock-diagnostics'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/admin'
+    | '/analytics'
     | '/api-panel'
     | '/api/public/adblock-diagnostics'
   id:
     | '__root__'
     | '/'
     | '/_gated'
+    | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/_gated/admin'
+    | '/_gated/analytics'
     | '/_gated/api-panel'
     | '/api/public/adblock-diagnostics'
   fileRoutesById: FileRoutesById
@@ -122,21 +134,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GatedRouteRoute: typeof GatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
-  UnlockRoute: typeof UnlockRoute
   ApiPublicAdblockDiagnosticsRoute: typeof ApiPublicAdblockDiagnosticsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unlock': {
-      id: '/unlock'
-      path: '/unlock'
-      fullPath: '/unlock'
-      preLoaderRoute: typeof UnlockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -149,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_gated': {
@@ -172,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedApiPanelRouteImport
       parentRoute: typeof GatedRouteRoute
     }
+    '/_gated/analytics': {
+      id: '/_gated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof GatedAnalyticsRouteImport
+      parentRoute: typeof GatedRouteRoute
+    }
     '/_gated/admin': {
       id: '/_gated/admin'
       path: '/admin'
@@ -191,11 +210,13 @@ declare module '@tanstack/react-router' {
 
 interface GatedRouteRouteChildren {
   GatedAdminRoute: typeof GatedAdminRoute
+  GatedAnalyticsRoute: typeof GatedAnalyticsRoute
   GatedApiPanelRoute: typeof GatedApiPanelRoute
 }
 
 const GatedRouteRouteChildren: GatedRouteRouteChildren = {
   GatedAdminRoute: GatedAdminRoute,
+  GatedAnalyticsRoute: GatedAnalyticsRoute,
   GatedApiPanelRoute: GatedApiPanelRoute,
 }
 
@@ -206,9 +227,9 @@ const GatedRouteRouteWithChildren = GatedRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GatedRouteRoute: GatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
-  UnlockRoute: UnlockRoute,
   ApiPublicAdblockDiagnosticsRoute: ApiPublicAdblockDiagnosticsRoute,
 }
 export const routeTree = rootRouteImport

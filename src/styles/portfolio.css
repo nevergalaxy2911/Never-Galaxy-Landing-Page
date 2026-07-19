@@ -12,9 +12,32 @@
   border: 1px solid color-mix(in oklab, var(--sec-a) 35%, transparent);
   background: color-mix(in oklab, black 55%, transparent);
   backdrop-filter: blur(10px) saturate(140%);
+  border-radius: 999px;
 }
+
+/* Mobile: horizontal scroll bar with hidden scrollbar and gentle edge fades. */
+.portfolio-tab-list {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.portfolio-tab-list::-webkit-scrollbar { display: none; }
+
+/* Edge fade on mobile only, so the user sees there is more to scroll. */
+@supports (mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent)) {
+  .portfolio-tabs {
+    mask-image: linear-gradient(90deg, transparent 0%, black 1.5rem, black calc(100% - 1.5rem), transparent 100%);
+  }
+  @media (min-width: 768px) {
+    .portfolio-tabs {
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+}
+
 .portfolio-tab {
   color: color-mix(in oklab, white 78%, var(--sec-a));
+  max-width: 180px;
 }
 .portfolio-tab:hover { color: white; background: color-mix(in oklab, var(--sec-a) 18%, transparent); }
 .portfolio-tab[data-active="true"] {
@@ -47,6 +70,85 @@
   box-shadow:
     0 6px 20px -6px color-mix(in oklab, var(--sec-a) 70%, transparent),
     inset 0 0 10px color-mix(in oklab, white 25%, transparent);
+}
+
+/* Mobile overrides: remove backdrop-filter and keep tabs tappable */
+@media (max-width: 767px) {
+  .portfolio-tabs {
+    position: relative;
+    margin-inline: auto;
+    max-width: min(100%, 22.5rem);
+    border: 1px solid color-mix(in oklab, var(--sec-a) 28%, transparent);
+    background: color-mix(in oklab, black 24%, transparent);
+    backdrop-filter: blur(8px) saturate(130%);
+    -webkit-backdrop-filter: blur(8px) saturate(130%);
+    border-radius: 999px;
+    mask-image: none;
+    -webkit-mask-image: none;
+    box-shadow:
+      inset 0 0 18px color-mix(in oklab, white 7%, transparent),
+      0 10px 34px -22px color-mix(in oklab, var(--sec-a) 70%, transparent);
+  }
+  .portfolio-tabs::before,
+  .portfolio-tabs::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    z-index: 2;
+    width: 2.15rem;
+    pointer-events: none;
+  }
+  .portfolio-tabs::before {
+    left: 1px;
+    border-radius: 999px 0 0 999px;
+    background: linear-gradient(90deg,
+      color-mix(in oklab, black 80%, var(--sec-a) 8%) 0%,
+      color-mix(in oklab, black 46%, transparent) 48%,
+      transparent 100%);
+  }
+  .portfolio-tabs::after {
+    right: 1px;
+    border-radius: 0 999px 999px 0;
+    background: linear-gradient(270deg,
+      color-mix(in oklab, black 80%, var(--sec-a) 8%) 0%,
+      color-mix(in oklab, black 46%, transparent) 48%,
+      transparent 100%);
+  }
+  .portfolio-tab-list {
+    gap: 0.4rem;
+    padding: 0.28rem;
+    scroll-padding-inline: 1.75rem;
+  }
+  .portfolio-tab {
+    background: color-mix(in oklab, var(--sec-a) 15%, black);
+    border: 1px solid color-mix(in oklab, var(--sec-a) 30%, transparent);
+    border-radius: 999px;
+    padding: 0.6rem 0.9rem;
+  }
+  .portfolio-tab[data-active="true"] {
+    border-color: transparent;
+  }
+  .light .portfolio-tab {
+    background: color-mix(in oklab, var(--sec-a) 10%, white);
+    border-color: color-mix(in oklab, var(--sec-a) 25%, transparent);
+  }
+  .light .portfolio-tabs {
+    background: color-mix(in oklab, var(--sec-a) 9%, white);
+    border-color: color-mix(in oklab, var(--sec-a) 35%, transparent);
+  }
+  .light .portfolio-tabs::before {
+    background: linear-gradient(90deg,
+      color-mix(in oklab, white 92%, var(--sec-a) 8%) 0%,
+      color-mix(in oklab, white 56%, transparent) 48%,
+      transparent 100%);
+  }
+  .light .portfolio-tabs::after {
+    background: linear-gradient(270deg,
+      color-mix(in oklab, white 92%, var(--sec-a) 8%) 0%,
+      color-mix(in oklab, white 56%, transparent) 48%,
+      transparent 100%);
+  }
 }
 
 /* Video/graphic tile inner surface — themable */

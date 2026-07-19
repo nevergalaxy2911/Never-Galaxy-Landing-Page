@@ -1,33 +1,26 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import { getPublicFlag } from "@/lib/public-flags.functions";
 
 /* -----------------------------------------------------------------------------
- * DeferredAdblockGate, mounts <AdblockGate /> after first paint.
+ * DeferredAdblockGate, mounts <AdblockGate /> after first paint AND only if
+ * the `adblock_gate_enabled` feature flag is on (default: on). The master
+ * switch is toggled from /admin -> Flags -> adblock_gate_enabled.
  *
- * WHY: AdblockGate loads 3 external ad-network probe scripts (adsbygoogle,
- * gpt.js, ima3.js) and runs a bait-element sweep on every visit. Doing that
- * synchronously in the LCP/hydration window costs ~100ms+ of main-thread and
- * network for the 95%+ of visitors who have no blocker. PERFORMANCE.md §6
- * flagged this. We now:
- *   1) code-split the gate via React.lazy (removes it from the main bundle)
- *   2) delay mounting until requestIdleCallback (or a short setTimeout on
- *      Safari) so first paint & LCP are never blocked by probe work
- *
- * SECURITY / DETECTION POSTURE: the gate itself is unchanged, same bait
- * elements, same script canaries, same Brave detection, same fail-closed
- * strictness. We're only changing WHEN it mounts, not WHAT it does. Because
- * the overlay is fixed / top-layer and blocks interaction as soon as it
- * appears, deferring the mount by ~1 frame does not let a blocked page render
- * as if unblocked, clicks/scroll on the overlay-less window during the tiny
- * pre-mount gap trigger no page state that couldn't be re-triggered after
- * the gate resolves.
+ * WHY: AdblockGate loads 3 external ad-network probe scripts on every visit.
+ * Doing that in the LCP window costs ~100ms+ for the 95%+ of visitors who
+ * have no blocker. The flag check is one small Supabase read (public policy)
+ * that runs after idle. If the flag is off, no probes ever fire.
  * --------------------------------------------------------------------------- */
 
 const LazyGate = lazy(() =>
   import("./AdblockGate").then((m) => ({ default: m.AdblockGate }))
 );
 
+type GateState = "idle" | "flag-loading" | "disabled" | "enabled";
+
 export function DeferredAdblockGate() {
-  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<GateState>("idle");
+
   useEffect(() => {
     const w = window as unknown as {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
@@ -35,13 +28,29 @@ export function DeferredAdblockGate() {
     };
     let idleId: number | undefined;
     let timeoutId: number | undefined;
+    let cancelled = false;
+
+    async function boot() {
+      setState("flag-loading");
+      try {
+        const r = await getPublicFlag({ data: { key: "adblock_gate_enabled" } });
+        if (cancelled) return;
+        // Default to ON if the flag row is missing or Supabase is unreachable,
+        // matches the safe-quorum posture, users on real blockers still get
+        // the friendly wall by default.
+        setState(r.enabled === false ? "disabled" : "enabled");
+      } catch {
+        if (!cancelled) setState("enabled");
+      }
+    }
+
     if (typeof w.requestIdleCallback === "function") {
-      idleId = w.requestIdleCallback(() => setReady(true), { timeout: 1500 });
+      idleId = w.requestIdleCallback(() => void boot(), { timeout: 1500 });
     } else {
-      // Safari fallback, small delay past the first paint burst.
-      timeoutId = window.setTimeout(() => setReady(true), 600);
+      timeoutId = window.setTimeout(() => void boot(), 600);
     }
     return () => {
+      cancelled = true;
       if (idleId !== undefined && typeof w.cancelIdleCallback === "function") {
         w.cancelIdleCallback(idleId);
       }
@@ -49,7 +58,7 @@ export function DeferredAdblockGate() {
     };
   }, []);
 
-  if (!ready) return null;
+  if (state !== "enabled") return null;
   return (
     <Suspense fallback={null}>
       <LazyGate />

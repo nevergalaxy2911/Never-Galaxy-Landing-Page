@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { PageViewLogger } from "@/components/PageViewLogger";
 import appCss from "../styles.css?url";
 // H1 display font, preloaded so the LCP hero heading paints in Archivo Black
 // on first frame instead of waiting for the CSS @import chain to resolve the
@@ -93,6 +94,12 @@ export const Route = createRootRoute({
         <h1 className="text-4xl font-display">This coordinate doesn't exist.</h1>
       </div>
     </div>
+  ),
+  component: () => (
+    <>
+      <PageViewLogger />
+      <Outlet />
+    </>
   ),
 });
 

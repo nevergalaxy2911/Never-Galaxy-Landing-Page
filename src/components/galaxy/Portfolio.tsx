@@ -125,22 +125,28 @@ export function Portfolio({
             </p>
           </div>
 
-          {/* Filter tabs — driven by admin-editable categories list. */}
-          <div className="portfolio-tabs mx-auto flex w-fit flex-wrap justify-center gap-1 self-center rounded-full p-1 md:mx-0 md:self-end">
-            {cats.map((c) => {
-              const Icon = ICONS[c.icon] ?? ImageIcon;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setTab(c.id)}
-                  data-active={tab === c.id}
-                  className="portfolio-tab inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider transition-all sm:gap-2 sm:px-4 sm:py-2 sm:text-xs sm:tracking-widest"
-                >
-                  <Icon className="h-3.5 w-3.5" /> {c.label}
-                </button>
-              );
-            })}
+          {/* Filter tabs — driven by admin-editable categories list.
+              Mobile: horizontal scroll with snap so pills never wrap.
+              Tablet+: wrap as a centered pill bar. */}
+          <div className="portfolio-tabs w-full self-center overflow-hidden md:w-fit md:max-w-full md:self-end">
+            <div className="portfolio-tab-list flex flex-nowrap snap-x gap-1 overflow-x-auto md:justify-center">
+              {cats.map((c) => {
+                const Icon = ICONS[c.icon] ?? ImageIcon;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setTab(c.id)}
+                    data-active={tab === c.id}
+                    className="portfolio-tab inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="truncate">{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">

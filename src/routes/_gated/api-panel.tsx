@@ -44,11 +44,13 @@ function HealthSection() {
         </div>
       )}
       {h?.ok && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <Stat label="Settings" value={h.counts.settings} />
           <Stat label="Pricing plans" value={h.counts.pricing} />
           <Stat label="Portfolio" value={h.counts.portfolio} />
           <Stat label="Feature flags" value={h.counts.flags} />
+          <Stat label="Page views" value={h.counts.pageViews} />
+          <Stat label="Admins" value={h.counts.admins} />
           <Stat label="Unread messages" value={h.counts.unreadSubmissions} accent />
         </div>
       )}
@@ -83,8 +85,8 @@ function Stat({ label, value, accent }: any) {
 /* -------------------------------------------------------------------------- */
 
 const FLAG_TEMPLATES = [
+  { key: "adblock_gate_enabled", enabled: true },
   { key: "cursor_trail_default_on", enabled: true },
-  { key: "adblock_gate_strict", enabled: false },
   { key: "theme_default_dark", enabled: true },
   { key: "maintenance_mode", enabled: false },
 ];
