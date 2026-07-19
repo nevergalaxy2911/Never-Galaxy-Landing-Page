@@ -4,11 +4,18 @@
  * accounts must still be granted the 'admin' role via a one-line SQL insert
  * (see SUPABASE_SETUP.sql bootstrap section).
  */
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isUnlocked } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/auth")({
+  beforeLoad: async ({ location }) => {
+    const { unlocked } = await isUnlocked();
+    if (!unlocked) {
+      throw redirect({ to: "/unlock", search: { redirect: location.href } });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Sign in | Never Galaxy" },

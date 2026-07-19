@@ -1,16 +1,22 @@
 /**
- * /unlock, shared-password gate form for /admin and /api-panel.
- * Public route (no gate). Shows a minimal form, POSTs to unlockSite server fn.
+ * /unlock — shared site-password gate that stands in front of the admin
+ * console. Correct password sets an encrypted, HttpOnly session cookie and
+ * redirects to /auth (the admin sign-in).
  */
-import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { unlockSite, getUnlockState } from "@/lib/gate.functions";
+import { useState } from "react";
+import { unlockSite } from "@/lib/gate.functions";
+
+type Search = { redirect?: string };
 
 export const Route = createFileRoute("/unlock")({
+  validateSearch: (s: Record<string, unknown>): Search => ({
+    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: "Unlock, Never Galaxy" },
+      { title: "Restricted | Never Galaxy" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -18,38 +24,32 @@ export const Route = createFileRoute("/unlock")({
 });
 
 function UnlockPage() {
-  const router = useRouter();
   const navigate = useNavigate();
+  const { redirect } = useSearch({ from: "/unlock" });
   const unlock = useServerFn(unlockSite);
-  const checkState = useServerFn(getUnlockState);
-
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  // If already unlocked, bounce to /admin.
-  useEffect(() => {
-    checkState().then((s) => {
-      if (s.unlocked) navigate({ to: "/admin" });
-    }).catch(() => {});
-  }, [checkState, navigate]);
+  const [err, setErr] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!password) return;
     setBusy(true);
-    setError(null);
+    setErr(null);
     try {
       const res = await unlock({ data: { password } });
-      if (res.ok) {
-        await router.invalidate();
-        navigate({ to: "/admin" });
-      } else {
-        setError(res.reason ?? "Wrong password.");
+      if (!res.ok) {
+        setErr("Incorrect password.");
+        setBusy(false);
+        return;
       }
-    } catch (err) {
-      setError((err as Error).message ?? "Something went wrong.");
-    } finally {
+      // Safe internal path or default to /auth
+      const target =
+        redirect && redirect.startsWith("/") && !redirect.startsWith("//")
+          ? redirect
+          : "/auth";
+      window.location.href = target;
+    } catch (e2) {
+      setErr((e2 as Error).message);
       setBusy(false);
     }
   }
@@ -60,39 +60,36 @@ function UnlockPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-8 shadow-2xl"
       >
-        <h1 className="text-2xl font-semibold mb-2">Never Galaxy, Admin</h1>
-        <p className="text-sm text-white/60 mb-6">Enter site password to continue.</p>
+        <h1 className="text-2xl font-semibold mb-1">Restricted area</h1>
+        <p className="text-sm text-white/60 mb-6">
+          Enter the site password to continue.
+        </p>
 
-        <label className="block text-sm mb-2 text-white/80" htmlFor="password">
-          Password
-        </label>
+        <label className="block text-sm mb-2 text-white/80">Password</label>
         <input
-          id="password"
           type="password"
+          required
+          autoFocus
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 text-white placeholder-white/30 focus:outline-none focus:border-fuchsia-500"
-          placeholder="••••••••••"
-          autoFocus
+          className="w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 focus:outline-none focus:border-fuchsia-500"
+          placeholder="••••••••"
         />
 
-        {error && (
+        {err && (
           <p className="text-red-400 text-sm mt-3" role="alert">
-            {error}
+            {err}
           </p>
         )}
 
         <button
           type="submit"
-          disabled={busy || !password}
-          className="mt-6 w-full rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 font-medium transition-colors"
+          disabled={busy || password.length === 0}
+          className="mt-6 w-full rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 px-4 py-2.5 font-medium transition-colors"
         >
-          {busy ? "Checking…" : "Unlock"}
+          {busy ? "…" : "Unlock"}
         </button>
-        <p className="text-xs text-white/40 mt-4">
-          7-day session • encrypted cookie • single shared password
-        </p>
       </form>
     </main>
   );

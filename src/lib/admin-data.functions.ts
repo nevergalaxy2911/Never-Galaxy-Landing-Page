@@ -32,7 +32,7 @@ export const upsertSetting = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (!supabaseAdmin) throw new Error("Supabase not configured");
     const { error } = await supabaseAdmin.from("site_settings").upsert(
-      { key: data.key, value: data.value, updated_at: new Date().toISOString() },
+      { key: data.key, value: data.value as never, updated_at: new Date().toISOString() },
       { onConflict: "key" },
     );
     if (error) throw new Error(error.message);
@@ -166,7 +166,7 @@ export const upsertFlag = createServerFn({ method: "POST" })
     const { logSystemEvent } = await import("./auth.server");
     if (!supabaseAdmin) throw new Error("Supabase not configured");
     const { error } = await supabaseAdmin.from("feature_flags").upsert(
-      { key: data.key, enabled: data.enabled, value: data.value ?? null, updated_at: new Date().toISOString() },
+      { key: data.key, enabled: data.enabled, value: (data.value ?? null) as never, updated_at: new Date().toISOString() },
       { onConflict: "key" },
     );
     if (error) throw new Error(error.message);

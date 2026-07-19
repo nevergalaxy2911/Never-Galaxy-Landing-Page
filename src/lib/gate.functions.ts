@@ -1,46 +1,64 @@
 /**
- * Shared-password gate server functions. Handler bodies dynamically import
- * ./gate.server so useSession never lands in the client bundle.
+ * Shared-password site gate. Sits in FRONT of the admin login (/auth).
+ * Flow: visitor -> /unlock -> enter SITE_PASSWORD -> encrypted session
+ * cookie set -> can reach /admin, /api-panel, /analytics (which still
+ * require a Supabase admin sign-in on top).
  */
 import { createServerFn } from "@tanstack/react-start";
+import { useSession } from "@tanstack/react-start/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 
-/** POST /unlock, check password, set cookie. */
+type GateSession = { unlocked?: boolean };
+
+function getSessionConfig() {
+  const password = process.env.SESSION_SECRET;
+  if (!password || password.length < 32) {
+    throw new Error("SESSION_SECRET is not set (must be 32+ chars)");
+  }
+  return {
+    password,
+    name: "ng-site-gate",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    cookie: {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax" as const,
+      path: "/",
+    },
+  };
+}
+
+function passwordMatches(input: string, expected: string): boolean {
+  const a = createHash("sha256").update(input, "utf8").digest();
+  const b = createHash("sha256").update(expected, "utf8").digest();
+  return timingSafeEqual(a, b);
+}
+
+export const isUnlocked = createServerFn({ method: "GET" }).handler(async () => {
+  const session = await useSession<GateSession>(getSessionConfig());
+  return { unlocked: !!session.data.unlocked };
+});
+
 export const unlockSite = createServerFn({ method: "POST" })
   .inputValidator((data: { password: string }) => {
-    if (typeof data?.password !== "string" || data.password.length > 500) {
+    if (!data || typeof data.password !== "string" || data.password.length > 500) {
       throw new Error("Invalid input");
     }
     return data;
   })
   .handler(async ({ data }) => {
-    const { getSession, passwordMatches } = await import("./gate.server");
     const expected = process.env.SITE_PASSWORD;
-    if (!expected) {
-      return { ok: false as const, reason: "SITE_PASSWORD env var is not set." };
-    }
+    if (!expected) throw new Error("SITE_PASSWORD is not set");
     if (!passwordMatches(data.password, expected)) {
       return { ok: false as const };
     }
-    const session = await getSession();
-    await session.update({ unlocked: true, at: Date.now() });
+    const session = await useSession<GateSession>(getSessionConfig());
+    await session.update({ unlocked: true });
     return { ok: true as const };
   });
 
-/** POST, clear cookie. */
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
-  const { getSession } = await import("./gate.server");
-  const session = await getSession();
+  const session = await useSession<GateSession>(getSessionConfig());
   await session.clear();
   return { ok: true as const };
-});
-
-/** GET, check unlock state without redirecting. */
-export const getUnlockState = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const { getSession } = await import("./gate.server");
-    const session = await getSession();
-    return { unlocked: !!session.data.unlocked };
-  } catch {
-    return { unlocked: false };
-  }
 });

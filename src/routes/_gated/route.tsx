@@ -4,13 +4,20 @@
  * client-side check on mount: no session -> /auth; session but no admin
  * role -> shown a "not authorised" panel with sign-out.
  */
-import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyRole } from "@/lib/auth.functions";
+import { isUnlocked } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/_gated")({
   ssr: false,
+  beforeLoad: async ({ location }) => {
+    const { unlocked } = await isUnlocked();
+    if (!unlocked) {
+      throw redirect({ to: "/unlock", search: { redirect: location.href } });
+    }
+  },
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
   component: GatedLayout,
 });
