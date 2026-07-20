@@ -4,20 +4,13 @@
  * client-side check on mount: no session -> /auth; session but no admin
  * role -> shown a "not authorised" panel with sign-out.
  */
-import { createFileRoute, Outlet, Link, useNavigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyRole } from "@/lib/auth.functions";
-import { isUnlocked } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/_gated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
-    const { unlocked } = await isUnlocked();
-    if (!unlocked) {
-      throw redirect({ to: "/unlock", search: { redirect: location.href } });
-    }
-  },
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
   component: GatedLayout,
 });
@@ -44,16 +37,25 @@ function GatedLayout() {
       try {
         const role = await getMyRole();
         if (cancelled) return;
-        if (!role.signedIn) navigate({ to: "/auth" });
-        else if (!role.admin) setState({ kind: "forbidden", email: role.email ?? null });
-        else setState({ kind: "ok", email: role.email ?? null });
+        if (!role.signedIn) {
+          // We have a local session but the server says "not signed in".
+          // That means the server can't validate the bearer token — usually
+          // SUPABASE_SERVICE_ROLE_KEY / SUPABASE_URL missing in the server env.
+          // Do NOT bounce to /auth (that just loops). Show a clear error.
+          setState({ kind: "forbidden", email: sess.session.user?.email ?? null });
+        } else if (!role.admin) {
+          setState({ kind: "forbidden", email: role.email ?? null });
+        } else {
+          setState({ kind: "ok", email: role.email ?? null });
+        }
       } catch {
-        if (!cancelled) setState({ kind: "forbidden", email: null });
+        if (!cancelled) setState({ kind: "forbidden", email: sess.session.user?.email ?? null });
       }
     }
     void check();
     return () => { cancelled = true; };
   }, [navigate]);
+
 
   async function onLogout() {
     if (supabase) await supabase.auth.signOut();
@@ -71,11 +73,15 @@ function GatedLayout() {
     return (
       <div className="min-h-screen grid place-items-center bg-black text-white px-4">
         <div className="max-w-md rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center">
-          <h1 className="text-xl font-semibold mb-2">Not authorised</h1>
+          <h1 className="text-xl font-semibold mb-2">Can't verify admin</h1>
           <p className="text-sm text-white/70 mb-4">
-            Signed in as <b>{state.email ?? "unknown"}</b>, but this account has no admin role.
-            Run the bootstrap INSERT from <code>SUPABASE_SETUP.sql</code> to grant admin access.
+            Signed in as <b>{state.email ?? "unknown"}</b>, but the server can't confirm your admin role.
+            Either the account has no <code>admin</code> row in <code>user_roles</code> (run the bootstrap INSERT
+            from <code>SUPABASE_SETUP.sql</code>), or the server env vars <code>SUPABASE_URL</code> and
+            <code>SUPABASE_SERVICE_ROLE_KEY</code> are missing in this deployment. This preview URL doesn't
+            share Vercel's env vars — test admin login on the deployed Vercel URL.
           </p>
+
           <button onClick={onLogout} className="btn-secondary">Sign out</button>
         </div>
       </div>

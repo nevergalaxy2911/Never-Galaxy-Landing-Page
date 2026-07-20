@@ -36,7 +36,7 @@ export async function requireAdmin() {
 export async function logSystemEvent(kind: string, payload: unknown = null) {
   if (!supabaseAdmin) return;
   try {
-    await supabaseAdmin.from("system_events").insert({ kind, payload: payload as never });
+    await supabaseAdmin.from("system_events").insert({ kind, payload });
   } catch {
     /* swallow, logging must never break the caller */
   }

@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -20,11 +19,6 @@ import { Route as GatedAnalyticsRouteImport } from './routes/_gated/analytics'
 import { Route as GatedAdminRouteImport } from './routes/_gated/admin'
 import { Route as ApiPublicAdblockDiagnosticsRouteImport } from './routes/api/public/adblock-diagnostics'
 
-const UnlockRoute = UnlockRouteImport.update({
-  id: '/unlock',
-  path: '/unlock',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -76,7 +70,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
@@ -87,7 +80,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/admin': typeof GatedAdminRoute
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
@@ -100,7 +92,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/unlock': typeof UnlockRoute
   '/_gated/admin': typeof GatedAdminRoute
   '/_gated/analytics': typeof GatedAnalyticsRoute
   '/_gated/api-panel': typeof GatedApiPanelRoute
@@ -113,7 +104,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/admin'
     | '/analytics'
     | '/api-panel'
@@ -124,7 +114,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/admin'
     | '/analytics'
     | '/api-panel'
@@ -136,7 +125,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/terms'
-    | '/unlock'
     | '/_gated/admin'
     | '/_gated/analytics'
     | '/_gated/api-panel'
@@ -149,19 +137,11 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
-  UnlockRoute: typeof UnlockRoute
   ApiPublicAdblockDiagnosticsRoute: typeof ApiPublicAdblockDiagnosticsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unlock': {
-      id: '/unlock'
-      path: '/unlock'
-      fullPath: '/unlock'
-      preLoaderRoute: typeof UnlockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -250,7 +230,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
-  UnlockRoute: UnlockRoute,
   ApiPublicAdblockDiagnosticsRoute: ApiPublicAdblockDiagnosticsRoute,
 }
 export const routeTree = rootRouteImport
