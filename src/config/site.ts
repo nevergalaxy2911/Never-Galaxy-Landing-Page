@@ -62,6 +62,26 @@ export const CONTACT = {
 
 
 /* -----------------------------------------------------------------------------
+ * ADMIN ALLOWLIST
+ * ---------------------------------------------------------------------------
+ * Extra defense layer for the /admin console. Even if someone gets a valid
+ * Supabase session (stolen password, sneaky signup, etc.), the server will
+ * reject them unless their email (lowercased) appears in this array.
+ *
+ * HOW TO EDIT:
+ *   • Add a new admin: append their email (lowercase) as a new string.
+ *   • Revoke an admin: delete their line here AND delete their row in
+ *     public.user_roles in Supabase SQL editor.
+ *   • Keep this list SHORT. One or two people max is safest.
+ *
+ * This works with, not instead of, the user_roles admin check. Both must pass.
+ * --------------------------------------------------------------------------- */
+export const ADMIN_ALLOWLIST: readonly string[] = [
+  "nevergalaxy2911@gmail.com",
+] as const;
+
+
+/* -----------------------------------------------------------------------------
  * SOCIALS
  * ---------------------------------------------------------------------------
  * External profile URLs. Set a URL to "" (empty string) to visually mark the

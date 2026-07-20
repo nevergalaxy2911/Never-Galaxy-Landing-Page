@@ -8,6 +8,7 @@
  */
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { ADMIN_ALLOWLIST } from "@/config/site";
 
 export async function requireAdmin() {
   if (!supabaseAdmin) {
@@ -20,6 +21,16 @@ export async function requireAdmin() {
   const { data: userRes, error: authErr } = await supabaseAdmin.auth.getUser(token);
   if (authErr || !userRes?.user) throw new Error("Unauthorized: invalid session");
 
+  // Layer 1: email must be verified (blocks unverified signups from ever being admin).
+  if (!userRes.user.email_confirmed_at) throw new Error("Forbidden: email not verified");
+
+  // Layer 2: email must be on the hardcoded allowlist in src/config/site.ts.
+  const email = (userRes.user.email ?? "").toLowerCase();
+  if (!email || !ADMIN_ALLOWLIST.map((e) => e.toLowerCase()).includes(email)) {
+    throw new Error("Forbidden: email not on admin allowlist");
+  }
+
+  // Layer 3: user_roles row with role='admin'.
   const { data: roles, error: roleErr } = await supabaseAdmin
     .from("user_roles")
     .select("role")

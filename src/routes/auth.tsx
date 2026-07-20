@@ -18,16 +18,14 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Mode = "signin" | "signup";
+
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
 
   // If already signed in, bounce to /admin.
   useEffect(() => {
@@ -40,26 +38,18 @@ function AuthPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase) {
-      setErr("Auth is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in Vercel.");
+      setErr("Auth is not configured.");
       return;
     }
-    setBusy(true); setErr(null); setMsg(null);
+    setBusy(true); setErr(null);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate({ to: "/admin" });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin + "/auth" },
-        });
-        if (error) throw error;
-        setMsg("Account created. If email confirmations are on, check your inbox. Otherwise sign in below.");
-        setMode("signin");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      navigate({ to: "/admin" });
     } catch (e) {
-      setErr((e as Error).message);
+      // Generic message, never leak whether the email exists.
+      setErr("Invalid credentials.");
+      console.warn("sign-in failed:", (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -73,7 +63,7 @@ function AuthPage() {
       >
         <h1 className="text-2xl font-semibold mb-1">Never Galaxy | Admin</h1>
         <p className="text-sm text-white/60 mb-6">
-          {mode === "signin" ? "Sign in to your admin account." : "Create a new admin account."}
+          Restricted area. Sign in with your authorised admin account.
         </p>
 
         <label className="block text-sm mb-2 text-white/80">Email</label>
@@ -87,33 +77,26 @@ function AuthPage() {
         <label className="block text-sm mb-2 text-white/80">Password</label>
         <input
           type="password" required minLength={8}
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
+          autoComplete="current-password"
           value={password} onChange={(e) => setPassword(e.target.value)}
           className="w-full rounded-lg bg-black/40 border border-white/15 px-3 py-2 focus:outline-none focus:border-fuchsia-500"
           placeholder="••••••••"
         />
 
         {err && <p className="text-red-400 text-sm mt-3" role="alert">{err}</p>}
-        {msg && <p className="text-emerald-300 text-sm mt-3">{msg}</p>}
 
         <button
           type="submit" disabled={busy}
           className="mt-6 w-full rounded-lg bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 px-4 py-2.5 font-medium transition-colors"
         >
-          {busy ? "…" : mode === "signin" ? "Sign in" : "Create account"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setErr(null); setMsg(null); }}
-          className="mt-4 w-full text-sm text-white/60 hover:text-white/90 transition-colors"
-        >
-          {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+          {busy ? "…" : "Sign in"}
         </button>
 
         <p className="text-xs text-white/40 mt-6 leading-relaxed">
-          After your first sign-up, run the 1-line SQL in <code>SUPABASE_SETUP.sql</code> to grant
-          your user the <b>admin</b> role. Sessions persist across page reloads.
+          New accounts cannot be created from this page. To add an admin, edit
+          <code> ADMIN_ALLOWLIST </code> in <code>src/config/site.ts</code>, create
+          the user in the Supabase dashboard, and insert their UUID into
+          <code> user_roles</code>.
         </p>
       </form>
     </main>
