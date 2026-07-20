@@ -93,11 +93,16 @@ function GatedLayout() {
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4">
           <div className="flex flex-wrap items-center gap-3 sm:gap-6 min-w-0">
             <span className="font-semibold truncate">Never Galaxy | Console</span>
-            <nav className="flex flex-wrap gap-1 text-sm">
-              <Link to="/admin" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Admin</Link>
-              <Link to="/api-panel" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>API Panel</Link>
-              <Link to="/analytics" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Analytics</Link>
-              <Link to="/" className="nav-pill">↗ Site</Link>
+            <nav className="flex flex-wrap gap-1 text-sm" aria-label="Console sections">
+              {/*
+                preload="intent" makes the router warm the route module + loader
+                as soon as the user hovers/focuses the link — clicks then feel
+                instant even on slow networks. Zero visual change.
+              */}
+              <Link to="/admin" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Admin</Link>
+              <Link to="/api-panel" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>API Panel</Link>
+              <Link to="/analytics" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Analytics</Link>
+              <Link to="/" preload="intent" className="nav-pill">↗ Site</Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">

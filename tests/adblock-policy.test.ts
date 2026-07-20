@@ -122,8 +122,24 @@ describe("adblockPolicy · true-positive detections", () => {
     expect(r.reasons).toContain("dom-cosmetic-filter");
   });
 
-  it("blocks on payload + one script canary (Rule 2 — Brave Shields ON, cosmetic OFF)", () => {
+  it("blocks on payload + one script canary (Rule 2 — non-Brave, e.g. AdGuard partial)", () => {
+    const r = classify(s({ fetchBlocked: true, scriptBlocked: true }));
+    expect(r.verdict).toBe("blocked");
+    expect(r.reasons).toContain("payload-plus-script");
+  });
+
+  it("stays clear on Brave with payload + ONE script (browser proxy artifact, not a real block)", () => {
+    // Regression guard: real Brave users with Shields OFF sometimes see a
+    // single ad-network script get replaced with an empty 200 alongside a
+    // failing fetch payload. That must NOT trip the gate on Brave.
     const r = classify(s({ fetchBlocked: true, scriptBlocked: true, isBrave: true }));
+    expect(r.verdict).toBe("clear");
+  });
+
+  it("blocks on Brave when payload + TWO script canaries fail (Shields cosmetic OFF)", () => {
+    const r = classify(
+      s({ fetchBlocked: true, scriptBlocked: true, gptBlocked: true, isBrave: true }),
+    );
     expect(r.verdict).toBe("blocked");
     expect(r.reasons).toContain("payload-plus-script");
   });

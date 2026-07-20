@@ -1,0 +1,138 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Switch — DOM snapshots > checked primary 1`] = `
+<button
+  aria-checked="true"
+  aria-label="s2"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-cyan-500"
+  data-state="checked"
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-state="checked"
+  />
+</button>
+`;
+
+exports[`Switch — DOM snapshots > checked promo 1`] = `
+<button
+  aria-checked="true"
+  aria-label="s5"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-fuchsia-500"
+  data-state="checked"
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-state="checked"
+  />
+</button>
+`;
+
+exports[`Switch — DOM snapshots > checked success 1`] = `
+<button
+  aria-checked="true"
+  aria-label="s3"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-emerald-500"
+  data-state="checked"
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-state="checked"
+  />
+</button>
+`;
+
+exports[`Switch — DOM snapshots > checked warn 1`] = `
+<button
+  aria-checked="true"
+  aria-label="s4"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-amber-500"
+  data-state="checked"
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-state="checked"
+  />
+</button>
+`;
+
+exports[`Switch — DOM snapshots > disabled 1`] = `
+<button
+  aria-checked="false"
+  aria-label="s6"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-cyan-500"
+  data-disabled=""
+  data-state="unchecked"
+  disabled=""
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-disabled=""
+    data-state="unchecked"
+  />
+</button>
+`;
+
+exports[`Switch — DOM snapshots > small-screen toggle row keeps 3-column grid (label|switch|delete) 1`] = `
+<div
+  class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3"
+  style="width: 320px;"
+>
+  <div
+    class="min-w-0 truncate"
+  >
+    feature.flag.key
+  </div>
+  <button
+    aria-checked="true"
+    aria-label="Toggle flag feature.flag.key"
+    class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-cyan-500"
+    data-state="checked"
+    role="switch"
+    type="button"
+    value="on"
+  >
+    <span
+      class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+      data-state="checked"
+    />
+  </button>
+  <button
+    aria-label="Delete flag feature.flag.key"
+  >
+    🗑
+  </button>
+</div>
+`;
+
+exports[`Switch — DOM snapshots > unchecked primary 1`] = `
+<button
+  aria-checked="false"
+  aria-label="s1"
+  class="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-sm shadow-black/5 outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-white/15 dark:data-[state=unchecked]:bg-white/10 data-[state=checked]:bg-cyan-500"
+  data-state="unchecked"
+  role="switch"
+  type="button"
+  value="on"
+>
+  <span
+    class="pointer-events-none block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0.5"
+    data-state="unchecked"
+  />
+</button>
+`;

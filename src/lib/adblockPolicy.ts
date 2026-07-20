@@ -54,20 +54,23 @@ export type ClassificationResult = {
 export const NETWORK_QUORUM = 4;
 
 export function classify(signals: DetectionSignals): ClassificationResult {
-  const { domBlocked, scriptBlocked, gptBlocked, imaBlocked, fetchBlocked } = signals;
+  const { domBlocked, scriptBlocked, gptBlocked, imaBlocked, fetchBlocked, isBrave } = signals;
   const networkFailures = [scriptBlocked, gptBlocked, imaBlocked, fetchBlocked].filter(Boolean).length;
   const reasons: string[] = [];
 
   // Rule 1, cosmetic filter hit is unambiguous.
   if (domBlocked) reasons.push("dom-cosmetic-filter");
 
-  // Rule 2, payload check plus at least one script canary must both fail.
-  // `fetchBlocked` alone can be a transient CORS/network hiccup, so we
-  // require a corroborating script probe. This is the rule that reliably
-  // catches Brave Shields with cosmetic filtering turned OFF, without
-  // misfiring on a bare Brave browser that has Shields down.
+  // Rule 2, payload probe + corroborating script canary failures.
+  // Brave itself proxies/replaces ad-network scripts with empty 200s even
+  // with Shields on "standard" (no cosmetic filtering) — a single script
+  // canary failing alongside the payload probe misfires on real Brave
+  // users who aren't intentionally blocking. So on Brave we require TWO
+  // script canaries to fail before rule 2 fires; everywhere else, one is
+  // enough (uBO / AdGuard trip all three anyway).
   const scriptFailures = [scriptBlocked, gptBlocked, imaBlocked].filter(Boolean).length;
-  if (fetchBlocked && scriptFailures >= 1) reasons.push("payload-plus-script");
+  const scriptThreshold = isBrave ? 2 : 1;
+  if (fetchBlocked && scriptFailures >= scriptThreshold) reasons.push("payload-plus-script");
 
   // Rule 3, unanimous network-layer quorum.
   if (networkFailures >= NETWORK_QUORUM) reasons.push("network-quorum");

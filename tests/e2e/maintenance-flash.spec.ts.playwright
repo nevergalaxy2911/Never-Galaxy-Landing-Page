@@ -1,0 +1,37 @@
+/**
+ * OPTIONAL end-to-end Playwright check for zero-flash maintenance mode.
+ * File extension is intentionally `.playwright` so vitest ignores it.
+ *
+ * HOW TO RUN (manually, against a running preview with maintenance ON):
+ *   1. In /api-panel enable "Maintenance mode".
+ *   2. `npx playwright install chromium` (once).
+ *   3. Rename this file to `maintenance-flash.spec.ts` and run:
+ *      `npx playwright test tests/e2e/maintenance-flash.spec.ts`
+ *
+ * WHAT IT CHECKS
+ *   - Navigating to `/`, `/services`, `/portfolio` etc. shows the wall
+ *     in the very first paint (checks presence of the dialog before any
+ *     hero content is measured on-screen).
+ *   - Admin routes (/admin, /api-panel) DO NOT show the wall.
+ */
+import { test, expect } from "@playwright/test";
+
+const PUBLIC_ROUTES = ["/", "/services", "/portfolio", "/contact", "/pricing"];
+const ADMIN_ROUTES  = ["/auth", "/admin", "/api-panel"];
+
+for (const route of PUBLIC_ROUTES) {
+  test(`public ${route} shows the maintenance wall in first paint`, async ({ page }) => {
+    await page.goto(route, { waitUntil: "commit" });
+    // The dialog must be present before load completes — no marketing flash.
+    await expect(page.getByRole("dialog", { name: /.*/ })).toBeVisible({ timeout: 500 });
+    // And hero markers must not be present.
+    await expect(page.locator("#hero, [data-hero]")).toHaveCount(0);
+  });
+}
+
+for (const route of ADMIN_ROUTES) {
+  test(`admin ${route} bypasses the wall`, async ({ page }) => {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("dialog", { name: /maintenance/i })).toHaveCount(0);
+  });
+}

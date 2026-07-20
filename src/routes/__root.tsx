@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { HeadContent, Outlet, Scripts, createRootRoute, useLocation } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PageViewLogger } from "@/components/PageViewLogger";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { getPublicFlag } from "@/lib/public-flags.functions";
@@ -96,12 +96,16 @@ export const Route = createRootRoute({
   // you can always turn it back off.
   loader: async ({ location }) => {
     const path = location.pathname;
+    // serverNow lets the client-side countdown compute a stable offset from
+    // the server clock instead of trusting the visitor's (often skewed)
+    // system clock. Sent on every load so it stays fresh across navigations.
+    const serverNow = Date.now();
     if (MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"))) {
-      return { maintenance: null as null | MaintenancePayload };
+      return { maintenance: null as null | MaintenancePayload, serverNow };
     }
     try {
       const r = await getPublicFlag({ data: { key: "maintenance_mode" } });
-      if (r.enabled !== true) return { maintenance: null };
+      if (r.enabled !== true) return { maintenance: null, serverNow };
       const v = (r.value ?? {}) as {
         title?: string; message?: string;
         tone?: "info" | "warn" | "promo";
@@ -116,9 +120,10 @@ export const Route = createRootRoute({
           until: v.until && !Number.isNaN(Date.parse(v.until)) ? v.until : null,
           updatedAt: r.updatedAt ?? null,
         } as MaintenancePayload,
+        serverNow,
       };
     } catch {
-      return { maintenance: null };
+      return { maintenance: null, serverNow };
     }
   },
   notFoundComponent: () => (
@@ -152,13 +157,20 @@ function MaintenanceSkeleton() {
   );
 }
 
-function useCountdown(until: string | null) {
-  const [now, setNow] = useState(() => Date.now());
+function useCountdown(until: string | null, serverNow?: number) {
+  // Sync to server clock. If the loader gave us serverNow, we lock in the
+  // offset between server time and this device's clock ONCE at mount and
+  // then keep ticking locally. This kills the "my laptop clock is 8 minutes
+  // fast so the countdown finishes early" class of bugs.
+  const [offset] = useState(() =>
+    typeof serverNow === "number" ? serverNow - Date.now() : 0,
+  );
+  const [now, setNow] = useState(() => Date.now() + offset);
   useEffect(() => {
     if (!until) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    const id = window.setInterval(() => setNow(Date.now() + offset), 1000);
     return () => window.clearInterval(id);
-  }, [until]);
+  }, [until, offset]);
   if (!until) return null;
   const diff = Date.parse(until) - now;
   if (diff <= 0) return "any moment now";
@@ -170,13 +182,13 @@ function useCountdown(until: string | null) {
 }
 
 function RootComponent() {
-  const { maintenance } = Route.useLoaderData();
+  const { maintenance, serverNow } = Route.useLoaderData();
   const location = useLocation();
   const path = location.pathname;
   const exempt = MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"));
 
   if (maintenance && !exempt) {
-    return <MaintenanceScreen data={maintenance} />;
+    return <MaintenanceScreen data={maintenance} serverNow={serverNow} />;
   }
 
   return (
@@ -188,8 +200,8 @@ function RootComponent() {
   );
 }
 
-function MaintenanceScreen({ data }: { data: MaintenancePayload }) {
-  const countdown = useCountdown(data.until);
+function MaintenanceScreen({ data, serverNow }: { data: MaintenancePayload; serverNow?: number }) {
+  const countdown = useCountdown(data.until, serverNow);
   const tone = data.tone;
   const chip =
     tone === "warn"  ? "border-amber-400/60 text-amber-200 bg-amber-500/10" :
@@ -202,12 +214,68 @@ function MaintenanceScreen({ data }: { data: MaintenancePayload }) {
 
   const updated = data.updatedAt ? new Date(data.updatedAt) : null;
 
+  // Focus trap + initial focus + return focus. The wall is a modal cover:
+  //   - On mount we remember the previously focused element, focus the
+  //     dialog itself, and lock focus inside the dialog.
+  //   - Shift+Tab from the first tabbable wraps to the last; Tab from the
+  //     last wraps to the first. Nothing outside the wall is reachable.
+  //   - On unmount (maintenance toggled off) we restore focus to whatever
+  //     was focused before the wall appeared.
+  // No Escape handler on purpose — this is a hard wall, not a dismissible dialog.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const node = dialogRef.current;
+    node?.focus();
+
+    function tabbables(): HTMLElement[] {
+      if (!node) return [];
+      const sel = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+      const nodes = Array.from(node.querySelectorAll(sel)) as HTMLElement[];
+      return nodes.filter((el) => !el.hasAttribute("inert") && el.offsetParent !== null);
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const list = tabbables();
+      // Only the dialog itself is focusable in the default wall — trap by
+      // keeping focus on it so nothing behind the modal ever receives Tab.
+      if (list.length === 0) {
+        e.preventDefault();
+        node?.focus();
+        return;
+      }
+      const first = list[0];
+      const last = list[list.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && (active === first || active === node)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      // Return focus to origin so keyboard/SR users don't land on <body>.
+      if (previouslyFocused && typeof previouslyFocused.focus === "function") {
+        try { previouslyFocused.focus(); } catch { /* element removed */ }
+      }
+    };
+  }, []);
+
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="maint-title"
-      className="fixed inset-0 z-[9999] grid place-items-center px-6 text-white overflow-hidden bg-black"
+      aria-describedby="maint-desc"
+      className="fixed inset-0 z-[9999] grid place-items-center px-6 text-white overflow-hidden bg-black outline-none"
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${glow} pointer-events-none`} />
       <div className="absolute inset-0 backdrop-blur-md pointer-events-none" />
@@ -219,7 +287,7 @@ function MaintenanceScreen({ data }: { data: MaintenancePayload }) {
         <h1 id="maint-title" className="text-4xl md:text-5xl font-display mb-4 leading-tight">
           {data.title}
         </h1>
-        <p className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
+        <p id="maint-desc" className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
           {data.message}
         </p>
         {countdown && (

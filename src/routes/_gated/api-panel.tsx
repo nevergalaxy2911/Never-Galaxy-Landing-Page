@@ -416,8 +416,15 @@ function FlagsSection() {
             key={r.key}
             className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 px-4 py-3"
           >
-            <div className="font-mono text-xs sm:text-sm text-fuchsia-300 min-w-0 break-all">
-              {r.key}
+            <div className="min-w-0">
+              <div className="font-mono text-xs sm:text-sm text-fuchsia-300 break-all">
+                {r.key}
+              </div>
+              {r.updated_at && (
+                <div className="text-[10px] text-white/40 mt-0.5">
+                  Updated {new Date(r.updated_at).toLocaleString()}
+                </div>
+              )}
             </div>
             <Switch
               tone="success"
@@ -428,6 +435,7 @@ function FlagsSection() {
             <button
               className="btn-danger text-xs shrink-0"
               onClick={() => remove(r.key)}
+              aria-label={`Delete flag ${r.key}`}
             >
               Delete
             </button>
