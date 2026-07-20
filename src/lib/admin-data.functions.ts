@@ -221,6 +221,46 @@ export const deleteSubmission = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* --- Bulk actions on submissions ------------------------------------------ */
+
+export const bulkMarkSubmissionsRead = createServerFn({ method: "POST" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+  const { error, count } = await supabaseAdmin
+    .from("contact_submissions").update({ read: true }, { count: "exact" }).eq("read", false);
+  if (error) throw new Error(error.message);
+  return { ok: true, updated: count ?? 0 };
+});
+
+export const deleteReadSubmissions = createServerFn({ method: "POST" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+  const { error, count } = await supabaseAdmin
+    .from("contact_submissions").delete({ count: "exact" }).eq("read", true);
+  if (error) throw new Error(error.message);
+  return { ok: true, deleted: count ?? 0 };
+});
+
+/* --- Danger zone: purge old page views ----------------------------------- */
+
+export const purgeOldPageViews = createServerFn({ method: "POST" })
+  .inputValidator((d: { olderThanDays: number }) => {
+    const n = Math.max(1, Math.min(365, Number(d?.olderThanDays) || 90));
+    return { olderThanDays: n };
+  })
+  .handler(async ({ data }) => {
+    await auth();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const cutoff = new Date(Date.now() - data.olderThanDays * 86400000).toISOString();
+    const { error, count } = await supabaseAdmin
+      .from("page_views").delete({ count: "exact" }).lt("created_at", cutoff);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: count ?? 0, cutoff };
+  });
+
 /* -------------------------------------------------------------------------- */
 /* HEALTH, quick summary for /api-panel                                       */
 /* -------------------------------------------------------------------------- */

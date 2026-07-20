@@ -7,6 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   listFlags, upsertFlag, deleteFlag,
   listSubmissions, markSubmissionRead, deleteSubmission,
+  bulkMarkSubmissionsRead, deleteReadSubmissions, purgeOldPageViews,
+  resetPricingToDefaults,
   getHealth,
 } from "@/lib/admin-data.functions";
 
@@ -19,9 +21,272 @@ function ApiPanelPage() {
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">API Panel</h1>
       <HealthSection />
+      <MaintenanceSection />
+      <AnnouncementSection />
       <FlagsSection />
+      <QuickActionsSection />
       <SubmissionsSection />
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* MAINTENANCE (with custom title + message)                                  */
+/* -------------------------------------------------------------------------- */
+
+function MaintenanceSection() {
+  const load = useServerFn(listFlags);
+  const upsert = useServerFn(upsertFlag);
+  const [on, setOn] = useState<boolean | null>(null);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState<null | "ok" | "err">(null);
+
+  const refresh = useCallback(async () => {
+    const r = await load();
+    const row = r.rows.find((x: any) => x.key === "maintenance_mode");
+    setOn(row ? !!row.enabled : false);
+    const v = (row?.value ?? {}) as { title?: string; message?: string };
+    setTitle(v.title ?? "");
+    setMessage(v.message ?? "");
+  }, [load]);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  async function save(nextOn?: boolean) {
+    if (on === null) return;
+    setBusy(true); setSaved(null);
+    try {
+      const enabled = typeof nextOn === "boolean" ? nextOn : on;
+      await upsert({ data: {
+        key: "maintenance_mode",
+        enabled,
+        value: { title: title.trim(), message: message.trim() },
+      } });
+      setOn(enabled);
+      setSaved("ok");
+      setTimeout(() => setSaved(null), 1800);
+    } catch { setSaved("err"); } finally { setBusy(false); }
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Maintenance Mode</h2>
+      <div className={`rounded-2xl border p-5 space-y-4 ${
+        on ? "border-fuchsia-500/50 bg-fuchsia-500/10" : "border-white/10 bg-white/5"
+      }`}>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <div className="font-semibold text-base">
+              {on ? "Site is under maintenance" : "Site is live"}
+            </div>
+            <div className="text-sm text-white/60 mt-1">
+              When ON, visitors see the message below. Admin routes stay reachable.
+            </div>
+          </div>
+          <button
+            onClick={() => save(!on)}
+            disabled={busy || on === null}
+            className={`shrink-0 w-16 h-8 rounded-full transition-colors relative disabled:opacity-50 ${
+              on ? "bg-fuchsia-500" : "bg-white/20"
+            }`}
+            aria-label="Toggle maintenance mode"
+          >
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${
+              on ? "translate-x-9" : "translate-x-1"
+            }`} />
+          </button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Headline</span>
+            <input className="input w-full" placeholder="We'll be back shortly."
+              value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+          </label>
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Message (visitors see this)</span>
+            <textarea className="input w-full min-h-[68px]" placeholder="Briefly offline for updates…"
+              value={message} onChange={(e) => setMessage(e.target.value)} maxLength={400} />
+          </label>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button className="btn-primary" onClick={() => save()} disabled={busy}>
+            Save message
+          </button>
+          {saved === "ok"  && <span className="text-xs text-emerald-300">Saved ✓</span>}
+          {saved === "err" && <span className="text-xs text-red-300">Save failed</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* ANNOUNCEMENT BAR (site-wide banner)                                        */
+/* -------------------------------------------------------------------------- */
+
+function AnnouncementSection() {
+  const load = useServerFn(listFlags);
+  const upsert = useServerFn(upsertFlag);
+  const [on, setOn] = useState<boolean | null>(null);
+  const [text, setText] = useState("");
+  const [href, setHref] = useState("");
+  const [tone, setTone] = useState<"info" | "warn" | "promo">("info");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState<null | "ok" | "err">(null);
+
+  const refresh = useCallback(async () => {
+    const r = await load();
+    const row = r.rows.find((x: any) => x.key === "announcement_bar");
+    setOn(row ? !!row.enabled : false);
+    const v = (row?.value ?? {}) as { text?: string; href?: string; tone?: any };
+    setText(v.text ?? "");
+    setHref(v.href ?? "");
+    setTone((v.tone === "warn" || v.tone === "promo") ? v.tone : "info");
+  }, [load]);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  async function save(nextOn?: boolean) {
+    setBusy(true); setSaved(null);
+    try {
+      const enabled = typeof nextOn === "boolean" ? nextOn : !!on;
+      await upsert({ data: {
+        key: "announcement_bar", enabled,
+        value: { text: text.trim(), href: href.trim() || undefined, tone },
+      } });
+      setOn(enabled);
+      setSaved("ok"); setTimeout(() => setSaved(null), 1800);
+    } catch { setSaved("err"); } finally { setBusy(false); }
+  }
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Announcement Bar</h2>
+      <div className={`rounded-2xl border p-5 space-y-4 ${
+        on ? "border-cyan-400/50 bg-cyan-500/10" : "border-white/10 bg-white/5"
+      }`}>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <div className="font-semibold text-base">
+              {on ? "Banner is showing on the site" : "Banner is off"}
+            </div>
+            <div className="text-sm text-white/60 mt-1">
+              Thin sticky banner at the top of every public page. Each visitor
+              can dismiss it once; changing the text re-shows it to everyone.
+            </div>
+          </div>
+          <button
+            onClick={() => save(!on)}
+            disabled={busy || on === null}
+            className={`shrink-0 w-16 h-8 rounded-full transition-colors relative disabled:opacity-50 ${
+              on ? "bg-cyan-500" : "bg-white/20"
+            }`}
+            aria-label="Toggle announcement bar"
+          >
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${
+              on ? "translate-x-9" : "translate-x-1"
+            }`} />
+          </button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-xs text-white/60 space-y-1 md:col-span-2">
+            <span>Message</span>
+            <input className="input w-full" placeholder="🚀 Booking November slots — reply within 24h."
+              value={text} onChange={(e) => setText(e.target.value)} maxLength={200} />
+          </label>
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Link (optional)</span>
+            <input className="input w-full" placeholder="https://…"
+              value={href} onChange={(e) => setHref(e.target.value)} maxLength={300} />
+          </label>
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Tone</span>
+            <select className="input w-full" value={tone}
+              onChange={(e) => setTone(e.target.value as any)}>
+              <option value="info">Info (cyan)</option>
+              <option value="promo">Promo (fuchsia)</option>
+              <option value="warn">Warning (amber)</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button className="btn-primary" onClick={() => save()} disabled={busy}>
+            Save banner
+          </button>
+          {saved === "ok"  && <span className="text-xs text-emerald-300">Saved ✓</span>}
+          {saved === "err" && <span className="text-xs text-red-300">Save failed</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* QUICK ACTIONS (bulk maintenance)                                           */
+/* -------------------------------------------------------------------------- */
+
+function QuickActionsSection() {
+  const markAll = useServerFn(bulkMarkSubmissionsRead);
+  const delRead = useServerFn(deleteReadSubmissions);
+  const purge   = useServerFn(purgeOldPageViews);
+  const reset   = useServerFn(resetPricingToDefaults);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function flash(m: string) { setMsg(m); setTimeout(() => setMsg(null), 2500); }
+  async function run(id: string, fn: () => Promise<any>, label: (r: any) => string) {
+    setBusy(id);
+    try { const r = await fn(); flash(label(r)); }
+    catch (e: any) { flash(`Failed: ${e?.message ?? "error"}`); }
+    finally { setBusy(null); }
+  }
+
+  const Btn = ({ id, children, className, onClick }: any) => (
+    <button className={`${className} disabled:opacity-50`}
+      disabled={busy !== null} onClick={onClick}>
+      {busy === id ? "…" : children}
+    </button>
+  );
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Btn id="mark" className="btn-secondary text-sm"
+            onClick={() => run("mark", () => markAll(), (r) => `Marked ${r.updated} as read`)}>
+            Mark all messages as read
+          </Btn>
+          <Btn id="delr" className="btn-secondary text-sm"
+            onClick={() => {
+              if (!confirm("Delete all READ contact submissions? (Unread stay safe.)")) return;
+              return run("delr", () => delRead(), (r) => `Deleted ${r.deleted} read messages`);
+            }}>
+            Delete all read messages
+          </Btn>
+          <Btn id="purge" className="btn-secondary text-sm"
+            onClick={() => {
+              if (!confirm("Purge page views older than 90 days?")) return;
+              return run("purge", () => purge({ data: { olderThanDays: 90 } }),
+                (r) => `Purged ${r.deleted} page views`);
+            }}>
+            Purge page views &gt; 90 days
+          </Btn>
+          <Btn id="reset" className="btn-danger text-sm"
+            onClick={() => {
+              if (!confirm("Reset pricing plans to the code defaults? Wipes current rows.")) return;
+              return run("reset", () => reset(), (r) => `Reset — ${r.count} plans reinstalled`);
+            }}>
+            Reset pricing to defaults
+          </Btn>
+        </div>
+        {msg && <p className="text-xs text-emerald-300">{msg}</p>}
+      </div>
+    </section>
   );
 }
 
@@ -55,10 +320,11 @@ function HealthSection() {
         </div>
       )}
       {h?.env && (
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
           {Object.entries(h.env).map(([k, v]) => (
-            <div key={k} className={`px-3 py-1.5 rounded border ${
-              v ? "border-emerald-500/40 text-emerald-300" : "border-red-500/40 text-red-300"
+            <div key={k} className={`px-3 py-1.5 rounded-md border ${
+              v ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/5"
+                : "border-red-500/40 text-red-300 bg-red-500/5"
             }`}>
               {v ? "✓" : "✗"} {k}
             </div>
@@ -89,6 +355,7 @@ const FLAG_TEMPLATES = [
   { key: "cursor_trail_default_on", enabled: true },
   { key: "theme_default_dark", enabled: true },
   { key: "maintenance_mode", enabled: false },
+  { key: "announcement_bar", enabled: false },
 ];
 
 function FlagsSection() {
@@ -131,20 +398,20 @@ function FlagsSection() {
 
       <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10">
         {rows.map((r) => (
-          <div key={r.key} className="flex items-center gap-3 px-4 py-3">
-            <div className="font-mono text-sm text-fuchsia-300 flex-1">{r.key}</div>
+          <div key={r.key} className="flex items-center gap-4 px-4 py-3 flex-wrap sm:flex-nowrap">
+            <div className="font-mono text-sm text-fuchsia-300 flex-1 min-w-[180px] break-all">{r.key}</div>
             <button
               onClick={() => toggle(r)}
-              className={`w-14 h-7 rounded-full transition-colors relative ${
+              className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${
                 r.enabled ? "bg-emerald-500" : "bg-white/20"
               }`}
               aria-label="Toggle flag"
             >
               <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                r.enabled ? "translate-x-8" : "translate-x-1"
+                r.enabled ? "translate-x-6" : "translate-x-1"
               }`} />
             </button>
-            <button className="btn-danger text-xs" onClick={() => remove(r.key)}>Delete</button>
+            <button className="btn-danger text-xs shrink-0" onClick={() => remove(r.key)}>Delete</button>
           </div>
         ))}
         {rows.length === 0 && (

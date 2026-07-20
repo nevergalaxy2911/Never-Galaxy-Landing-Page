@@ -2,6 +2,8 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { PageViewLogger } from "@/components/PageViewLogger";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { AnnouncementBar } from "@/components/AnnouncementBar";
 import appCss from "../styles.css?url";
 // H1 display font, preloaded so the LCP hero heading paints in Archivo Black
 // on first frame instead of waiting for the CSS @import chain to resolve the
@@ -98,7 +100,9 @@ export const Route = createRootRoute({
   component: () => (
     <>
       <PageViewLogger />
+      <AnnouncementBar />
       <Outlet />
+      <MaintenanceGate />
     </>
   ),
 });
