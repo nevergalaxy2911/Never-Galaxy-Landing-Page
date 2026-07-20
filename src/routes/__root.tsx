@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { HeadContent, Outlet, Scripts, createRootRoute, useLocation } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { PageViewLogger } from "@/components/PageViewLogger";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { getPublicFlag } from "@/lib/public-flags.functions";
@@ -97,18 +97,25 @@ export const Route = createRootRoute({
   loader: async ({ location }) => {
     const path = location.pathname;
     if (MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"))) {
-      return { maintenance: null as null | { title: string; message: string } };
+      return { maintenance: null as null | MaintenancePayload };
     }
     try {
       const r = await getPublicFlag({ data: { key: "maintenance_mode" } });
       if (r.enabled !== true) return { maintenance: null };
-      const v = (r.value ?? {}) as { title?: string; message?: string };
+      const v = (r.value ?? {}) as {
+        title?: string; message?: string;
+        tone?: "info" | "warn" | "promo";
+        until?: string; // ISO timestamp for countdown (optional)
+      };
       return {
         maintenance: {
           title: (v.title && String(v.title).trim()) || "We'll be back shortly.",
           message: (v.message && String(v.message).trim()) ||
             "Never Galaxy is briefly offline for updates. Thanks for your patience — check back in a few minutes.",
-        },
+          tone: (v.tone === "warn" || v.tone === "promo") ? v.tone : "info",
+          until: v.until && !Number.isNaN(Date.parse(v.until)) ? v.until : null,
+          updatedAt: r.updatedAt ?? null,
+        } as MaintenancePayload,
       };
     } catch {
       return { maintenance: null };
@@ -122,8 +129,45 @@ export const Route = createRootRoute({
       </div>
     </div>
   ),
+  pendingComponent: MaintenanceSkeleton,
+  pendingMs: 0,
   component: RootComponent,
 });
+
+type MaintenancePayload = {
+  title: string;
+  message: string;
+  tone: "info" | "warn" | "promo";
+  until: string | null;
+  updatedAt: string | null;
+};
+
+function MaintenanceSkeleton() {
+  // Rendered during loader-pending phase on client-side nav so users NEVER
+  // see interactive marketing content while the maintenance flag resolves.
+  return (
+    <div className="fixed inset-0 z-[9999] grid place-items-center bg-black text-white/70">
+      <div className="animate-pulse text-xs uppercase tracking-[0.3em]">Loading…</div>
+    </div>
+  );
+}
+
+function useCountdown(until: string | null) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!until) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [until]);
+  if (!until) return null;
+  const diff = Date.parse(until) - now;
+  if (diff <= 0) return "any moment now";
+  const s = Math.floor(diff / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0 ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
+}
 
 function RootComponent() {
   const { maintenance } = Route.useLoaderData();
@@ -132,26 +176,7 @@ function RootComponent() {
   const exempt = MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"));
 
   if (maintenance && !exempt) {
-    return (
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="fixed inset-0 z-[9999] grid place-items-center bg-black text-white px-6"
-        style={{ backdropFilter: "blur(8px)" }}
-      >
-        <div className="max-w-lg text-center">
-          <div className="inline-block px-3 py-1 rounded-full border border-fuchsia-500/50 text-fuchsia-300 text-xs uppercase tracking-widest mb-6">
-            Maintenance
-          </div>
-          <h1 className="text-4xl md:text-5xl font-display mb-4 leading-tight">
-            {maintenance.title}
-          </h1>
-          <p className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
-            {maintenance.message}
-          </p>
-        </div>
-      </div>
-    );
+    return <MaintenanceScreen data={maintenance} />;
   }
 
   return (
@@ -160,6 +185,56 @@ function RootComponent() {
       <AnnouncementBar />
       <Outlet />
     </>
+  );
+}
+
+function MaintenanceScreen({ data }: { data: MaintenancePayload }) {
+  const countdown = useCountdown(data.until);
+  const tone = data.tone;
+  const chip =
+    tone === "warn"  ? "border-amber-400/60 text-amber-200 bg-amber-500/10" :
+    tone === "promo" ? "border-fuchsia-500/60 text-fuchsia-200 bg-fuchsia-500/10" :
+                        "border-cyan-400/60 text-cyan-200 bg-cyan-500/10";
+  const glow =
+    tone === "warn"  ? "from-amber-500/20 via-transparent to-red-500/10" :
+    tone === "promo" ? "from-fuchsia-500/20 via-transparent to-purple-500/10" :
+                        "from-cyan-500/20 via-transparent to-blue-500/10";
+
+  const updated = data.updatedAt ? new Date(data.updatedAt) : null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="maint-title"
+      className="fixed inset-0 z-[9999] grid place-items-center px-6 text-white overflow-hidden bg-black"
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${glow} pointer-events-none`} />
+      <div className="absolute inset-0 backdrop-blur-md pointer-events-none" />
+      <div className="relative max-w-xl text-center">
+        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs uppercase tracking-[0.25em] mb-6 ${chip}`}>
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+          Maintenance
+        </div>
+        <h1 id="maint-title" className="text-4xl md:text-5xl font-display mb-4 leading-tight">
+          {data.title}
+        </h1>
+        <p className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
+          {data.message}
+        </p>
+        {countdown && (
+          <div className="mt-8 inline-flex flex-col items-center gap-1">
+            <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">Back online in</span>
+            <span className="font-mono text-2xl md:text-3xl tabular-nums text-white">{countdown}</span>
+          </div>
+        )}
+        {updated && (
+          <p className="mt-8 text-xs text-white/40">
+            Last updated {updated.toLocaleString()}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 

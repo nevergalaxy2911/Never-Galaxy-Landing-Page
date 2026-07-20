@@ -4,6 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
+import { Switch } from "@/components/ui/switch";
 import {
   listFlags, upsertFlag, deleteFlag,
   listSubmissions, markSubmissionRead, deleteSubmission,
@@ -40,6 +41,8 @@ function MaintenanceSection() {
   const [on, setOn] = useState<boolean | null>(null);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [tone, setTone] = useState<"info" | "warn" | "promo">("info");
+  const [until, setUntil] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<null | "ok" | "err">(null);
 
@@ -47,9 +50,11 @@ function MaintenanceSection() {
     const r = await load();
     const row = r.rows.find((x: any) => x.key === "maintenance_mode");
     setOn(row ? !!row.enabled : false);
-    const v = (row?.value ?? {}) as { title?: string; message?: string };
+    const v = (row?.value ?? {}) as { title?: string; message?: string; tone?: any; until?: string };
     setTitle(v.title ?? "");
     setMessage(v.message ?? "");
+    setTone((v.tone === "warn" || v.tone === "promo") ? v.tone : "info");
+    setUntil(v.until ?? "");
   }, [load]);
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -61,7 +66,12 @@ function MaintenanceSection() {
       await upsert({ data: {
         key: "maintenance_mode",
         enabled,
-        value: { title: title.trim(), message: message.trim() },
+        value: {
+          title: title.trim(),
+          message: message.trim(),
+          tone,
+          until: until.trim() || undefined,
+        },
       } });
       setOn(enabled);
       setSaved("ok");
@@ -75,8 +85,8 @@ function MaintenanceSection() {
       <div className={`rounded-2xl border p-5 space-y-4 ${
         on ? "border-fuchsia-500/50 bg-fuchsia-500/10" : "border-white/10 bg-white/5"
       }`}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex-1 min-w-[220px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+          <div className="min-w-0">
             <div className="font-semibold text-base">
               {on ? "Site is under maintenance" : "Site is live"}
             </div>
@@ -84,18 +94,13 @@ function MaintenanceSection() {
               When ON, visitors see the message below. Admin routes stay reachable.
             </div>
           </div>
-          <button
-            onClick={() => save(!on)}
+          <Switch
+            tone="promo"
+            checked={!!on}
             disabled={busy || on === null}
-            className={`shrink-0 w-16 h-8 rounded-full transition-colors relative disabled:opacity-50 ${
-              on ? "bg-fuchsia-500" : "bg-white/20"
-            }`}
+            onCheckedChange={(v) => void save(v)}
             aria-label="Toggle maintenance mode"
-          >
-            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${
-              on ? "translate-x-9" : "translate-x-1"
-            }`} />
-          </button>
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -108,6 +113,20 @@ function MaintenanceSection() {
             <span>Message (visitors see this)</span>
             <textarea className="input w-full min-h-[68px]" placeholder="Briefly offline for updates…"
               value={message} onChange={(e) => setMessage(e.target.value)} maxLength={400} />
+          </label>
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Tone</span>
+            <select className="input w-full" value={tone}
+              onChange={(e) => setTone(e.target.value as any)}>
+              <option value="info">Info (cyan)</option>
+              <option value="promo">Promo (fuchsia)</option>
+              <option value="warn">Warning (amber)</option>
+            </select>
+          </label>
+          <label className="text-xs text-white/60 space-y-1">
+            <span>Back online at (optional — shows countdown)</span>
+            <input type="datetime-local" className="input w-full"
+              value={until} onChange={(e) => setUntil(e.target.value)} />
           </label>
         </div>
 
@@ -167,8 +186,8 @@ function AnnouncementSection() {
       <div className={`rounded-2xl border p-5 space-y-4 ${
         on ? "border-cyan-400/50 bg-cyan-500/10" : "border-white/10 bg-white/5"
       }`}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex-1 min-w-[220px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+          <div className="min-w-0">
             <div className="font-semibold text-base">
               {on ? "Banner is showing on the site" : "Banner is off"}
             </div>
@@ -177,18 +196,13 @@ function AnnouncementSection() {
               can dismiss it once; changing the text re-shows it to everyone.
             </div>
           </div>
-          <button
-            onClick={() => save(!on)}
+          <Switch
+            tone="primary"
+            checked={!!on}
             disabled={busy || on === null}
-            className={`shrink-0 w-16 h-8 rounded-full transition-colors relative disabled:opacity-50 ${
-              on ? "bg-cyan-500" : "bg-white/20"
-            }`}
+            onCheckedChange={(v) => void save(v)}
             aria-label="Toggle announcement bar"
-          >
-            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-transform ${
-              on ? "translate-x-9" : "translate-x-1"
-            }`} />
-          </button>
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -398,22 +412,25 @@ function FlagsSection() {
 
       <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10">
         {rows.map((r) => (
-          <div key={r.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:flex-nowrap sm:gap-4">
-            <div className="font-mono text-sm text-fuchsia-300 min-w-0 break-all sm:flex-1">{r.key}</div>
-            <div className="flex items-center gap-3 shrink-0 justify-self-end">
-              <button
-                onClick={() => toggle(r)}
-                className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${
-                  r.enabled ? "bg-emerald-500" : "bg-white/20"
-                }`}
-                aria-label="Toggle flag"
-              >
-                <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                  r.enabled ? "translate-x-6" : "translate-x-1"
-                }`} />
-              </button>
-              <button className="btn-danger text-xs shrink-0" onClick={() => remove(r.key)}>Delete</button>
+          <div
+            key={r.key}
+            className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 px-4 py-3"
+          >
+            <div className="font-mono text-xs sm:text-sm text-fuchsia-300 min-w-0 break-all">
+              {r.key}
             </div>
+            <Switch
+              tone="success"
+              checked={!!r.enabled}
+              onCheckedChange={() => void toggle(r)}
+              aria-label={`Toggle flag ${r.key}`}
+            />
+            <button
+              className="btn-danger text-xs shrink-0"
+              onClick={() => remove(r.key)}
+            >
+              Delete
+            </button>
           </div>
         ))}
         {rows.length === 0 && (

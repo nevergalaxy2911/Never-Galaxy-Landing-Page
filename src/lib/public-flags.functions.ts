@@ -17,16 +17,17 @@ export const getPublicFlag = createServerFn({ method: "GET" })
       const c = createClient(url, anon, { auth: { persistSession: false } });
       const { data: row } = await c
         .from("feature_flags")
-        .select("enabled,value")
+        .select("enabled,value,updated_at")
         .eq("key", data.key)
         .maybeSingle();
-      const r = row as { enabled: boolean; value: any } | null;
+      const r = row as { enabled: boolean; value: any; updated_at: string | null } | null;
       return {
         enabled: r ? !!r.enabled : null,
         value: r ? r.value : null,
+        updatedAt: r?.updated_at ?? null,
         missing: !r,
       };
     } catch {
-      return { enabled: null as boolean | null, value: null as any, missing: true };
+      return { enabled: null as boolean | null, value: null as any, updatedAt: null as string | null, missing: true };
     }
   });
