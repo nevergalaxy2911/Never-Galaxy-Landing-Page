@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { PageViewLogger } from "@/components/PageViewLogger";
-import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
+import { getPublicFlag } from "@/lib/public-flags.functions";
+
+const MAINTENANCE_EXEMPT = ["/auth", "/admin", "/api-panel", "/analytics"];
 import appCss from "../styles.css?url";
 // H1 display font, preloaded so the LCP hero heading paints in Archivo Black
 // on first frame instead of waiting for the CSS @import chain to resolve the
@@ -89,6 +91,29 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
+  // SSR-fetch the maintenance flag so the wall renders on the FIRST paint
+  // instead of after a client boot delay. Admin/console paths are exempt so
+  // you can always turn it back off.
+  loader: async ({ location }) => {
+    const path = location.pathname;
+    if (MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"))) {
+      return { maintenance: null as null | { title: string; message: string } };
+    }
+    try {
+      const r = await getPublicFlag({ data: { key: "maintenance_mode" } });
+      if (r.enabled !== true) return { maintenance: null };
+      const v = (r.value ?? {}) as { title?: string; message?: string };
+      return {
+        maintenance: {
+          title: (v.title && String(v.title).trim()) || "We'll be back shortly.",
+          message: (v.message && String(v.message).trim()) ||
+            "Never Galaxy is briefly offline for updates. Thanks for your patience — check back in a few minutes.",
+        },
+      };
+    } catch {
+      return { maintenance: null };
+    }
+  },
   notFoundComponent: () => (
     <div className="min-h-screen grid place-items-center bg-background text-foreground sec-violet">
       <div className="text-center">
@@ -97,15 +122,46 @@ export const Route = createRootRoute({
       </div>
     </div>
   ),
-  component: () => (
+  component: RootComponent,
+});
+
+function RootComponent() {
+  const { maintenance } = Route.useLoaderData();
+  const location = useLocation();
+  const path = location.pathname;
+  const exempt = MAINTENANCE_EXEMPT.some((p) => path === p || path.startsWith(p + "/"));
+
+  if (maintenance && !exempt) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-[9999] grid place-items-center bg-black text-white px-6"
+        style={{ backdropFilter: "blur(8px)" }}
+      >
+        <div className="max-w-lg text-center">
+          <div className="inline-block px-3 py-1 rounded-full border border-fuchsia-500/50 text-fuchsia-300 text-xs uppercase tracking-widest mb-6">
+            Maintenance
+          </div>
+          <h1 className="text-4xl md:text-5xl font-display mb-4 leading-tight">
+            {maintenance.title}
+          </h1>
+          <p className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
+            {maintenance.message}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <>
       <PageViewLogger />
       <AnnouncementBar />
       <Outlet />
-      <MaintenanceGate />
     </>
-  ),
-});
+  );
+}
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (

@@ -398,20 +398,22 @@ function FlagsSection() {
 
       <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10">
         {rows.map((r) => (
-          <div key={r.key} className="flex items-center gap-4 px-4 py-3 flex-wrap sm:flex-nowrap">
-            <div className="font-mono text-sm text-fuchsia-300 flex-1 min-w-[180px] break-all">{r.key}</div>
-            <button
-              onClick={() => toggle(r)}
-              className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${
-                r.enabled ? "bg-emerald-500" : "bg-white/20"
-              }`}
-              aria-label="Toggle flag"
-            >
-              <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                r.enabled ? "translate-x-6" : "translate-x-1"
-              }`} />
-            </button>
-            <button className="btn-danger text-xs shrink-0" onClick={() => remove(r.key)}>Delete</button>
+          <div key={r.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:flex-nowrap sm:gap-4">
+            <div className="font-mono text-sm text-fuchsia-300 min-w-0 break-all sm:flex-1">{r.key}</div>
+            <div className="flex items-center gap-3 shrink-0 justify-self-end">
+              <button
+                onClick={() => toggle(r)}
+                className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${
+                  r.enabled ? "bg-emerald-500" : "bg-white/20"
+                }`}
+                aria-label="Toggle flag"
+              >
+                <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                  r.enabled ? "translate-x-6" : "translate-x-1"
+                }`} />
+              </button>
+              <button className="btn-danger text-xs shrink-0" onClick={() => remove(r.key)}>Delete</button>
+            </div>
           </div>
         ))}
         {rows.length === 0 && (
