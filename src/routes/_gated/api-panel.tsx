@@ -385,8 +385,15 @@ function FlagsSection() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   async function toggle(row: any) {
-    await upsert({ data: { key: row.key, enabled: !row.enabled, value: row.value } });
-    await refresh();
+    // Optimistic UI: flip locally first so the switch feels instant. Roll
+    // back if the server rejects. Avoids a full listFlags round-trip per click.
+    const prev = rows;
+    setRows((rs) => rs.map((x) => x.key === row.key ? { ...x, enabled: !x.enabled } : x));
+    try {
+      await upsert({ data: { key: row.key, enabled: !row.enabled, value: row.value } });
+    } catch {
+      setRows(prev);
+    }
   }
   const [newKey, setNewKey] = useState("");
   async function add(k: string) {
@@ -397,8 +404,10 @@ function FlagsSection() {
   }
   async function remove(k: string) {
     if (!confirm(`Delete flag "${k}"?`)) return;
-    await del({ data: { key: k } });
-    await refresh();
+    const prev = rows;
+    setRows((rs) => rs.filter((x) => x.key !== k));
+    try { await del({ data: { key: k } }); }
+    catch { setRows(prev); }
   }
 
   return (

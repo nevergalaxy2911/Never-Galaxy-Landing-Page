@@ -281,15 +281,21 @@ function MaintenanceScreen({ data, serverNow }: { data: MaintenancePayload; serv
       <div className="absolute inset-0 backdrop-blur-md pointer-events-none" />
       <div className="relative max-w-xl text-center">
         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs uppercase tracking-[0.25em] mb-6 ${chip}`}>
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse motion-reduce:animate-none" />
           Maintenance
         </div>
-        <h1 id="maint-title" className="text-4xl md:text-5xl font-display mb-4 leading-tight">
-          {data.title}
-        </h1>
-        <p id="maint-desc" className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
-          {data.message}
-        </p>
+        {/* aria-live region so SR users hear the wall's headline/message as
+            it changes (admin edits title/tone/message on /api-panel). The
+            entire content block is polite-live so tone chip + title +
+            countdown are re-announced together as one update. */}
+        <div aria-live="polite" aria-atomic="true">
+          <h1 id="maint-title" className="text-4xl md:text-5xl font-display mb-4 leading-tight">
+            {data.title}
+          </h1>
+          <p id="maint-desc" className="text-white/70 text-base md:text-lg whitespace-pre-wrap">
+            {data.message}
+          </p>
+        </div>
         {countdown && (
           <div className="mt-8 inline-flex flex-col items-center gap-1">
             <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">Back online in</span>

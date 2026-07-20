@@ -176,13 +176,6 @@ function AuthPage() {
                   <span className="h-px flex-1 bg-white/10" /> Secure <span className="h-px flex-1 bg-white/10" />
                 </div>
 
-                <p className="mt-5 text-[11px] leading-relaxed text-white/40 text-center">
-                  New accounts can't be created here. To add an admin, edit
-                  {" "}<code className="text-white/60">ADMIN_ALLOWLIST</code> in
-                  {" "}<code className="text-white/60">src/config/site.ts</code>, create
-                  the user in Supabase, then insert their UUID into
-                  {" "}<code className="text-white/60">user_roles</code>.
-                </p>
               </>
             )}
           </form>
@@ -250,7 +243,7 @@ function Spinner() {
   return (
     <span
       aria-hidden
-      className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
+      className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin motion-reduce:animate-none"
     />
   );
 }

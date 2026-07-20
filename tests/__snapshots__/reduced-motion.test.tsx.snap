@@ -1,0 +1,62 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reduced-motion — DOM snapshot stability > admin sign-in card snapshot with reduced motion 1`] = `
+<form
+  class="grid gap-3"
+>
+  <label
+    for="email"
+  >
+    <span>
+      Email
+    </span>
+    <input
+      id="email"
+      type="email"
+    />
+  </label>
+  <label
+    for="pw"
+  >
+    <span>
+      Password
+    </span>
+    <input
+      id="pw"
+      type="password"
+    />
+  </label>
+  <button
+    type="submit"
+  >
+    Sign in
+  </button>
+</form>
+`;
+
+exports[`reduced-motion — DOM snapshot stability > maintenance wall snapshot with reduced motion 1`] = `
+<div
+  aria-describedby="d"
+  aria-labelledby="t"
+  aria-modal="true"
+  class="fixed inset-0 z-[9999] grid place-items-center"
+  role="dialog"
+  tabindex="-1"
+>
+  <div>
+    <span
+      class="inline-block w-1.5 h-1.5 rounded-full bg-current animate-pulse motion-reduce:animate-none"
+    />
+    <h1
+      id="t"
+    >
+      We'll be back shortly.
+    </h1>
+    <p
+      id="d"
+    >
+      Briefly offline.
+    </p>
+  </div>
+</div>
+`;
