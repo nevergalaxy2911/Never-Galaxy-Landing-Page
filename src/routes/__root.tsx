@@ -12,6 +12,12 @@ import appCss from "../styles.css?url";
 // woff2. Vite resolves this to the same hashed asset URL that the @fontsource
 // CSS references, so the browser sees a cache hit (no double download).
 import archivoBlackWoff2 from "@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff2?url";
+// Body copy font (Hind 400) — used by the hero subheading and every paragraph
+// above the fold. Preloading it removes ~150-300ms of LCP delay on mobile,
+// where the browser would otherwise wait for the CSS @import chain to
+// discover the woff2. Same-origin, but crossOrigin is still required for
+// font preloads to hit the cache correctly.
+import hindWoff2 from "@fontsource/hind/files/hind-latin-400-normal.woff2?url";
 
 
 /* -----------------------------------------------------------------------------
@@ -55,6 +61,13 @@ export const Route = createRootRoute({
         as: "font",
         type: "font/woff2",
         href: archivoBlackWoff2,
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: hindWoff2,
         crossOrigin: "anonymous",
       },
       // Fonts are now self-hosted via @fontsource in src/styles.css, no
@@ -336,7 +349,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('ng-theme')||'light';var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
+            __html: `try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('ng-theme')||'light';d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
           }}
         />
       </head>

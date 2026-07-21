@@ -96,15 +96,22 @@
     transparent);
 }
 
-/* Persistent scroll reveal — content fades/lifts in once and stays. */
+/* Persistent scroll reveal — content fades/lifts in once and stays.
+ * Gated behind `.js` on <html> (set by the pre-hydration boot script in
+ * __root.tsx). Without JS, or before the boot script runs, reveal content
+ * is fully visible — this is what lets the LCP hero text paint on the FIRST
+ * server-rendered frame instead of waiting ~1.4s for React to hydrate and
+ * add `is-visible`. Once JS is present, the fade-in returns as normal. */
 @utility reveal {
-  opacity: 0;
-  transform: translateY(28px);
   transition: opacity 0.9s cubic-bezier(.2,.7,.2,1),
               transform 0.9s cubic-bezier(.2,.7,.2,1);
+}
+.js .reveal {
+  opacity: 0;
+  transform: translateY(28px);
   will-change: opacity, transform;
 }
-.reveal.is-visible {
+.js .reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
