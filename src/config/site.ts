@@ -82,6 +82,26 @@ export const ADMIN_ALLOWLIST: readonly string[] = [
 
 
 /* -----------------------------------------------------------------------------
+ * PORTFOLIO
+ * ---------------------------------------------------------------------------
+ * Behaviour knobs for the portfolio section.
+ *
+ *   previewBreakpointPx
+ *     Minimum viewport width (in CSS pixels) at which clicking a WEBSITE tile
+ *     opens the in-page iframe PREVIEW MODAL. Below this width the tile just
+ *     opens the live site in a new tab (iframes are cramped on phones and
+ *     many target sites block embedding on small viewports).
+ *
+ *     Set higher (e.g. 1280) to keep tablets on the "new tab" path.
+ *     Set lower (e.g. 768)  to enable the modal on tablets too.
+ * --------------------------------------------------------------------------- */
+export const PORTFOLIO = {
+  previewBreakpointPx: 1024,
+} as const;
+
+
+
+/* -----------------------------------------------------------------------------
  * SOCIALS
  * ---------------------------------------------------------------------------
  * External profile URLs. Set a URL to "" (empty string) to visually mark the

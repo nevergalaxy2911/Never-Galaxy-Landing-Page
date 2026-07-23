@@ -9,6 +9,8 @@ import {
   type PortfolioCategory,
 } from "@/lib/portfolio-config";
 import { listPortfolioSites, type PortfolioSite } from "@/config/portfolio-sites";
+import { PORTFOLIO } from "@/config/site";
+
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
 
 // Lazy-load the preview modal so its iframe host chrome only ships after the
@@ -295,9 +297,26 @@ function GraphicTile({
   const useContain = slug === "maison-aurelia";
   const imgFit = useContain ? "object-contain" : "object-cover";
 
+  // Preview modal is a DESKTOP-ONLY experience by default — mobile iframes
+  // are cramped and most target sites block embedding on small viewports
+  // anyway. The breakpoint is admin-tunable via PORTFOLIO.previewBreakpointPx
+  // in src/config/site.ts. Below the threshold, the tile opens the live site
+  // in a new tab.
+  const isDesktopViewport = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia(`(min-width: ${PORTFOLIO.previewBreakpointPx}px)`).matches;
+
   const openPreview = () => {
-    if (!clickable || !isWebsite || !onPreview) return;
-    logClick({ data: { slug, title: item.title, url: item.href!, kind: "tile" } }).catch(() => {});
+    if (!clickable || !isWebsite) return;
+    const desktop = isDesktopViewport();
+    // Analytics: tap on mobile → "visit" (opens live), click on desktop → "tile"
+    // (opens the modal; the modal itself also fires a "preview" event on open).
+    const kind: "tile" | "visit" = desktop ? "tile" : "visit";
+    logClick({ data: { slug, title: item.title, url: item.href!, kind } }).catch(() => {});
+    if (!desktop || !onPreview) {
+      window.open(item.href!, "_blank", "noopener,noreferrer");
+      return;
+    }
     onPreview({
       slug,
       title: item.title,
@@ -307,14 +326,14 @@ function GraphicTile({
     });
   };
 
-  // Website tiles → button that opens the modal. Other clickable tiles →
-  // plain anchor (unchanged behaviour for admin-added image links).
+  // Website tiles → button that opens the modal (desktop) or a new tab
+  // (mobile/tablet). Other clickable tiles → plain anchor.
   const Wrapper: React.ElementType = isWebsite && clickable ? "button" : clickable ? "a" : "article";
   const wrapperProps: Record<string, unknown> = isWebsite && clickable
     ? {
         type: "button",
         onClick: openPreview,
-        "aria-label": `${item.title} — open preview`,
+        "aria-label": `${item.title} — opens live site in a new tab on mobile, or in an in-page preview on desktop`,
       }
     : clickable
       ? {
@@ -324,6 +343,9 @@ function GraphicTile({
           "aria-label": `${item.title} — open in a new tab`,
         }
       : {};
+
+
+
 
   return (
     <Wrapper
@@ -372,10 +394,21 @@ function GraphicTile({
           <h3 className="font-display uppercase text-lg truncate">{item.title}</h3>
           <p className="label-mono mt-1">{item.kind}</p>
         </div>
-        <span className="label-mono text-[9px] opacity-70 shrink-0">
-          {isWebsite && clickable ? "Preview ↗" : clickable ? "Visit ↗" : item.src ? "View" : "Soon"}
-        </span>
+        {isWebsite && clickable ? (
+          <span className="label-mono flex items-center gap-1 text-[9px] opacity-70 shrink-0">
+            {/* Mobile/tablet path: new tab. Desktop: in-page preview. */}
+            <span className="lg:hidden inline-flex items-center gap-1">
+              New tab <ExternalLink className="h-3 w-3" aria-hidden />
+            </span>
+            <span className="hidden lg:inline">Preview ↗</span>
+          </span>
+        ) : (
+          <span className="label-mono text-[9px] opacity-70 shrink-0">
+            {clickable ? "Visit ↗" : item.src ? "View" : "Soon"}
+          </span>
+        )}
       </div>
+
     </Wrapper>
   );
 }
