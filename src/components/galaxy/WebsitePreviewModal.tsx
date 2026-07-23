@@ -12,7 +12,7 @@
  *     code + iframe host chrome only ship after the first tile click.
  */
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, X, Loader2, ShieldAlert } from "lucide-react";
+import { ExternalLink, X, Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
 
@@ -91,8 +91,21 @@ export default function WebsitePreviewModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Top bar */}
-      <div className="flex items-center gap-3 border-b border-white/10 bg-black/50 px-4 py-3 text-white">
+      {/* Top bar — "Back to Never Galaxy" is the primary escape route.
+          Necessary because once an iframe navigates internally there's no
+          browser back-button for the parent site, so a big, always-visible
+          Back button is the only reliable way out. */}
+      <div className="flex items-center gap-2 border-b border-white/10 bg-black/60 px-3 py-3 text-white sm:gap-3 sm:px-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white/20"
+          aria-label="Back to Never Galaxy"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span className="hidden xs:inline sm:inline">Back to Never Galaxy</span>
+          <span className="xs:hidden sm:hidden">Back</span>
+        </button>
         <div className="min-w-0 flex-1">
           <p className="truncate font-display uppercase text-sm tracking-wide">{title}</p>
           {subtitle && <p className="truncate text-[11px] text-white/50">{subtitle}</p>}
@@ -111,17 +124,19 @@ export default function WebsitePreviewModal({
           className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs uppercase tracking-wider text-black transition hover:bg-white"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Visit site
+          <span className="hidden sm:inline">Visit site</span>
+          <span className="sm:hidden">Visit</span>
         </button>
         <button
           type="button"
           aria-label="Close preview"
           onClick={onClose}
-          className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:bg-white/10"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:bg-white/10"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
+
 
       {/* Frame stage */}
       <div className="relative flex-1 overflow-hidden bg-neutral-900">
