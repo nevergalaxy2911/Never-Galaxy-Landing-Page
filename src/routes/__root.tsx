@@ -344,14 +344,15 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
         {/* Pre-hydration theme boot, reads localStorage and applies the
             `.light`/`.dark` class BEFORE first paint, so users never see a
-            wrong-theme flash. Default = LIGHT. Keep the key in sync with
-            ThemeToggle.tsx (key: ng-theme). */}
+            wrong-theme flash. Default = DARK (space/galaxy design). Keep the
+            key in sync with ThemeToggle.tsx (key: ng-theme). */}
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('ng-theme')||'light';d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
+            __html: `try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('ng-theme')||'dark';d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
           }}
         />
+
       </head>
       <body suppressHydrationWarning>
         {children}

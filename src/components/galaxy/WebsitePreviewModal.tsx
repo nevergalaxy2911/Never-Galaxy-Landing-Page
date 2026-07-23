@@ -46,14 +46,18 @@ export default function WebsitePreviewModal({
     if (!open) return;
     setLoaded(false);
     setBlocked(false);
-    // Log a preview open (fire-and-forget).
     log({ data: { slug, title, url, kind: "preview" } }).catch(() => {});
     const timer = setTimeout(() => {
-      if (!loaded) setBlocked(true);
+      // Read the current DOM state via the ref — closure-captured `loaded`
+      // is stale, which previously flagged successful loads as "blocked".
+      const el = iframeRef.current;
+      const stillLoading = !el || !(el as HTMLIFrameElement & { __loaded?: boolean }).__loaded;
+      if (stillLoading) setBlocked(true);
     }, 4500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, slug]);
+
 
   // Close on Escape + lock body scroll while open.
   useEffect(() => {
@@ -157,10 +161,14 @@ export default function WebsitePreviewModal({
             title={`${title} preview`}
             className="h-full w-full border-0 bg-white"
             loading="lazy"
-            onLoad={() => setLoaded(true)}
+            onLoad={(e) => {
+              (e.currentTarget as HTMLIFrameElement & { __loaded?: boolean }).__loaded = true;
+              setLoaded(true);
+            }}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             referrerPolicy="no-referrer"
           />
+
         )}
       </div>
     </div>

@@ -25,13 +25,14 @@ function applyTheme(t: Theme) {
 }
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "light";
+    const saved = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "dark";
     setTheme(saved);
     applyTheme(saved);
   }, []);
+
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
