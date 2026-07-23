@@ -1,12 +1,15 @@
 import { useEffect, type ReactNode } from "react";
 import Lenis from "lenis";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
-
-// Expose the active Lenis instance globally so nav links can trigger
-// smooth-scrolls instead of the browser's default jump behavior.
+/**
+ * SmoothScroll — Lenis-based smooth wheel + delegated in-page anchor smooth-scroll.
+ *
+ * PERF NOTE (2026-07-23): previously imported gsap + ScrollTrigger purely so
+ * `lenis.on("scroll", ScrollTrigger.update)` could keep GSAP triggers in sync.
+ * No component actually registers ScrollTriggers, so GSAP was ~250KB of dead
+ * weight in the client bundle. Removed. If a future animation needs GSAP,
+ * `dynamic import("gsap")` inside that component's effect keeps this file lean.
+ */
 declare global {
   interface Window {
     __lenis?: Lenis;
@@ -55,8 +58,6 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       smoothWheel: true,
     });
     window.__lenis = lenis;
-
-    lenis.on("scroll", ScrollTrigger.update);
 
     let raf = 0;
     const loop = (time: number) => {

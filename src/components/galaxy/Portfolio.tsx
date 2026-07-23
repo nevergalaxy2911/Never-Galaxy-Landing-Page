@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { Play, ImageIcon, Sparkles, Globe, Video, Camera, Palette, Music, Mic, Layers } from "lucide-react";
+import { useState, useMemo, lazy, Suspense } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { Play, ImageIcon, Sparkles, Globe, Video, Camera, Palette, Music, Mic, Layers, ExternalLink } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import type { VideoItem, GraphicItem } from "@/types/portfolio";
 import type { PublicPortfolioItem } from "@/lib/public-data.functions";
@@ -7,6 +8,12 @@ import {
   DEFAULT_CATEGORIES,
   type PortfolioCategory,
 } from "@/lib/portfolio-config";
+import { listPortfolioSites, type PortfolioSite } from "@/config/portfolio-sites";
+import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
+
+// Lazy-load the preview modal so its iframe host chrome only ships after the
+// first tile click. Keeps the initial JS bundle lean for LCP.
+const WebsitePreviewModal = lazy(() => import("./WebsitePreviewModal"));
 
 /* -----------------------------------------------------------------------------
  * PORTFOLIO, bento gallery with ADMIN-EDITABLE FILTER TABS.
@@ -49,16 +56,46 @@ const STATIC_VIDEO_FALLBACK: VideoItem[] = [
   { id: "sv5", title: "Launch trailer",            kind: "Coming soon",    span: SPAN_CYCLE[4] },
 ];
 const STATIC_IMAGE_FALLBACK: GraphicItem[] = [
-  { id: "sg1", title: "Featured design lands here", kind: "Add via /admin", span: SPAN_CYCLE[0] },
-  { id: "sg2", title: "Poster",                     kind: "Coming soon",    span: SPAN_CYCLE[1] },
-  { id: "sg3", title: "Cover art",                  kind: "Coming soon",    span: SPAN_CYCLE[2] },
-  { id: "sg4", title: "Social carousel",            kind: "Coming soon",    span: SPAN_CYCLE[3] },
-  { id: "sg5", title: "Brand mark",                 kind: "Coming soon",    span: SPAN_CYCLE[4] },
+  { id: "sg1", title: "Featured design",  kind: "Add via /admin", span: SPAN_CYCLE[0] },
+  { id: "sg2", title: "Poster",           kind: "Coming soon",    span: SPAN_CYCLE[1] },
+  { id: "sg3", title: "Cover art",        kind: "Coming soon",    span: SPAN_CYCLE[2] },
+  { id: "sg4", title: "Social carousel",  kind: "Coming soon",    span: SPAN_CYCLE[3] },
+  { id: "sg5", title: "Brand mark",       kind: "Coming soon",    span: SPAN_CYCLE[4] },
 ];
+
+// Live shipped websites — showcased under the "Website" tab. Order + copy
+// live in `src/config/portfolio-sites.ts` (single source of truth, also
+// powers the /work/<slug> detail pages). The first `featured` entry (else
+// the first entry) claims the biggest bento tile.
+const FEATURED_WEBSITES: (GraphicItem & { slug: string; liveUrl: string })[] = (() => {
+  const sites = listPortfolioSites();
+  const featuredIdx = Math.max(0, sites.findIndex((s) => s.featured));
+  return sites.map((s, i) => ({
+    id: `web-${s.slug}`,
+    slug: s.slug,
+    title: s.title,
+    kind: s.subtitle,
+    src: s.desktopSrc,
+    srcMobile: s.mobileSrc,
+    href: s.liveUrl,
+    liveUrl: s.liveUrl,
+    // Featured entry gets the hero span; others cycle through the remaining
+    // spans in order so the bento stays visually balanced.
+    span: i === featuredIdx ? SPAN_CYCLE[0] : SPAN_CYCLE[1 + ((i < featuredIdx ? i : i - 1) % (SPAN_CYCLE.length - 1))],
+  }));
+})();
 
 function pickSpan(i: number): string {
   return SPAN_CYCLE[i % SPAN_CYCLE.length];
 }
+
+type PreviewTarget = {
+  slug: string;
+  title: string;
+  subtitle?: string;
+  url: string;
+  detailHref?: string;
+};
 
 export function Portfolio({
   liveItems,
@@ -72,6 +109,7 @@ export function Portfolio({
     [categories],
   );
   const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
+  const [preview, setPreview] = useState<PreviewTarget | null>(null);
   const activeCat = cats.find((c) => c.id === tab) ?? cats[0];
 
   const head = useReveal<HTMLDivElement>(0);
@@ -104,10 +142,13 @@ export function Portfolio({
         title: it.title,
         kind: it.subtitle || activeCat.label,
         src: it.thumbUrl || it.url,
+        href: it.url && /^https?:\/\//.test(it.url) ? it.url : undefined,
         span: pickSpan(i),
       }))
     : activeCat.kind === "image"
-      ? STATIC_IMAGE_FALLBACK
+      ? activeCat.id === "web"
+        ? FEATURED_WEBSITES
+        : STATIC_IMAGE_FALLBACK
       : [];
 
   return (
@@ -151,9 +192,31 @@ export function Portfolio({
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">
           {activeCat.kind === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
-          {activeCat.kind === "image" && graphics.map((g) => <GraphicTile key={g.id} item={g} />)}
+          {activeCat.kind === "image" && graphics.map((g) => (
+            <GraphicTile
+              key={g.id}
+              item={g}
+              isWebsite={activeCat.id === "web"}
+              onPreview={activeCat.id === "web" ? (site) => setPreview(site) : undefined}
+            />
+          ))}
         </div>
       </div>
+
+      {/* Lazy-mounted iframe preview modal — only reachable from Website tiles. */}
+      {preview && (
+        <Suspense fallback={null}>
+          <WebsitePreviewModal
+            open={!!preview}
+            onClose={() => setPreview(null)}
+            slug={preview.slug}
+            title={preview.title}
+            subtitle={preview.subtitle}
+            url={preview.url}
+            detailHref={preview.detailHref}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }
@@ -212,23 +275,96 @@ function VideoTile({ item }: { item: VideoItem }) {
   );
 }
 
-/* ---------- Graphic tile: image or placeholder ---------- */
-function GraphicTile({ item }: { item: GraphicItem }) {
+/* ---------- Graphic tile: image, external link, or website preview ---------- */
+function GraphicTile({
+  item,
+  isWebsite,
+  onPreview,
+}: {
+  item: GraphicItem;
+  isWebsite?: boolean;
+  onPreview?: (t: PreviewTarget) => void;
+}) {
+  const logClick = useServerFn(logPortfolioClick);
+  const clickable = Boolean(item.href);
+  const slug = item.id.startsWith("web-") ? item.id.slice(4) : item.id;
+
+  // MAISON AURELIA (and any future portrait / letterboxed site shot) needs
+  // `object-contain` so the left edge isn't cropped. All other tiles keep
+  // `object-cover` for the immersive edge-to-edge look.
+  const useContain = slug === "maison-aurelia";
+  const imgFit = useContain ? "object-contain" : "object-cover";
+
+  const openPreview = () => {
+    if (!clickable || !isWebsite || !onPreview) return;
+    logClick({ data: { slug, title: item.title, url: item.href!, kind: "tile" } }).catch(() => {});
+    onPreview({
+      slug,
+      title: item.title,
+      subtitle: item.kind,
+      url: item.href!,
+      detailHref: `/work/${slug}`,
+    });
+  };
+
+  // Website tiles → button that opens the modal. Other clickable tiles →
+  // plain anchor (unchanged behaviour for admin-added image links).
+  const Wrapper: React.ElementType = isWebsite && clickable ? "button" : clickable ? "a" : "article";
+  const wrapperProps: Record<string, unknown> = isWebsite && clickable
+    ? {
+        type: "button",
+        onClick: openPreview,
+        "aria-label": `${item.title} — open preview`,
+      }
+    : clickable
+      ? {
+          href: item.href,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "aria-label": `${item.title} — open in a new tab`,
+        }
+      : {};
+
   return (
-    <article className={`bento overflow-hidden flex flex-col ${item.span}`}>
-      <div className="relative flex-1 min-h-[200px] tile-surface">
+    <Wrapper
+      {...wrapperProps}
+      className={`bento group overflow-hidden flex flex-col text-left ${item.span} ${clickable ? "cursor-pointer" : ""}`}
+    >
+      <div className="relative flex-1 min-h-[200px] tile-surface overflow-hidden">
         {item.src ? (
-          <img
-            src={item.src}
-            alt={item.title}
-            width={640}
-            height={480}
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+          <>
+            {/* Blurred backdrop of the same shot fills empty space when we
+                use object-contain, so the card never shows raw background. */}
+            {useContain && (
+              <div
+                aria-hidden
+                className="absolute inset-0 scale-110 blur-2xl opacity-40"
+                style={{
+                  backgroundImage: `url(${item.src})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+            )}
+            <img
+              src={item.src}
+              srcSet={item.srcMobile ? `${item.srcMobile} 480w, ${item.src} 1200w` : undefined}
+              sizes={item.srcMobile ? "(max-width: 640px) 480px, (max-width: 1024px) 720px, 1200px" : undefined}
+              alt={item.title}
+              width={640}
+              height={480}
+              loading="lazy"
+              decoding="async"
+              className={`absolute inset-0 h-full w-full ${imgFit} transition-transform duration-500 ${clickable ? "group-hover:scale-105" : ""}`}
+            />
+          </>
         ) : (
           <ComingSoonSurface icon={<ImageIcon className="h-8 w-8" />} label="Image URL slot" />
+        )}
+        {clickable && (
+          <span className="pointer-events-none absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-black/60 text-white opacity-0 backdrop-blur transition-opacity duration-300 group-hover:opacity-100">
+            <ExternalLink className="h-4 w-4" />
+          </span>
         )}
       </div>
       <div className="p-5 flex items-center justify-between gap-4">
@@ -236,9 +372,11 @@ function GraphicTile({ item }: { item: GraphicItem }) {
           <h3 className="font-display uppercase text-lg truncate">{item.title}</h3>
           <p className="label-mono mt-1">{item.kind}</p>
         </div>
-        <span className="label-mono text-[9px] opacity-70 shrink-0">{item.src ? "View" : "Soon"}</span>
+        <span className="label-mono text-[9px] opacity-70 shrink-0">
+          {isWebsite && clickable ? "Preview ↗" : clickable ? "Visit ↗" : item.src ? "View" : "Soon"}
+        </span>
       </div>
-    </article>
+    </Wrapper>
   );
 }
 

@@ -178,3 +178,20 @@
   &:focus-visible { outline: 2px solid rgb(248 113 113); outline-offset: 2px; }
   &:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 }
+
+/* ============================================================================
+ * PERF: below-fold paint deferral.
+ * `content-visibility: auto` lets the browser skip layout + paint for
+ * off-screen sections until they're near the viewport. Massive TBT / paint
+ * win on mobile for long single-page sites like this landing.
+ *
+ * `contain-intrinsic-size` reserves space so the scrollbar and scroll
+ * anchoring don't jump when a section paints in.
+ *
+ * HOW TO USE: add `class="cv-auto"` to any full-width below-fold <section>.
+ * DO NOT put it on the hero / above-the-fold — you want that painted eagerly.
+ * ========================================================================== */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 1200px;
+}

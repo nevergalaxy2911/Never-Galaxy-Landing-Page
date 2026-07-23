@@ -127,12 +127,13 @@ function Index() {
               <Hero />
               <Services />
               <Portfolio liveItems={livePortfolio ?? undefined} categories={liveCategories} />
-              <Process />
-              <Pricing plans={livePricing ?? undefined} />
-              <FAQ />
-              <Contact />
+              {/* Below-fold: paint-deferred via content-visibility:auto (see .cv-auto in styles.css). */}
+              <div className="cv-auto"><Process /></div>
+              <div className="cv-auto"><Pricing plans={livePricing ?? undefined} /></div>
+              <div className="cv-auto"><FAQ /></div>
+              <div className="cv-auto"><Contact /></div>
             </main>
-            <Footer />
+            <div className="cv-auto"><Footer /></div>
           </div>
         </div>
       </SmoothScroll>

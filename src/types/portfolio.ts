@@ -23,5 +23,8 @@ export type GraphicItem = {
   title: string;
   kind: string;
   src?: string;
+  /** Optional mobile-optimized variant, served via <img srcSet> on ≤640px. */
+  srcMobile?: string;
+  href?: string;
   span: string;
 };

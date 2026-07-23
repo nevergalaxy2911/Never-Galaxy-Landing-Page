@@ -6,16 +6,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { getAnalyticsSummary } from "@/lib/analytics.functions";
+import { getPortfolioClickStats } from "@/lib/portfolio-clicks.functions";
 
 export const Route = createFileRoute("/_gated/analytics")({
   component: AnalyticsPage,
 });
 
 type Summary = Awaited<ReturnType<typeof getAnalyticsSummary>>;
+type ClickStats = Awaited<ReturnType<typeof getPortfolioClickStats>>;
 
 function AnalyticsPage() {
   const load = useServerFn(getAnalyticsSummary);
+  const loadClicks = useServerFn(getPortfolioClickStats);
   const [s, setS] = useState<Summary | null>(null);
+  const [clicks, setClicks] = useState<ClickStats | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +27,8 @@ function AnalyticsPage() {
       if (!r.ok) setErr(r.reason ?? "Failed to load analytics");
       setS(r);
     }).catch((e) => setErr((e as Error).message));
-  }, [load]);
+    loadClicks().then(setClicks).catch(() => {});
+  }, [load, loadClicks]);
 
   if (err) return <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">{err}</div>;
   if (!s) return <p className="text-white/50 text-sm">Loading analytics…</p>;
@@ -79,6 +84,51 @@ function AnalyticsPage() {
               <span className="text-white/60 tabular-nums">{p.count}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Portfolio outbound clicks (30d) */}
+      <section>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-lg font-semibold">Portfolio site clicks (30d)</h2>
+          <span className="text-xs text-white/50 tabular-nums">
+            Total {clicks?.ok ? clicks.total30 : 0}
+          </span>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+          {!clicks && <p className="px-4 py-6 text-white/50 text-sm text-center">Loading…</p>}
+          {clicks && !clicks.ok && <p className="px-4 py-6 text-white/50 text-sm text-center">{clicks.reason}</p>}
+          {clicks && clicks.ok && clicks.byItem.length === 0 && (
+            <p className="px-4 py-6 text-white/50 text-sm text-center">No portfolio clicks recorded yet.</p>
+          )}
+          {clicks && clicks.ok && clicks.byItem.length > 0 && (
+            <table className="w-full text-sm">
+              <thead className="text-[10px] uppercase tracking-widest text-white/40">
+                <tr>
+                  <th className="text-left px-4 py-2">Site</th>
+                  <th className="text-right px-2 py-2">Tile</th>
+                  <th className="text-right px-2 py-2">Preview</th>
+                  <th className="text-right px-2 py-2">Visit</th>
+                  <th className="text-right px-4 py-2">Total</th>
+                  <th className="text-right px-4 py-2">Last</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {clicks.byItem.map((it) => (
+                  <tr key={it.slug}>
+                    <td className="px-4 py-2">
+                      <a href={it.url} target="_blank" rel="noopener noreferrer" className="text-fuchsia-300 hover:underline">{it.title || it.slug}</a>
+                    </td>
+                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.tile}</td>
+                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.preview}</td>
+                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.visit}</td>
+                    <td className="text-right px-4 py-2 tabular-nums font-semibold">{it.total}</td>
+                    <td className="text-right px-4 py-2 tabular-nums text-white/40 text-xs">{new Date(it.lastAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
