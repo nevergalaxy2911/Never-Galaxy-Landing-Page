@@ -40,6 +40,10 @@
   max-width: 180px;
 }
 .portfolio-tab:hover { color: white; background: color-mix(in oklab, var(--sec-a) 18%, transparent); }
+.portfolio-tab:focus-visible {
+  outline: 2px solid color-mix(in oklab, white 85%, var(--sec-a));
+  outline-offset: 3px;
+}
 .portfolio-tab[data-active="true"] {
   background: linear-gradient(135deg,
     color-mix(in oklab, var(--sec-a) 95%, white),

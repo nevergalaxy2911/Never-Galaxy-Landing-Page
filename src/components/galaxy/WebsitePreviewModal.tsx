@@ -23,9 +23,11 @@
  *     even if a browser skips the lock, nothing shows through.
  */
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, X, Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   open: boolean;
@@ -69,25 +71,56 @@ export default function WebsitePreviewModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, slug]);
 
-  // Scroll lock — <html> AND <body>, with scrollbar-gutter compensation so
-  // the page doesn't shift when the scrollbar disappears.
+  // Scroll lock — <html> AND <body>, body fixed-position pinning, and Lenis
+  // stop/start. The body pin is the final guard against the old "outer page
+  // keeps scrolling under the iframe" bug on desktop trackpads / Brave.
   useEffect(() => {
     if (!open) return;
     const html = document.documentElement;
     const body = document.body;
     const scrollBarW = window.innerWidth - html.clientWidth;
+    const scrollY = window.scrollY;
+    const lenis = window.__lenis;
+    const shouldRestartLenis = Boolean(lenis && !lenis.isStopped);
     const prev = {
       htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
       bodyOverflow: body.style.overflow,
       bodyPaddingRight: body.style.paddingRight,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyTouchAction: body.style.touchAction,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
     };
+    lenis?.stop();
     html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
     body.style.overflow = "hidden";
     if (scrollBarW > 0) body.style.paddingRight = `${scrollBarW}px`;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.touchAction = "none";
+    body.style.overscrollBehavior = "none";
     return () => {
       html.style.overflow = prev.htmlOverflow;
+      html.style.overscrollBehavior = prev.htmlOverscrollBehavior;
       body.style.overflow = prev.bodyOverflow;
       body.style.paddingRight = prev.bodyPaddingRight;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.left = prev.bodyLeft;
+      body.style.right = prev.bodyRight;
+      body.style.width = prev.bodyWidth;
+      body.style.touchAction = prev.bodyTouchAction;
+      body.style.overscrollBehavior = prev.bodyOverscrollBehavior;
+      window.scrollTo(0, scrollY);
+      if (shouldRestartLenis) lenis?.start();
     };
   }, [open]);
 
@@ -131,7 +164,7 @@ export default function WebsitePreviewModal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   const visit = () => {
     log({ data: { slug, title, url, kind: "visit" } }).catch(() => {});
@@ -140,7 +173,7 @@ export default function WebsitePreviewModal({
 
   const titleId = `preview-title-${slug}`;
 
-  return (
+  return createPortal(
     <div
       ref={dialogRef}
       role="dialog"
@@ -148,22 +181,25 @@ export default function WebsitePreviewModal({
       aria-labelledby={titleId}
       // Fully-opaque so nothing behind can ever bleed through.
       className="fixed inset-0 z-[9999] flex flex-col bg-black animate-in fade-in duration-200"
+      onWheelCapture={(e) => e.stopPropagation()}
+      onTouchMoveCapture={(e) => e.stopPropagation()}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       {/* Top bar */}
       <div className="flex items-center gap-2 border-b border-white/10 bg-black/80 px-3 py-3 text-white sm:gap-3 sm:px-4">
-        <button
+        <Button
           type="button"
           onClick={onClose}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs uppercase tracking-wider text-white transition hover:bg-white/20"
-          aria-label="Back to Never Galaxy (close preview)"
+          variant="ghost"
+          className="h-auto rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs uppercase tracking-wider text-white hover:bg-white/20 hover:text-white"
+          aria-label="Back to Never Galaxy"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           <span className="hidden xs:inline sm:inline">Back to Never Galaxy</span>
           <span className="xs:hidden sm:hidden">Back</span>
-        </button>
+        </Button>
         <div className="min-w-0 flex-1">
           <p id={titleId} className="truncate font-display uppercase text-sm tracking-wide">
             {title}
@@ -180,25 +216,27 @@ export default function WebsitePreviewModal({
         )}
         {/* Explicit "Open live site" — clarified label so keyboard/SR users
             know this opens the site in a new tab without closing the modal. */}
-        <button
+        <Button
           type="button"
           onClick={visit}
           aria-label={`Open ${title} live site in a new tab`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs uppercase tracking-wider text-black transition hover:bg-white"
+          className="h-auto rounded-full bg-white/95 px-3 py-1.5 text-xs uppercase tracking-wider text-black hover:bg-white hover:text-black"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
           <span className="hidden sm:inline">Open live site</span>
           <span className="sm:hidden">Open</span>
-        </button>
-        <button
+        </Button>
+        <Button
           ref={closeBtnRef}
           type="button"
           aria-label="Close preview"
           onClick={onClose}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:bg-white/10"
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 rounded-full border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
         >
           <X className="h-4 w-4" aria-hidden />
-        </button>
+        </Button>
       </div>
 
       {/* Frame stage */}
@@ -222,14 +260,14 @@ export default function WebsitePreviewModal({
                 {title} disallows embedding for security. Open the live site in a
                 new tab to view it.
               </p>
-              <button
+              <Button
                 type="button"
                 onClick={visit}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs uppercase tracking-widest text-black transition hover:bg-white/90"
+                className="mt-5 h-auto rounded-full bg-white px-4 py-2 text-xs uppercase tracking-widest text-black hover:bg-white/90 hover:text-black"
               >
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 Open {title}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -248,6 +286,7 @@ export default function WebsitePreviewModal({
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
