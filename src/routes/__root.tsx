@@ -116,7 +116,7 @@ export const Route = createRootRoute({
         maintenance: {
           title: (v.title && String(v.title).trim()) || "We'll be back shortly.",
           message: (v.message && String(v.message).trim()) ||
-            "Never Galaxy is briefly offline for updates. Thanks for your patience — check back in a few minutes.",
+            "Never Galaxy is briefly offline for updates. Thanks for your patience, check back in a few minutes.",
           tone: (v.tone === "warn" || v.tone === "promo") ? v.tone : "info",
           until: v.until && !Number.isNaN(Date.parse(v.until)) ? v.until : null,
           updatedAt: r.updatedAt ?? null,
@@ -337,7 +337,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('ng-theme')||'dark';d.classList.remove('light','dark');d.classList.add(t);}catch(e){}`,
+            __html: `try{var d=document.documentElement;d.classList.add('js');var t=localStorage.getItem('ng-theme')||'dark';d.classList.remove('light','dark');d.classList.add(t);d.setAttribute('data-optimized',localStorage.getItem('ng-optimized-mode')==='on'?'on':'off');d.setAttribute('data-smooth',localStorage.getItem('ng-smooth-scroll')==='off'?'off':'on');}catch(e){}`,
           }}
         />
 

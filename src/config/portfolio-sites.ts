@@ -20,6 +20,10 @@
  *   liveUrl       - Absolute URL of the deployed site.
  *   desktopSrc    - CDN URL for the 1920x1080 desktop hero shot.
  *   mobileSrc     - CDN URL for the 390x844 mobile hero shot.
+ *   tileSrc       - tiny WebP used by homepage Website tiles on larger screens.
+ *   tileMobileSrc - tiny WebP used by homepage Website tiles on phones.
+ *   blurSrc       - sub-1KB placeholder painted behind the tile immediately.
+ *   detailDesktopSrc / detailMobileSrc - optimized WebP case-study shots.
  *   description   - 1-3 sentences shown on the detail page hero.
  *   highlights[]  - Optional bullet list ("Project Highlights") on detail page.
  *   featured      - Optional. If true, tile claims the largest bento span.
@@ -48,6 +52,11 @@ export type PortfolioSite = {
   liveUrl: string;
   desktopSrc: string;
   mobileSrc: string;
+  tileSrc: string;
+  tileMobileSrc: string;
+  blurSrc: string;
+  detailDesktopSrc: string;
+  detailMobileSrc: string;
   description: string;
   highlights?: string[];
   featured?: boolean;
@@ -63,6 +72,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://aureliamaison.vercel.app/",
     desktopSrc: aureliaDesktop.url,
     mobileSrc: aureliaMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/maison-aurelia-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/maison-aurelia-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/maison-aurelia-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/maison-aurelia-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/maison-aurelia-mobile.webp",
     description:
       "A quiet, editorial storefront for a modern jewellery house. Slow parallax, soft gold typography, and a checkout flow tuned for high-ticket pieces.",
     highlights: [
@@ -81,6 +95,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://vortexweight.vercel.app/",
     desktopSrc: vortexDesktop.url,
     mobileSrc: vortexMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/vortex-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/vortex-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/vortex-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/vortex-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/vortex-mobile.webp",
     description:
       "A high-energy landing page for a strength brand. Bold typography, scroll-driven reveals, and a membership CTA that stays sticky on mobile.",
     highlights: [
@@ -97,6 +116,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://nebulalm.vercel.app/",
     desktopSrc: nebulaDesktop.url,
     mobileSrc: nebulaMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/nebula-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/nebula-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/nebula-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/nebula-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/nebula-mobile.webp",
     description:
       "Product-led SaaS marketing site. Interactive feature cards, animated pricing table, and a docs-ready dark mode.",
     highlights: [
@@ -113,6 +137,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://noctissparadise.vercel.app/",
     desktopSrc: noctisDesktop.url,
     mobileSrc: noctisMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/noctis-paradise-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/noctis-paradise-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/noctis-paradise-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/noctis-paradise-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/noctis-paradise-mobile.webp",
     description:
       "A cinematic restaurant site with reservation flow, seasonal menu, and a moody, midnight-toned aesthetic that mirrors the venue.",
     highlights: [
@@ -129,6 +158,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://voltaarts.vercel.app/",
     desktopSrc: voltaDesktop.url,
     mobileSrc: voltaMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/volta-arts-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/volta-arts-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/volta-arts-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/volta-arts-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/volta-arts-mobile.webp",
     description:
       "A statement portfolio for a brand identity studio. Case-study driven, with kinetic type and a curated colour system per project.",
     highlights: [
@@ -145,6 +179,11 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
     liveUrl: "https://ateliermaison.vercel.app/",
     desktopSrc: atelierDesktop.url,
     mobileSrc: atelierMobile.url,
+    tileSrc: "/Icons%20and%20images/portfolio/optimized/maison-atelier-tile.webp",
+    tileMobileSrc: "/Icons%20and%20images/portfolio/optimized/maison-atelier-tile-mobile.webp",
+    blurSrc: "/Icons%20and%20images/portfolio/optimized/maison-atelier-blur.webp",
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/maison-atelier-desktop.webp",
+    detailMobileSrc: "/Icons%20and%20images/portfolio/optimized/maison-atelier-mobile.webp",
     description:
       "A gallery-first real estate site. Full-bleed listing pages, warm neutral palette, and enquiry forms that route straight to the agency inbox.",
     highlights: [

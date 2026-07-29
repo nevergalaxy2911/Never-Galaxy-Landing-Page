@@ -25,6 +25,10 @@ export type GraphicItem = {
   src?: string;
   /** Optional mobile-optimized variant, served via <img srcSet> on ≤640px. */
   srcMobile?: string;
+  /** Tiny blurred placeholder for instant website tile paint while the real shot decodes. */
+  placeholderSrc?: string;
+  /** Larger optimized screenshot used behind the iframe preview modal while the live site loads. */
+  previewSrc?: string;
   href?: string;
   span: string;
 };

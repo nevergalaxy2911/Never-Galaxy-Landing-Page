@@ -3,6 +3,8 @@ import { StarfieldBackground } from "@/components/StarfieldBackground";
 import { CanvasCursor } from "@/components/CanvasCursor";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { InteractiveCards } from "@/components/InteractiveCards";
+import { SoundController } from "@/components/SoundController";
+import { TabTitleAttention } from "@/components/TabTitleAttention";
 import { DeferredAdblockGate } from "@/components/DeferredAdblockGate";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { Nav } from "@/components/galaxy/Nav";
@@ -120,7 +122,12 @@ function Index() {
           <StarfieldBackground />
           <CanvasCursor />
           <InteractiveCards />
+          {/* Headless: wires the click / whoosh / ambience sound preferences. */}
+          <SoundController />
+          {/* Headless: blinks a "come back" nudge in the tab title while hidden. */}
+          <TabTitleAttention />
           <DeferredAdblockGate />
+
           <div className="relative z-10">
             <Nav />
             <main>

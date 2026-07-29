@@ -2,6 +2,9 @@ import { Menu, Orbit, X } from "lucide-react";
 import { useEffect, useState, type MouseEvent } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CursorTrailToggle } from "@/components/CursorTrailToggle";
+import { OptimizedModeToggle } from "@/components/OptimizedModeToggle";
+import { EffectsMenu } from "@/components/EffectsMenu";
+
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 
 // Nav shortcut list, edit here to add/remove nav items.
@@ -149,6 +152,12 @@ export function Nav() {
           <CurrencySwitcher />
           <ThemeToggle />
           <CursorTrailToggle />
+          {/* Optimized Mode: lighter starfield/cursor/blur for smoother scroll */}
+          <OptimizedModeToggle />
+          {/* Scroll feel, sound channels and the FPS diagnostics panel */}
+          <EffectsMenu />
+
+
           <a
             href="#contact"
             onClick={(e) => handleNavClick(e, "#contact")}

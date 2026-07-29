@@ -194,3 +194,107 @@
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
 }
+
+/* ============================================================================
+ * OPTIMIZED MODE (html[data-optimized="on"], toggled from the nav)
+ *
+ * WHAT: strips the most GPU/compositor-expensive decoration so scrolling is
+ * buttery on modest hardware. Backdrop-filter blur is the #1 offender: every
+ * blurred surface forces the compositor to re-sample the backdrop each frame
+ * while the page scrolls under it. Here we downgrade blur to plain
+ * translucency and drop big multi-layer glows.
+ *
+ * WHAT IT DOES NOT DO: change layout, colors, fonts or spacing. The site
+ * looks the same, just flatter. Toggle it off for the full effect stack.
+ *
+ * HOW TO MODIFY: add selectors below to strip more effects; the JS half of
+ * the switch lives in src/hooks/useOptimizedMode.ts.
+ * ========================================================================== */
+html[data-optimized="on"] * {
+  /* Blur removal, everything keeps its translucent background color. */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-optimized="on"] .bento,
+html[data-optimized="on"] .btn-tilt {
+  /* Kill the RAF-driven 3D tilt transform residue and heavy glow layers. */
+  transform: none !important;
+  --active: 0 !important;
+  --edge: 0 !important;
+}
+html[data-optimized="on"] .cv-auto {
+  /* Be more aggressive about skipping off-screen paint work. */
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 900px;
+}
+html[data-optimized="on"] {
+  /* Cheaper text rasterisation while scrolling. */
+  text-rendering: optimizeSpeed;
+}
+
+/* ============================================================================
+ * SMOOTH SCROLL PREFERENCE (html[data-smooth="off"])
+ *
+ * WHAT: when the visitor turns "Smooth scroll" off in the nav's Experience
+ * menu, the wheel becomes fully native. Long 0.9s reveal easings then feel
+ * detached — the section is already halfway up the screen before it finishes
+ * fading in, which reads as stutter. So we retime the reveals to match the
+ * snappier native scroll instead of removing them.
+ *
+ * HOW TO MODIFY: change the durations below; 0 would disable reveals entirely.
+ * ========================================================================== */
+html[data-smooth="off"] .reveal {
+  transition-duration: 0.34s;
+  will-change: auto;
+}
+html[data-smooth="off"] .js .reveal,
+html[data-smooth="off"] .reveal {
+  /* Shorter travel = less compositor work per frame during fast native scroll. */
+  --reveal-travel: 14px;
+}
+html[data-smooth="off"].js .reveal {
+  transform: translateY(var(--reveal-travel, 28px));
+}
+html[data-smooth="off"].js .reveal.is-visible {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+ * MOBILE / LOW-END GPU BUDGET
+ *
+ * WHY: phones composite the page on a much weaker GPU than a laptop. The two
+ * things that hurt most are (a) large blurred layers, because a blur has to be
+ * re-sampled every time anything above it moves, and (b) many-stop gradients
+ * spanning the whole viewport. Mobile already drops every `backdrop-filter`
+ * (see styles/mobile.css); this block goes further and flattens the page-wide
+ * washes and the big decorative glows.
+ *
+ * The palette does NOT change — same colours, just no filter passes.
+ *
+ * HOW TO MODIFY: raise the 1023px breakpoint, or delete individual rules to
+ * bring an effect back on phones.
+ * ========================================================================== */
+@media (max-width: 1023px), (pointer: coarse) {
+  /* Page-wide wash: keep the gradient, drop the blur+saturate filter pass. */
+  body::before {
+    filter: none;
+    opacity: 0.9;
+  }
+  /* Decorative blurred orbs/glows: CSS `filter: blur()` on a big element is
+     the single most expensive thing a phone GPU can be asked to do here. */
+  .glow-orb,
+  .nebula-blob,
+  [data-heavy-glow] {
+    filter: none !important;
+    opacity: 0.55;
+  }
+  /* Multi-layer box-shadow glows collapse to a single cheap shadow. */
+  .bento,
+  .btn-glow {
+    box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.6) !important;
+  }
+  /* Animated gradient text keeps its gradient but stops re-painting it. */
+  .text-gradient-nebula {
+    animation: none !important;
+  }
+}

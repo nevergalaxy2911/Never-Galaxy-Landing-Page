@@ -1,5 +1,6 @@
 import useCanvasCursor from "@/hooks/use-canvasCursor";
 import { useCursorTrail } from "@/hooks/useCursorTrail";
+import { useOptimizedMode } from "@/hooks/useOptimizedMode";
 import { useEffect, useState } from "react";
 
 function canUseDesktopCursor() {
@@ -18,14 +19,26 @@ function canUseDesktopCursor() {
 
 function DesktopCursorCanvas() {
   useCanvasCursor();
+  // FADE IN: the ribbon used to pop into existence at full strength on the very
+  // first pointer move. We keep the canvas fully transparent until the cursor
+  // actually moves, then ease it in — so the trail arrives instead of snapping.
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onMove = () => setVisible(true);
+    window.addEventListener("pointermove", onMove, { once: true, passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
   return (
     <canvas
       id="canvas"
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[60]"
+      className="pointer-events-none fixed inset-0 z-[60] transition-opacity duration-700 ease-out motion-reduce:transition-none"
+      style={{ opacity: visible ? 1 : 0 }}
     />
   );
 }
+
 
 /**
  * CanvasCursor, mounts a full-viewport canvas and drives it via
@@ -38,6 +51,8 @@ function DesktopCursorCanvas() {
 export function CanvasCursor() {
   const [enabled, setEnabled] = useState(false);
   const [trailPref] = useCursorTrail();
+  // Optimized Mode force-disables the ribbon trail (a permanent RAF loop).
+  const [optimized] = useOptimizedMode();
 
   useEffect(() => {
     const update = () => setEnabled(canUseDesktopCursor());
@@ -63,7 +78,7 @@ export function CanvasCursor() {
   }, []);
 
   // User-facing toggle: even on capable desktops, respect the saved preference.
-  if (!enabled || !trailPref) return null;
+  if (!enabled || !trailPref || optimized) return null;
   return <DesktopCursorCanvas />;
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Play, ImageIcon, Sparkles, Globe, Video, Camera, Palette, Music, Mic, Layers, ExternalLink } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
@@ -12,10 +12,14 @@ import { listPortfolioSites, type PortfolioSite } from "@/config/portfolio-sites
 import { PORTFOLIO } from "@/config/site";
 
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
+import { useProgressiveImage, warmImageCache, noteImageLoaded, markImageDecoded } from "@/lib/imageCache";
+import { screenshotTier } from "@/lib/deviceTier";
 
-// Lazy-load the preview modal so its iframe host chrome only ships after the
-// first tile click. Keeps the initial JS bundle lean for LCP.
-const WebsitePreviewModal = lazy(() => import("./WebsitePreviewModal"));
+// Lazy-load the preview modal so its iframe host chrome stays out of the LCP
+// path, but expose the loader so Website-tab intent can warm the chunk before
+// the actual click. This removes the click-to-modal JavaScript wait.
+const loadWebsitePreviewModal = () => import("./WebsitePreviewModal");
+const WebsitePreviewModal = lazy(loadWebsitePreviewModal);
 
 /* -----------------------------------------------------------------------------
  * PORTFOLIO, bento gallery with ADMIN-EDITABLE FILTER TABS.
@@ -65,6 +69,31 @@ const STATIC_IMAGE_FALLBACK: GraphicItem[] = [
   { id: "sg5", title: "Brand mark",       kind: "Coming soon",    span: SPAN_CYCLE[4] },
 ];
 
+// Browser-level origin warm-up for iframe previews. We keep this tiny and
+// idempotent: DNS prefetch is cheap for every site; preconnect only happens on
+// real intent so six external projects do not compete with the first paint.
+const warmedOrigins = new Set<string>();
+
+function warmWebsiteOrigins(urls: Array<string | undefined>, connect = false) {
+  if (typeof document === "undefined") return;
+  urls.forEach((url) => {
+    if (!url) return;
+    try {
+      const origin = new URL(url).origin;
+      const key = `${connect ? "preconnect" : "dns"}:${origin}`;
+      if (warmedOrigins.has(key)) return;
+      warmedOrigins.add(key);
+      const link = document.createElement("link");
+      link.rel = connect ? "preconnect" : "dns-prefetch";
+      link.href = origin;
+      if (connect) link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    } catch {
+      /* Invalid admin-entered URL, ignore and let the normal click path handle it. */
+    }
+  });
+}
+
 // Live shipped websites — showcased under the "Website" tab. Order + copy
 // live in `src/config/portfolio-sites.ts` (single source of truth, also
 // powers the /work/<slug> detail pages). The first `featured` entry (else
@@ -77,8 +106,12 @@ const FEATURED_WEBSITES: (GraphicItem & { slug: string; liveUrl: string })[] = (
     slug: s.slug,
     title: s.title,
     kind: s.subtitle,
-    src: s.desktopSrc,
-    srcMobile: s.mobileSrc,
+    // Homepage tiles use purpose-made WebP shots instead of the original PNGs:
+    // desktop tile ≈12-26KB, mobile tile ≈13-23KB, blur placeholder <1KB.
+    src: s.tileSrc,
+    srcMobile: s.tileMobileSrc,
+    placeholderSrc: s.blurSrc,
+    previewSrc: s.detailDesktopSrc,
     href: s.liveUrl,
     liveUrl: s.liveUrl,
     // Featured entry gets the hero span; others cycle through the remaining
@@ -97,7 +130,15 @@ type PreviewTarget = {
   subtitle?: string;
   url: string;
   detailHref?: string;
+  previewImage?: string;
 };
+
+function isWebsiteCategory(category?: PortfolioCategory) {
+  if (!category) return false;
+  const id = category.id.toLowerCase();
+  const label = category.label.toLowerCase();
+  return id === "web" || id === "website" || id.includes("website") || label === "website";
+}
 
 export function Portfolio({
   liveItems,
@@ -113,6 +154,85 @@ export function Portfolio({
   const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
   const activeCat = cats.find((c) => c.id === tab) ?? cats[0];
+  const activeIsWebsite = isWebsiteCategory(activeCat);
+
+  /* AUTOMATIC PRE-RENDER — every website screenshot is pulled into the
+   * on-device cache as soon as the site opens, so the Website tab paints
+   * instantly the first time it is opened (no manual "warm now" button).
+   *
+   * ORDER OF WORK (deliberate, so it never fights the first paint):
+   *   1. wait one frame + a short beat so the hero/LCP finishes painting,
+   *   2. fetch everything immediately in small parallel batches,
+   *   3. keep the idle warm-up as a safety net for anything left over.
+   *
+   * ADAPTIVE: low-tier devices only cache the small shots — they never render
+   * the full-resolution ones, so storing them would be pure waste.
+   * HOW TO MODIFY: see warmImageCacheNow / warmImageCache in lib/imageCache.ts. */
+  useEffect(() => {
+    const low = screenshotTier() === "low";
+    const srcs = FEATURED_WEBSITES.flatMap((w) =>
+      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
+    );
+    let cancelIdle: () => void = () => {};
+    let alive = true;
+
+    // Cheap DNS warm-up for the live preview origins. Actual connections wait
+    // for pointer/focus intent so the home page stays light.
+    warmWebsiteOrigins(FEATURED_WEBSITES.map((w) => w.liveUrl), false);
+
+    /* STEP 1 — decode into the BROWSER's own image cache right away. This is
+     * the bit that makes the Website filter paint instantly: by the time the
+     * tab is clicked the bytes are already decoded, so the <img> is a cache
+     * hit with no network round-trip. The optimized tile WebPs are tiny, so
+     * this is safe on both phones and desktops. */
+    const preloaded = srcs.filter(Boolean).map((s) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.fetchPriority = "high";
+      img.src = s as string;
+      // Register the shot as decoded so tiles mounted later (i.e. when the
+      // visitor switches to the Website filter) paint the sharp image on the
+      // very first frame instead of blurring up from the small one.
+      const mark = () => markImageDecoded(s as string);
+      if (img.decode) img.decode().then(mark, () => {});
+      else img.onload = mark;
+      return img;
+    });
+
+
+    /* STEP 2 — persist them to on-device storage for the NEXT visit. Deferred
+     * one frame so it never competes with the hero paint. */
+    const t = window.setTimeout(() => {
+      void import("@/lib/imageCache").then(async ({ warmImageCacheNow }) => {
+        await warmImageCacheNow(srcs);
+        if (alive) cancelIdle = warmImageCache(srcs);
+      });
+    }, 400);
+    return () => {
+      alive = false;
+      preloaded.forEach((img) => {
+        img.src = "";
+      });
+      window.clearTimeout(t);
+      cancelIdle();
+    };
+  }, []);
+
+  /* INTENT PREFETCH — warm a tab's imagery the instant the visitor shows they
+   * are about to open it. Runs at most once per tab (prefetchedTabs). */
+  const prefetchedTabs = useRef<Set<string>>(new Set());
+  const prefetchTab = useCallback((id: string) => {
+    const category = cats.find((c) => c.id === id);
+    if (!isWebsiteCategory(category) || prefetchedTabs.current.has(id)) return;
+    prefetchedTabs.current.add(id);
+    const low = screenshotTier() === "low";
+    const srcs = FEATURED_WEBSITES.flatMap((w) =>
+      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
+    );
+    warmWebsiteOrigins(FEATURED_WEBSITES.map((w) => w.liveUrl), true);
+    void loadWebsitePreviewModal();
+    void import("@/lib/imageCache").then(({ warmImageCacheNow }) => warmImageCacheNow(srcs));
+  }, [cats]);
 
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
@@ -126,7 +246,7 @@ export function Portfolio({
 
   if (!activeCat) return null;
 
-  const rows = grouped[activeCat.id] ?? [];
+  const rows = activeIsWebsite ? [] : grouped[activeCat.id] ?? [];
   const videos: VideoItem[] = rows.length
     ? rows.map((it, i) => ({
         id: it.id,
@@ -148,7 +268,7 @@ export function Portfolio({
         span: pickSpan(i),
       }))
     : activeCat.kind === "image"
-      ? activeCat.id === "web"
+      ? activeIsWebsite
         ? FEATURED_WEBSITES
         : STATIC_IMAGE_FALLBACK
       : [];
@@ -179,6 +299,14 @@ export function Portfolio({
                   <button
                     key={c.id}
                     onClick={() => setTab(c.id)}
+                    /* PREFETCH ON INTENT — the moment a pointer touches the
+                       Website pill (or a finger lands on it) we pull that tab's
+                       screenshots into the cache, so switching tabs paints
+                       instantly instead of starting a fetch on click.
+                       HOW TO MODIFY: see warmImageCacheNow in lib/imageCache.ts. */
+                    onPointerEnter={() => prefetchTab(c.id)}
+                    onPointerDown={() => prefetchTab(c.id)}
+                    onFocus={() => prefetchTab(c.id)}
                     data-active={tab === c.id}
                     className="portfolio-tab inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider transition-all sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
                   >
@@ -198,8 +326,8 @@ export function Portfolio({
             <GraphicTile
               key={g.id}
               item={g}
-              isWebsite={activeCat.id === "web"}
-              onPreview={activeCat.id === "web" ? (site) => setPreview(site) : undefined}
+              isWebsite={activeIsWebsite}
+              onPreview={activeIsWebsite ? (site) => setPreview(site) : undefined}
             />
           ))}
         </div>
@@ -216,6 +344,7 @@ export function Portfolio({
             subtitle={preview.subtitle}
             url={preview.url}
             detailHref={preview.detailHref}
+            previewImage={preview.previewImage}
           />
         </Suspense>
       )}
@@ -297,6 +426,25 @@ function GraphicTile({
   const useContain = slug === "maison-aurelia";
   const imgFit = useContain ? "object-contain" : "object-cover";
 
+  // Screenshots are persisted to localStorage after their first paint (see
+  // lib/imageCache.ts), so repeat visits show the tile instantly with no
+  // request at all. Falls back to the network URL whenever nothing is stored.
+  // Screenshots are persisted to localStorage after their first paint (see
+  // lib/imageCache.ts), so repeat visits show the tile instantly with no
+  // request at all. PROGRESSIVE: the small mobile shot paints first and the
+  // full-resolution one swaps in once decoded — and on Data Saver / low-end
+  // devices the small shot is kept as the final image (adaptive scaling).
+  // Website tiles are already tiny WebP files, so they bypass the localStorage
+  // screenshot hook completely. That keeps filter switching on the browser's
+  // native memory cache path with no synchronous storage reads.
+  const progressive = useProgressiveImage(isWebsite ? undefined : item.src, isWebsite ? undefined : item.srcMobile);
+  const imgSrc = isWebsite ? item.src : progressive.src;
+  const isFinal = isWebsite || progressive.isFinal;
+  const isCached = !isWebsite && progressive.isCached;
+
+  // Reference point for the "last rendered" figure in the diagnostics panel.
+  const [mountedAt] = useState(() => (typeof performance !== "undefined" ? performance.now() : 0));
+
   // Preview modal is a DESKTOP-ONLY experience by default — mobile iframes
   // are cramped and most target sites block embedding on small viewports
   // anyway. The breakpoint is admin-tunable via PORTFOLIO.previewBreakpointPx
@@ -309,6 +457,7 @@ function GraphicTile({
   const openPreview = () => {
     if (!clickable || !isWebsite) return;
     const desktop = isDesktopViewport();
+    warmWebsiteOrigins([item.href], true);
     // Analytics: tap on mobile → "visit" (opens live), click on desktop → "tile"
     // (opens the modal; the modal itself also fires a "preview" event on open).
     const kind: "tile" | "visit" = desktop ? "tile" : "visit";
@@ -323,6 +472,7 @@ function GraphicTile({
       subtitle: item.kind,
       url: item.href!,
       detailHref: `/work/${slug}`,
+      previewImage: item.previewSrc || item.src,
     });
   };
 
@@ -333,14 +483,16 @@ function GraphicTile({
     ? {
         type: "button",
         onClick: openPreview,
-        "aria-label": `${item.title} — opens live site in a new tab on mobile, or in an in-page preview on desktop`,
+        onPointerEnter: () => warmWebsiteOrigins([item.href], true),
+        onFocus: () => warmWebsiteOrigins([item.href], true),
+        "aria-label": `${item.title}: opens live site in a new tab on mobile, or in an in-page preview on desktop`,
       }
     : clickable
       ? {
           href: item.href,
           target: "_blank",
           rel: "noopener noreferrer",
-          "aria-label": `${item.title} — open in a new tab`,
+          "aria-label": `${item.title}: open in a new tab`,
         }
       : {};
 
@@ -357,28 +509,51 @@ function GraphicTile({
           <>
             {/* Blurred backdrop of the same shot fills empty space when we
                 use object-contain, so the card never shows raw background. */}
-            {useContain && (
+            {(useContain || (isWebsite && item.placeholderSrc)) && (
               <div
                 aria-hidden
                 className="absolute inset-0 scale-110 blur-2xl opacity-40"
                 style={{
-                  backgroundImage: `url(${item.src})`,
+                  backgroundImage: `url(${item.placeholderSrc || imgSrc})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }}
               />
             )}
-            <img
-              src={item.src}
-              srcSet={item.srcMobile ? `${item.srcMobile} 480w, ${item.src} 1200w` : undefined}
-              sizes={item.srcMobile ? "(max-width: 640px) 480px, (max-width: 1024px) 720px, 1200px" : undefined}
-              alt={item.title}
-              width={640}
-              height={480}
-              loading="lazy"
-              decoding="async"
-              className={`absolute inset-0 h-full w-full ${imgFit} transition-transform duration-500 ${clickable ? "group-hover:scale-105" : ""}`}
-            />
+            {isWebsite && item.srcMobile && item.src ? (
+              <picture className="absolute inset-0 block h-full w-full">
+                {/* Phones are pinned to the 420px WebP even on high-DPR screens.
+                    This avoids the browser choosing the larger desktop tile just
+                    because the display is dense. */}
+                <source media="(max-width: 767px)" srcSet={item.srcMobile} />
+                <img
+                  src={item.src}
+                  alt={item.title}
+                  width={960}
+                  height={540}
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
+                  onLoad={() => noteImageLoaded(performance.now() - mountedAt)}
+                  className={`h-full w-full ${imgFit} transition-transform duration-500 ${clickable ? "group-hover:scale-105" : ""}`}
+                />
+              </picture>
+            ) : (
+              <img
+                src={imgSrc}
+                alt={item.title}
+                width={640}
+                height={480}
+                loading={isCached ? "eager" : "lazy"}
+                fetchPriority={isCached ? "high" : "auto"}
+                decoding="async"
+                onLoad={() => noteImageLoaded(performance.now() - mountedAt)}
+                // While the low-res placeholder is showing we soften it a touch
+                // so the upgrade to the sharp shot reads as a refine, not a swap.
+                className={`absolute inset-0 h-full w-full ${imgFit} transition-[transform,filter] duration-500 ${isFinal ? "" : "blur-[2px] scale-[1.02]"} ${clickable ? "group-hover:scale-105" : ""}`}
+              />
+            )}
+
           </>
         ) : (
           <ComingSoonSurface icon={<ImageIcon className="h-8 w-8" />} label="Image URL slot" />

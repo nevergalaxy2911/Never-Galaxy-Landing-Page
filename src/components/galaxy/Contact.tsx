@@ -478,10 +478,18 @@ function ScopeSelect({ value, onChange }: { value: string; onChange: (v: string)
       setMenuPos({ top: r.bottom + 8, left: r.left, width: r.width });
     };
     place();
-    window.addEventListener("scroll", place, true);
+    // Scrolling the PAGE dismisses the menu (site-wide panel behaviour); we
+    // still reposition on inner/container scrolls and on resize.
+    const startY = window.scrollY;
+    const onScroll = (e: Event) => {
+      if (Math.abs(window.scrollY - startY) > 6) { setOpen(false); return; }
+      if (e.target !== document) place();
+      else place();
+    };
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", place);
     return () => {
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", place);
     };
   }, [open]);

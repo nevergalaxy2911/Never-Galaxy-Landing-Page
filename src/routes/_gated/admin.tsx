@@ -472,7 +472,7 @@ function PortfolioRow({
           />
           <p className="text-[11px] text-white/45 mt-1">
             {isVideo
-              ? "Paste any YouTube URL — the tile auto-shows the thumbnail + play button."
+              ? "Paste any YouTube URL and the tile auto-shows the thumbnail + play button."
               : "For image tiles this is optional. Fill the Image URL below to show a picture."}
           </p>
         </Field>
@@ -490,7 +490,7 @@ function PortfolioRow({
           </Field>
         )}
         {isVideo && (
-          <Field label="Custom thumbnail URL (optional — overrides YouTube's)" className="md:col-span-2">
+          <Field label="Custom thumbnail URL (optional, overrides YouTube's)" className="md:col-span-2">
             <input
               className="input"
               value={d.thumb_url ?? ""}

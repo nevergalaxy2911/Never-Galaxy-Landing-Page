@@ -79,7 +79,7 @@ function GatedLayout() {
             Either the account has no <code>admin</code> row in <code>user_roles</code> (run the bootstrap INSERT
             from <code>SUPABASE_SETUP.sql</code>), or the server env vars <code>SUPABASE_URL</code> and
             <code>SUPABASE_SERVICE_ROLE_KEY</code> are missing in this deployment. This preview URL doesn't
-            share Vercel's env vars — test admin login on the deployed Vercel URL.
+            share Vercel's env vars, so test admin login on the deployed Vercel URL.
           </p>
 
           <button onClick={onLogout} className="btn-secondary">Sign out</button>

@@ -18,8 +18,14 @@ export const Route = createFileRoute("/work/$slug")({
   head: ({ loaderData }) => {
     const s = loaderData?.site;
     if (!s) return {};
-    const title = `${s.title} — Case study · ${BRAND.name}`;
+    const title = `${s.title} · Case study · ${BRAND.name}`;
     const desc = s.description;
+    const imageMeta = s.desktopSrc.startsWith("https://")
+      ? [
+          { property: "og:image", content: s.desktopSrc },
+          { name: "twitter:image", content: s.desktopSrc },
+        ]
+      : [];
     return {
       meta: [
         { title },
@@ -27,11 +33,10 @@ export const Route = createFileRoute("/work/$slug")({
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
         { property: "og:type", content: "article" },
-        { property: "og:image", content: s.desktopSrc },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: desc },
-        { name: "twitter:image", content: s.desktopSrc },
+        ...imageMeta,
       ],
     };
   },
@@ -66,6 +71,8 @@ export const Route = createFileRoute("/work/$slug")({
 
 function CaseStudyPage() {
   const { site } = Route.useLoaderData();
+  const desktopSrc = site.detailDesktopSrc || site.desktopSrc;
+  const mobileSrc = site.detailMobileSrc || site.mobileSrc;
   return (
     <main className="relative min-h-screen bg-[#0b0510] text-white">
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
@@ -103,10 +110,12 @@ function CaseStudyPage() {
         {/* Desktop hero shot */}
         <figure className="mt-12 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] shadow-2xl">
           <img
-            src={site.desktopSrc}
+            src={desktopSrc}
+            srcSet={`${site.tileSrc} 960w, ${desktopSrc} 1440w, ${site.desktopSrc} 1920w`}
+            sizes="min(100vw - 3rem, 72rem)"
             alt={`${site.title} desktop hero`}
-            width={1920}
-            height={1080}
+            width={1440}
+            height={810}
             loading="eager"
             decoding="async"
             fetchPriority="high"
@@ -133,10 +142,12 @@ function CaseStudyPage() {
           )}
           <figure className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
             <img
-              src={site.mobileSrc}
+              src={mobileSrc}
+              srcSet={`${site.tileMobileSrc} 420w, ${mobileSrc} 560w, ${site.mobileSrc} 780w`}
+              sizes="min(100vw - 3rem, 280px)"
               alt={`${site.title} mobile hero`}
-              width={390}
-              height={844}
+              width={560}
+              height={1212}
               loading="lazy"
               decoding="async"
               className="block h-auto w-full"

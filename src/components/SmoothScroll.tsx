@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import Lenis from "lenis";
+import { readOptimizedMode } from "@/hooks/useOptimizedMode";
 
 /**
  * SmoothScroll — Lenis-based smooth wheel + delegated in-page anchor smooth-scroll.
@@ -16,8 +17,24 @@ declare global {
   }
 }
 
+/**
+ * SMOOTH SCROLL PREFERENCE (nav → Experience → "Smooth scroll")
+ * ------------------------------------------------------------
+ * ON  : Lenis eased wheel, reveal animations run at their full timing.
+ * OFF : native browser scrolling, reveal animations are shortened via the
+ *       `--reveal-dur` CSS var so nothing lags behind the scroll position.
+ *
+ * Optimized Mode additionally shortens Lenis' duration, because a long ease
+ * means more frames of JS-driven scrolling on a machine that is already
+ * struggling — that is exactly where the occasional stutter came from.
+ */
 export function SmoothScroll({ children }: { children: ReactNode }) {
+  // Smooth scroll is always on (2026-07-29: removed from the Experience menu).
+  const smooth = true;
+
   useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-smooth", smooth ? "on" : "off");
     // Mobile / low-end devices: Lenis JS-driven smooth wheel actually FIGHTS
     // native touch scroll on Android and causes noticeable stutter, especially
     // after tapping a nav anchor. On those devices we skip Lenis entirely and
@@ -27,8 +44,11 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       window.matchMedia("(pointer: coarse)").matches ||
       window.matchMedia("(hover: none)").matches;
 
-    if (isMobile) {
-      document.documentElement.style.scrollBehavior = "smooth";
+    if (isMobile || !smooth) {
+      // Native scrolling path. `scroll-behavior: smooth` only affects anchor
+      // jumps, never the wheel/touch, so turning the preference off gives you
+      // fully native (zero JS) scrolling.
+      document.documentElement.style.scrollBehavior = smooth ? "smooth" : "auto";
       const onAnchorClick = (e: MouseEvent) => {
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         const anchor = (e.target as HTMLElement | null)?.closest?.("a") as HTMLAnchorElement | null;
@@ -42,7 +62,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
         if (!el) return;
         e.preventDefault();
         const top = id === "top" ? 0 : el.getBoundingClientRect().top + window.scrollY - 70;
-        window.scrollTo({ top, behavior: "smooth" });
+        window.scrollTo({ top, behavior: smooth ? "smooth" : "auto" });
         history.replaceState(null, "", href);
       };
       document.addEventListener("click", onAnchorClick);
@@ -52,8 +72,10 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       };
     }
 
+    // Shorter ease in Optimized Mode = fewer JS-driven scroll frames.
+    const duration = readOptimizedMode() ? 0.85 : 1.2;
     const lenis = new Lenis({
-      duration: 1.2,
+      duration,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
@@ -78,7 +100,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       const el = id === "top" ? document.body : document.getElementById(id);
       if (!el) return;
       e.preventDefault();
-      lenis.scrollTo(el as HTMLElement, { offset: -70, duration: 1.2 });
+      lenis.scrollTo(el as HTMLElement, { offset: -70, duration });
       history.replaceState(null, "", href);
     };
     document.addEventListener("click", onAnchorClick);
@@ -89,6 +111,6 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       lenis.destroy();
       window.__lenis = undefined;
     };
-  }, []);
+  }, [smooth]);
   return <>{children}</>;
 }

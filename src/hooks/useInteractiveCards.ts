@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { readOptimizedMode, onOptimizedModeChange } from "@/hooks/useOptimizedMode";
 
 /* -----------------------------------------------------------------------------
  * useInteractiveCards, RAF-driven cursor tilt + border glow + surface
@@ -62,7 +63,16 @@ function lerpAngle(current: number, target: number, t: number): number {
 }
 
 export function useInteractiveCards() {
+  // Optimized Mode disables the whole tilt/glow RAF system. Re-runs the main
+  // effect when toggled so listeners are attached/detached immediately.
+  const [optimized, setOptimized] = useState(false);
   useEffect(() => {
+    setOptimized(readOptimizedMode());
+    return onOptimizedModeChange(setOptimized);
+  }, []);
+
+  useEffect(() => {
+    if (optimized) return;
     if (typeof window === "undefined") return;
     const isSmallScreen = window.matchMedia("(max-width: 1023px)").matches;
     const isTouch =
@@ -219,6 +229,6 @@ export function useInteractiveCards() {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerout", onLeave);
     };
-  }, []);
+  }, [optimized]);
 }
 

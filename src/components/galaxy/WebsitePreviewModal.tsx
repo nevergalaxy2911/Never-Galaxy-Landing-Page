@@ -24,7 +24,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, X, Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
+import { ExternalLink, X, Loader2, ShieldAlert, ArrowLeft, CornerUpLeft } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ type Props = {
   subtitle?: string;
   url: string;
   detailHref?: string;
+  previewImage?: string;
 };
 
 export default function WebsitePreviewModal({
@@ -47,9 +48,17 @@ export default function WebsitePreviewModal({
   subtitle,
   url,
   detailHref,
+  previewImage,
 }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  // How many pages the visitor has opened INSIDE the preview. A cross-origin
+  // iframe still fires `load` on every navigation, so this is a reliable way
+  // to know whether an in-frame "back" is meaningful.
+  const [frameDepth, setFrameDepth] = useState(0);
+  // Bumping this remounts the iframe, which is our fallback way of getting
+  // back to the site's landing page when history.back() is refused.
+  const [frameKey, setFrameKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -61,6 +70,8 @@ export default function WebsitePreviewModal({
     if (!open) return;
     setLoaded(false);
     setBlocked(false);
+    setFrameDepth(0);
+    setFrameKey(0);
     log({ data: { slug, title, url, kind: "preview" } }).catch(() => {});
     const timer = setTimeout(() => {
       const el = iframeRef.current;
@@ -171,6 +182,31 @@ export default function WebsitePreviewModal({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  /**
+   * Back button for the SAMPLE SITE (not the modal).
+   *
+   * Browsers forbid reading or driving the history of a cross-origin frame, so
+   * `contentWindow.history.back()` throws on most of these sites. We attempt it
+   * anyway — it works for same-origin previews — and fall back to remounting
+   * the iframe at its original URL, which always returns the visitor to the
+   * site's home page instead of leaving them stranded on a sub-page.
+   */
+  const goBackInFrame = () => {
+    const win = iframeRef.current?.contentWindow;
+    try {
+      if (win && win.history.length > 1) {
+        win.history.back();
+        setFrameDepth((d) => Math.max(1, d - 1));
+        return;
+      }
+    } catch {
+      /* cross-origin — fall through to the reload path */
+    }
+    setLoaded(false);
+    setFrameDepth(0);
+    setFrameKey((k) => k + 1);
+  };
+
   const titleId = `preview-title-${slug}`;
 
   return createPortal(
@@ -200,6 +236,25 @@ export default function WebsitePreviewModal({
           <span className="hidden xs:inline sm:inline">Back to Never Galaxy</span>
           <span className="xs:hidden sm:hidden">Back</span>
         </Button>
+        {/* In-preview back: returns to the previous page of the SAMPLE site.
+            Shown as soon as the frame has loaded — cross-origin sites never
+            report their history depth, so gating on depth used to hide this
+            button permanently. When there is no in-frame history to pop, it
+            falls back to reloading the sample site's home page. */}
+        {!blocked && loaded && (
+          <Button
+            type="button"
+            onClick={goBackInFrame}
+            variant="ghost"
+            className="h-auto shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs uppercase tracking-wider text-white/80 hover:bg-white/10 hover:text-white"
+            title={`Previous page of ${title}`}
+            aria-label={`Previous page of ${title}`}
+          >
+            <CornerUpLeft className="h-3.5 w-3.5" aria-hidden />
+            <span className="hidden md:inline">Previous page</span>
+          </Button>
+        )}
+
         <div className="min-w-0 flex-1">
           <p id={titleId} className="truncate font-display uppercase text-sm tracking-wide">
             {title}
@@ -243,9 +298,22 @@ export default function WebsitePreviewModal({
       <div className="relative flex-1 overflow-hidden bg-neutral-900">
         {!loaded && !blocked && (
           <div className="absolute inset-0 grid place-items-center text-white/70">
+            {previewImage && (
+              <img
+                src={previewImage}
+                alt=""
+                width={1440}
+                height={810}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                className="absolute inset-0 h-full w-full object-cover opacity-55 blur-[1px]"
+              />
+            )}
+            <div className="absolute inset-0 bg-black/45" aria-hidden />
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-              <p className="text-xs uppercase tracking-widest text-white/50">Loading preview…</p>
+              <p className="text-xs uppercase tracking-widest text-white/70">Loading preview...</p>
             </div>
           </div>
         )}
@@ -272,14 +340,18 @@ export default function WebsitePreviewModal({
           </div>
         ) : (
           <iframe
+            key={frameKey}
             ref={iframeRef}
             src={url}
             title={`${title} preview`}
             className="h-full w-full border-0 bg-white"
-            loading="lazy"
+            loading="eager"
             onLoad={(e) => {
               (e.currentTarget as HTMLIFrameElement & { __loaded?: boolean }).__loaded = true;
               setLoaded(true);
+              // First load = the landing page; every later load is an in-frame
+              // navigation, which is what makes the in-preview back button useful.
+              setFrameDepth((d) => d + 1);
             }}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             referrerPolicy="no-referrer"

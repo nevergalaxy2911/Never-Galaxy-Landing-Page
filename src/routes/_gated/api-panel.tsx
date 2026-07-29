@@ -124,7 +124,7 @@ function MaintenanceSection() {
             </select>
           </label>
           <label className="text-xs text-white/60 space-y-1">
-            <span>Back online at (optional — shows countdown)</span>
+            <span>Back online at (optional, shows countdown)</span>
             <input type="datetime-local" className="input w-full"
               value={until} onChange={(e) => setUntil(e.target.value)} />
           </label>
@@ -208,7 +208,7 @@ function AnnouncementSection() {
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-xs text-white/60 space-y-1 md:col-span-2">
             <span>Message</span>
-            <input className="input w-full" placeholder="🚀 Booking November slots — reply within 24h."
+            <input className="input w-full" placeholder="🚀 Booking November slots, reply within 24h."
               value={text} onChange={(e) => setText(e.target.value)} maxLength={200} />
           </label>
           <label className="text-xs text-white/60 space-y-1">
@@ -293,7 +293,7 @@ function QuickActionsSection() {
           <Btn id="reset" className="btn-danger text-sm"
             onClick={() => {
               if (!confirm("Reset pricing plans to the code defaults? Wipes current rows.")) return;
-              return run("reset", () => reset(), (r) => `Reset — ${r.count} plans reinstalled`);
+              return run("reset", () => reset(), (r) => `Reset: ${r.count} plans reinstalled`);
             }}>
             Reset pricing to defaults
           </Btn>

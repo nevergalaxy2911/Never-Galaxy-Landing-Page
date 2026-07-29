@@ -136,7 +136,57 @@
   body { font-size: 15px; line-height: 1.55; }
   .label-chip { font-size: 0.68rem; }
   .label-mono { font-size: 0.7rem; }
+
+  /* MOBILE: strip the remaining "fancy" decoration. Small devices get the same
+   * colours and layout, minus the effects that only cost paint time:
+   * decorative infinite animations, wide text glows, and canvas trails. */
+  [data-cursor-canvas],
+  .cursor-trail-canvas,
+  [data-starfield],
+  .starfield-canvas {
+    display: none !important;
+  }
+  .text-glow,
+  .glow-text {
+    text-shadow: none !important;
+  }
+
+  /* MOBILE: the currency sheet is fully opaque here too. */
+  .cur-modal {
+    background: color-mix(in oklab, black 93%, var(--sec-a)) !important;
+    animation: none !important;
+  }
+  .light .cur-modal {
+    background: color-mix(in oklab, white 96%, var(--sec-a)) !important;
+  }
+  .cur-modal-backdrop {
+    background: rgba(0, 0, 0, 0.72) !important;
+    animation: none !important;
+  }
+
+  /* MOBILE: no looping decorative motion anywhere. Anything that animates
+   * forever is pure battery burn on a phone — one-shot reveals still run.
+   * HOW TO MODIFY: delete this block to bring ambient motion back to phones. */
+  [class*="animate-"],
+  .aurora,
+  .nebula,
+  .shimmer,
+  .float,
+  .pulse-glow {
+    animation: none !important;
+  }
+
+  /* MOBILE: reveals fade only — no translate, so scrolling never repaints
+   * layout-heavy transforms mid-gesture. */
+  .reveal,
+  .reveal.is-in {
+    transform: none !important;
+  }
 }
+
+
+
+
 
 @media (max-width: 379px) {
   .label-chip {

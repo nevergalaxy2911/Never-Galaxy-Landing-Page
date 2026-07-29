@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCloseOnScroll } from "@/hooks/useCloseOnScroll";
 import { ChevronDown, Check, X, Search } from "lucide-react";
 import { useCurrency } from "@/hooks/useCurrency";
 
@@ -25,6 +26,10 @@ export function CurrencySwitcher() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+
+  /* SCROLLING THE PAGE CLOSES THE PANEL — shared behaviour across every
+   * floating panel on the site (currency, contact scope, experience menu). */
+  useCloseOnScroll(open, useCallback(() => setOpen(false), []));
 
   // Clear the search field every time the panel opens/closes so the next
   // launch always starts fresh. Also seed activeIndex to the current currency.
@@ -328,8 +333,8 @@ export function CurrencySwitcher() {
           padding: 0 12px;
           border-radius: 9999px;
           border: 1px solid color-mix(in oklab, var(--sec-a) 40%, transparent);
-          background: color-mix(in oklab, black 55%, transparent);
-          backdrop-filter: blur(10px);
+          background: color-mix(in oklab, black 38%, transparent);
+          backdrop-filter: blur(14px) saturate(140%);
           color: color-mix(in oklab, white 95%, var(--sec-a));
           font-family: var(--font-mono, ui-monospace, monospace);
           font-size: 11px;
@@ -390,8 +395,10 @@ export function CurrencySwitcher() {
           padding: 6px;
           border-radius: 14px;
           border: 1px solid color-mix(in oklab, var(--sec-a) 45%, transparent);
-          background: color-mix(in oklab, black 70%, transparent);
-          backdrop-filter: blur(18px);
+          /* 100% OPAQUE on purpose — nothing from the page shows through, so
+             the list is always perfectly readable. HOW TO MODIFY: reintroduce
+             a transparent term in the color-mix below to go glassy again. */
+          background: color-mix(in oklab, #05030c 92%, var(--sec-a) 8%);
           box-shadow:
             0 20px 60px -20px color-mix(in oklab, var(--sec-a) 60%, transparent),
             0 0 40px color-mix(in oklab, var(--sec-c) 30%, transparent);
@@ -453,8 +460,8 @@ export function CurrencySwitcher() {
           display: grid;
           place-items: center;
           padding: 20px;
-          background: color-mix(in oklab, black 65%, transparent);
-          backdrop-filter: blur(6px);
+          background: color-mix(in oklab, black 48%, transparent);
+          backdrop-filter: blur(8px);
           animation: cur-fade-in 160ms ease;
         }
         .cur-modal {
@@ -465,8 +472,8 @@ export function CurrencySwitcher() {
           flex-direction: column;
           border-radius: 18px;
           border: 1px solid color-mix(in oklab, var(--sec-a) 50%, transparent);
-          background: color-mix(in oklab, black 75%, transparent);
-          backdrop-filter: blur(22px);
+          /* Mobile sheet is fully opaque too (see .cur-menu note above). */
+          background: color-mix(in oklab, #05030c 93%, var(--sec-a) 7%);
           box-shadow:
             0 30px 80px -20px color-mix(in oklab, var(--sec-a) 60%, transparent),
             0 0 60px color-mix(in oklab, var(--sec-c) 30%, transparent);
