@@ -194,3 +194,54 @@
     letter-spacing: 0.16em;
   }
 }
+
+/* -----------------------------------------------------------------------------
+ * MOBILE HARD PERFORMANCE MODE (added for the "site feels laggy on phone" pass)
+ *
+ * Each rule below removes a known mobile-GPU cost. Delete a block to bring
+ * that effect back on phones.
+ * --------------------------------------------------------------------------- */
+@media (max-width: 1023px), (pointer: coarse), (hover: none) {
+  /* 1. The page-wide fixed wash no longer runs a blur filter. Blurring a
+   *    full-viewport fixed layer repaints on every scroll frame. */
+  body::before {
+    filter: none !important;
+    opacity: 0.9;
+  }
+
+  /* 2. Every remaining decorative blur (`blur-2xl`, `blur-3xl` halos, glow
+   *    orbs) is dropped. They are purely cosmetic and cost full-screen paint. */
+  [class*="blur-2xl"],
+  [class*="blur-3xl"],
+  [class*="blur-xl"] {
+    filter: none !important;
+  }
+  /* Purely decorative halos (aria-hidden) are removed outright. */
+  [aria-hidden="true"][class*="blur-2xl"],
+  [aria-hidden="true"][class*="blur-3xl"] {
+    display: none !important;
+  }
+
+  /* 3. Offscreen sections skip layout/paint until they scroll close.
+   *    `contain-intrinsic-size` keeps the scrollbar length stable. */
+  main > section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 900px;
+  }
+
+  /* 4. Nothing on a phone should hint the compositor permanently. */
+  * {
+    will-change: auto !important;
+  }
+
+  /* 5. Shorter, cheaper transitions everywhere. */
+  * {
+    transition-duration: 0.18s !important;
+    animation-duration: 0.18s !important;
+  }
+
+  /* 6. Images decode async and never animate scale. */
+  img {
+    transform: none !important;
+  }
+}

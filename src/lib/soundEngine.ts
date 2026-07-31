@@ -369,6 +369,21 @@ function currentAmbienceOffset(): number {
   return (ambienceOffset + Math.max(0, played)) % ambienceBuffer.duration;
 }
 
+/* VOICE REGISTRY + GENERATION TOKEN (2026-07-30 fix)
+ *
+ * WHAT: every pad voice ever created is remembered here, and every start /
+ *       stop bumps `ambienceGeneration`.
+ * WHY:  the pad is spawned from an async download. Without a token, a toggle
+ *       sequence like on -> off -> on could let a stale download callback
+ *       spawn a second, untracked voice, which then kept playing after the
+ *       switch was turned off ("ambience is off but the sound keeps playing").
+ *       The registry is the belt to that braces: stopAmbience silences EVERY
+ *       voice, tracked or orphaned.
+ * HOW TO MODIFY: nothing to tune here. Fade lengths live in stopAmbience /
+ *       AMBIENCE_FADE_S. */
+let ambienceGeneration = 0;
+const liveAmbienceVoices = new Set<{ src: AudioScheduledSourceNode; gain: GainNode }>();
+
 /** Build + start the pad voice at `offset` seconds, swelling in over `fade`. */
 function spawnAmbience(buffer: AudioBuffer, offset: number, fade: number) {
   if (!ctx || !master) return;
@@ -400,6 +415,10 @@ function spawnAmbience(buffer: AudioBuffer, offset: number, fade: number) {
   ambienceOffset = safeOffset;
   ambienceStartedAtCtxTime = now;
 
+  const voice = { src, gain: out };
+  liveAmbienceVoices.add(voice);
+  src.onended = () => liveAmbienceVoices.delete(voice);
+
   ambienceNodes = { nodes: [src], gain: out, panner };
 }
 
@@ -409,31 +428,50 @@ function teardownAmbience(fade: number) {
   const { nodes, gain } = ambienceNodes;
   ambienceNodes = null;
   const now = ctx.currentTime;
+  // A suspended context has a frozen clock, so a scheduled ramp/stop would
+  // never run and the pad would burst back to life on the next resume. Cut it.
+  const immediate = ctx.state !== "running";
   try {
     gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(0.05, fade));
+    if (immediate) {
+      gain.gain.value = 0.0001;
+    } else {
+      gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(0.05, fade));
+    }
   } catch {
     /* node already gone */
   }
   nodes.forEach((n) => {
+    // This voice now owns its own graceful stop, so drop it from the registry
+    // (the registry is only a safety net for voices nobody is managing).
+    liveAmbienceVoices.forEach((v) => {
+      if (v.src === n) liveAmbienceVoices.delete(v);
+    });
     try {
-      n.stop(now + fade + 0.2);
+      if (immediate) n.stop();
+      else n.stop(now + fade + 0.2);
     } catch {
       /* already stopped */
     }
   });
 }
 
+
 export function startAmbience() {
   const c = ensureContext();
-  if (!c || !master || ambienceNodes) return;
+  if (!c || !master) return;
+  // Intent is recorded BEFORE any early exit, so a re-entrant call while a
+  // voice is alive still counts as "on".
   ambienceWanted = true;
   ambiencePausedForTab = false;
   refreshWindUserGain(); // the wind gets its ambience boost
+  if (ambienceNodes) return; // already sounding
 
+  const gen = ++ambienceGeneration;
   void loadAmbienceBuffer(c).then((buffer) => {
-    // The user may have toggled it back off while the track was downloading.
+    // Dropped if the visitor toggled it back off (or off-and-on) meanwhile.
+    if (gen !== ambienceGeneration) return;
     if (!buffer || !ambienceWanted || ambienceNodes || !ctx || !master) return;
     if (ambiencePausedForTab) return; // hidden tab — wait for the return
     spawnAmbience(buffer, ambienceOffset, reducedAudio ? AMBIENCE_FADE_S * 1.6 : AMBIENCE_FADE_S);
@@ -446,8 +484,21 @@ export function stopAmbience() {
   ambienceWanted = false;
   ambiencePausedForTab = false;
   ambienceOffset = 0;
+  ambienceGeneration++; // invalidate any download still in flight
   refreshWindUserGain();
   teardownAmbience(1.8);
+  // Safety net: silence anything that somehow escaped the tracked voice.
+  liveAmbienceVoices.forEach((voice) => {
+    try {
+      voice.gain.gain.cancelScheduledValues(ctx?.currentTime ?? 0);
+      voice.gain.gain.value = 0.0001;
+      voice.src.stop();
+    } catch {
+      /* already stopped */
+    }
+    liveAmbienceVoices.delete(voice);
+  });
+
 }
 
 /* -----------------------------------------------------------------------------

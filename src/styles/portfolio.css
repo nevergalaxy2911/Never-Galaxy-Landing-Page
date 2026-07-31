@@ -174,3 +174,35 @@
 .light .coming-soon-surface {
   background-color: color-mix(in oklab, var(--sec-a) 6%, white);
 }
+
+/* -----------------------------------------------------------------------------
+ * MOBILE: WEBSITE TILE LEGIBILITY
+ *
+ * WHAT: On phones the Website tiles load a portrait phone screenshot
+ *       (420x909). Squeezing that into a 340x200 landscape tile left a sliver
+ *       of pixels, nothing was recognisable.
+ * HOW:  Give website tiles a tall, portrait-ish box and anchor the crop to the
+ *       top of the page shot, so the hero (logo + headline) always shows.
+ * MODIFY: change `min-height` below to make phone tiles taller/shorter.
+ *         Change `object-position` to `center` to crop mid-page instead.
+ * --------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  [data-web-tile] {
+    min-height: 360px !important;
+  }
+  [data-web-tile] img {
+    object-fit: cover !important;
+    object-position: top center !important;
+  }
+  /* Big blur layers are the most expensive paint on a phone GPU. The tile is
+   * fully covered by the screenshot on mobile anyway, so drop it. */
+  [data-tile-blur] {
+    display: none !important;
+  }
+  /* No hover on touch, so kill the zoom transition work entirely. */
+  [data-web-tile] img,
+  .tile-surface img {
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -504,14 +504,22 @@ function GraphicTile({
       {...wrapperProps}
       className={`bento group overflow-hidden flex flex-col text-left ${item.span} ${clickable ? "cursor-pointer" : ""}`}
     >
-      <div className="relative flex-1 min-h-[200px] tile-surface overflow-hidden">
+      <div
+        // `data-web-tile` lets portfolio.css give phone screenshots a taller,
+        // top-anchored crop so the site is actually recognisable on a phone.
+        data-web-tile={isWebsite ? "true" : undefined}
+        className="relative flex-1 min-h-[200px] tile-surface overflow-hidden"
+      >
         {item.src ? (
           <>
             {/* Blurred backdrop of the same shot fills empty space when we
-                use object-contain, so the card never shows raw background. */}
+                use object-contain, so the card never shows raw background.
+                Hidden on phones (see portfolio.css) — a full-tile blur layer
+                is one of the most expensive things a mobile GPU can paint. */}
             {(useContain || (isWebsite && item.placeholderSrc)) && (
               <div
                 aria-hidden
+                data-tile-blur
                 className="absolute inset-0 scale-110 blur-2xl opacity-40"
                 style={{
                   backgroundImage: `url(${item.placeholderSrc || imgSrc})`,
@@ -520,6 +528,7 @@ function GraphicTile({
                 }}
               />
             )}
+
             {isWebsite && item.srcMobile && item.src ? (
               <picture className="absolute inset-0 block h-full w-full">
                 {/* Phones are pinned to the 420px WebP even on high-DPR screens.

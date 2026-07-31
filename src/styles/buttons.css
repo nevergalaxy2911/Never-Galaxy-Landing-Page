@@ -221,3 +221,48 @@
   }
 }
 
+
+/* -----------------------------------------------------------------------------
+ * EXPERIENCE PANEL (the sound / effects popover in the nav)
+ *
+ * WHAT: contrast tuning for the popover that holds the sound switches.
+ * WHY: on the CANDY light theme the default popover (near-white on cream) had
+ *      almost no edge and the 10px hint text sat too pale to read comfortably.
+ *      Dark mode was already fine, so only the `.light` rules do real work.
+ *
+ * HOW TO MODIFY
+ *  • Panel tint      → `background` in `.light .fx-panel` (berry % into white).
+ *  • Panel edge      → `border-color` there (raise the % for a harder edge).
+ *  • Hint legibility → `.light .fx-panel .fx-hint` color (berry into black).
+ *  • Row hover tint  → `.light .fx-panel .fx-row:hover`.
+ * --------------------------------------------------------------------------- */
+.light .fx-panel {
+  background: color-mix(in oklab, var(--sec-a) 6%, white);
+  border-color: color-mix(in oklab, var(--sec-a) 42%, transparent);
+  box-shadow:
+    0 18px 45px -18px color-mix(in oklab, var(--sec-b) 55%, transparent),
+    0 2px 10px -4px color-mix(in oklab, var(--sec-a) 30%, transparent);
+}
+.light .fx-panel .fx-title {
+  /* Berry ink instead of grey: reads as a heading, keeps AAA on cream. */
+  color: color-mix(in oklab, var(--sec-b) 80%, black);
+}
+.light .fx-panel .fx-label {
+  color: color-mix(in oklab, var(--sec-b) 30%, black);
+}
+.light .fx-panel .fx-hint,
+.light .fx-panel .fx-note {
+  color: color-mix(in oklab, var(--sec-b) 22%, black);
+}
+.light .fx-panel .fx-icon {
+  color: color-mix(in oklab, var(--sec-a) 75%, black);
+}
+.light .fx-panel .fx-row:hover {
+  background: color-mix(in oklab, var(--sec-a) 14%, white);
+}
+.light .fx-panel .fx-row:active {
+  background: color-mix(in oklab, var(--sec-a) 22%, white);
+}
+.light .fx-panel .fx-divider {
+  border-color: color-mix(in oklab, var(--sec-a) 30%, transparent);
+}
