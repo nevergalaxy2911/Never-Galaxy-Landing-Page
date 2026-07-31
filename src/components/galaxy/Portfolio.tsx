@@ -322,10 +322,14 @@ export function Portfolio({
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">
           {activeCat.kind === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
-          {activeCat.kind === "image" && graphics.map((g) => (
+          {activeCat.kind === "image" && graphics.map((g, i) => (
             <GraphicTile
               key={g.id}
               item={g}
+              // Only the first two tiles are above the fold; everything after
+              // that lazy-loads when it scrolls close, which is the single
+              // biggest data saving on a phone.
+              priority={i < 2}
               isWebsite={activeIsWebsite}
               onPreview={activeIsWebsite ? (site) => setPreview(site) : undefined}
             />
@@ -411,10 +415,13 @@ function GraphicTile({
   item,
   isWebsite,
   onPreview,
+  priority,
 }: {
   item: GraphicItem;
   isWebsite?: boolean;
   onPreview?: (t: PreviewTarget) => void;
+  /** Above-the-fold tile: fetched eagerly. Everything else lazy-loads. */
+  priority?: boolean;
 }) {
   const logClick = useServerFn(logPortfolioClick);
   const clickable = Boolean(item.href);
@@ -444,6 +451,16 @@ function GraphicTile({
 
   // Reference point for the "last rendered" figure in the diagnostics panel.
   const [mountedAt] = useState(() => (typeof performance !== "undefined" ? performance.now() : 0));
+
+  /* SKELETON: until the screenshot has actually painted we show a cheap
+   * shimmering placeholder instead of an empty hole. This is what removes the
+   * "laggy" feeling on a phone: the grid has structure from frame one.
+   * HOW TO MODIFY: the shimmer visuals live in `.tile-skeleton` (portfolio.css). */
+  const [loaded, setLoaded] = useState(false);
+  const onImgLoad = () => {
+    setLoaded(true);
+    noteImageLoaded(performance.now() - mountedAt);
+  };
 
   // Preview modal is a DESKTOP-ONLY experience by default — mobile iframes
   // are cramped and most target sites block embedding on small viewports
@@ -508,10 +525,16 @@ function GraphicTile({
         // `data-web-tile` lets portfolio.css give phone screenshots a taller,
         // top-anchored crop so the site is actually recognisable on a phone.
         data-web-tile={isWebsite ? "true" : undefined}
+        // Letterboxed (object-contain) shots keep the original short box, the
+        // taller crop box is only useful for cover shots.
+        data-tile-fit={isWebsite ? (useContain ? "contain" : "cover") : undefined}
         className="relative flex-1 min-h-[200px] tile-surface overflow-hidden"
       >
         {item.src ? (
           <>
+            {/* Skeleton: visible only until the shot paints. */}
+            {!loaded && <div aria-hidden className="tile-skeleton absolute inset-0" />}
+
             {/* Blurred backdrop of the same shot fills empty space when we
                 use object-contain, so the card never shows raw background.
                 Hidden on phones (see portfolio.css) — a full-tile blur layer
@@ -540,11 +563,12 @@ function GraphicTile({
                   alt={item.title}
                   width={960}
                   height={540}
-                  loading="eager"
-                  fetchPriority="high"
+                  // Off-screen tiles wait for the viewport (native lazy-loading).
+                  loading={priority ? "eager" : "lazy"}
+                  fetchPriority={priority ? "high" : "low"}
                   decoding="async"
-                  onLoad={() => noteImageLoaded(performance.now() - mountedAt)}
-                  className={`h-full w-full ${imgFit} transition-transform duration-500 ${clickable ? "group-hover:scale-105" : ""}`}
+                  onLoad={onImgLoad}
+                  className={`h-full w-full ${imgFit} transition-[transform,opacity] duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${clickable ? "group-hover:scale-105" : ""}`}
                 />
               </picture>
             ) : (
@@ -553,13 +577,13 @@ function GraphicTile({
                 alt={item.title}
                 width={640}
                 height={480}
-                loading={isCached ? "eager" : "lazy"}
-                fetchPriority={isCached ? "high" : "auto"}
+                loading={isCached || priority ? "eager" : "lazy"}
+                fetchPriority={isCached || priority ? "high" : "auto"}
                 decoding="async"
-                onLoad={() => noteImageLoaded(performance.now() - mountedAt)}
+                onLoad={onImgLoad}
                 // While the low-res placeholder is showing we soften it a touch
                 // so the upgrade to the sharp shot reads as a refine, not a swap.
-                className={`absolute inset-0 h-full w-full ${imgFit} transition-[transform,filter] duration-500 ${isFinal ? "" : "blur-[2px] scale-[1.02]"} ${clickable ? "group-hover:scale-105" : ""}`}
+                className={`absolute inset-0 h-full w-full ${imgFit} transition-[transform,filter,opacity] duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${isFinal ? "" : "blur-[2px] scale-[1.02]"} ${clickable ? "group-hover:scale-105" : ""}`}
               />
             )}
 

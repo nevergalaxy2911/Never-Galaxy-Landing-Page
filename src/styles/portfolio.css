@@ -176,6 +176,33 @@
 }
 
 /* -----------------------------------------------------------------------------
+ * WEBSITE TILE CROP (all viewports)
+ *
+ * WHAT: Website tiles used to inherit the generic 200px tile height. A full
+ *       page screenshot squeezed into a 398x200 box showed a sliver, you could
+ *       not tell which site it was.
+ * HOW:  Website tiles get their own aspect ratio and a top-anchored cover crop,
+ *       so the browser chrome / logo bar and the primary heading are always in
+ *       frame, exactly the part a visitor recognises.
+ * MODIFY: `aspect-ratio` controls how much page you see (taller = more page).
+ *         `object-position` moves the crop window down the page.
+ * --------------------------------------------------------------------------- */
+[data-web-tile] {
+  /* !important beats the tile's Tailwind `min-h-[200px]` utility. */
+  min-height: 300px !important;
+}
+/* Letterboxed shots are centred, otherwise a tall row leaves a dead band
+ * under the screenshot. */
+[data-web-tile] img.object-contain {
+  object-position: center !important;
+}
+/* NOTE: object-fit is left to the component (Maison Aurelia uses contain), we
+ * only anchor the crop window to the top of the page shot here. */
+[data-web-tile] img {
+  object-position: top center;
+}
+
+/* -----------------------------------------------------------------------------
  * MOBILE: WEBSITE TILE LEGIBILITY
  *
  * WHAT: On phones the Website tiles load a portrait phone screenshot
@@ -188,6 +215,7 @@
  * --------------------------------------------------------------------------- */
 @media (max-width: 767px) {
   [data-web-tile] {
+    aspect-ratio: auto;
     min-height: 360px !important;
   }
   [data-web-tile] img {
@@ -204,5 +232,40 @@
   .tile-surface img {
     transition: none !important;
     transform: none !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * TILE SKELETON
+ *
+ * WHAT: A cheap shimmering placeholder shown inside a portfolio tile until its
+ *       screenshot has decoded and painted.
+ * WHY:  With lazy-loaded tiles the grid used to show empty boxes while phones
+ *       fetched images, which reads as "lag". A skeleton makes the wait feel
+ *       intentional and keeps the layout completely stable (no CLS).
+ * MODIFY: change the gradient colours for a different tint, or the animation
+ *         duration for a faster/slower sweep. The sweep is disabled on phones
+ *         and under prefers-reduced-motion (static wash instead).
+ * --------------------------------------------------------------------------- */
+.tile-skeleton {
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--sec-a) 10%, transparent) 20%,
+    color-mix(in oklab, var(--sec-a) 22%, transparent) 45%,
+    color-mix(in oklab, var(--sec-a) 10%, transparent) 70%
+  );
+  background-size: 220% 100%;
+  animation: tile-skeleton-sweep 1.5s linear infinite;
+}
+
+@keyframes tile-skeleton-sweep {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
+  .tile-skeleton {
+    animation: none;
+    background: color-mix(in oklab, var(--sec-a) 14%, transparent);
   }
 }

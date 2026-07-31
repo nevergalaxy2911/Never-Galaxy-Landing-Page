@@ -310,11 +310,19 @@ export function isWindRunning() {
  * it is a smooth swell rather than an audible splice.
  *
  * HOW TO MODIFY
- *   • Different track → replace src/assets/ambient-space.mp3.asset.json.
+ *   • Different track → replace public/audio/ambient-space.mp3 (keep the name).
  *   • Loudness        → AMBIENCE_GAIN_MUSIC at the top of this file.
  *   • Fade-in length  → AMBIENCE_FADE_S below.
+ *
+ * WHY A PUBLIC-FOLDER URL (2026-07-31 fix): the track used to be referenced
+ * through a Lovable-managed asset descriptor whose URL (/__l5e/assets-v1/...)
+ * only resolves inside the Lovable preview host. On a self-hosted deploy
+ * (Vercel) that request 404s, so ambience was silent everywhere except the
+ * preview. The file now lives in public/ and ships with the build.
  * --------------------------------------------------------------------------- */
 const AMBIENCE_FADE_S = 3.5;
+/** Self-hosted, build-shipped ambient track. Served at the site root. */
+const AMBIENCE_URL = "/audio/ambient-space.mp3";
 
 let ambienceBuffer: AudioBuffer | null = null;
 let ambienceLoading: Promise<AudioBuffer | null> | null = null;
@@ -325,12 +333,8 @@ async function loadAmbienceBuffer(c: AudioContext): Promise<AudioBuffer | null> 
   if (ambienceLoading) return ambienceLoading;
   ambienceLoading = (async () => {
     try {
-      const [{ fetchCachedAudio }, asset] = await Promise.all([
-        import("@/lib/audioCache"),
-        import("@/assets/ambient-space.mp3.asset.json"),
-      ]);
-      const url = (asset as { default: { url: string } }).default.url;
-      const bytes = await fetchCachedAudio(url);
+      const { fetchCachedAudio } = await import("@/lib/audioCache");
+      const bytes = await fetchCachedAudio(AMBIENCE_URL);
       ambienceBuffer = await c.decodeAudioData(bytes.slice(0));
       return ambienceBuffer;
     } catch {
@@ -345,10 +349,9 @@ async function loadAmbienceBuffer(c: AudioContext): Promise<AudioBuffer | null> 
 /** Download + decode the track ahead of time (called during browser idle). */
 export function preloadAmbience() {
   if (typeof window === "undefined" || ambienceBuffer || ambienceLoading) return;
-  void import("@/lib/audioCache").then(async ({ fetchCachedAudio }) => {
-    const asset = await import("@/assets/ambient-space.mp3.asset.json");
-    await fetchCachedAudio((asset as { default: { url: string } }).default.url).catch(() => {});
-  });
+  void import("@/lib/audioCache").then(({ fetchCachedAudio }) =>
+    fetchCachedAudio(AMBIENCE_URL).catch(() => {}),
+  );
 }
 
 /* PLAYHEAD BOOKKEEPING
