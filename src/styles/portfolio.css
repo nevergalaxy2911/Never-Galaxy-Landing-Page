@@ -236,6 +236,51 @@
 }
 
 /* -----------------------------------------------------------------------------
+ * EXTRA-NARROW PHONES (<= 360px, e.g. iPhone SE 1st gen / 320px Androids)
+ *
+ * WHAT: On a 320px-wide screen the tile is so narrow that a top-anchored cover
+ *       crop shows only the left half of the site header, the logo survives but
+ *       the main heading gets sliced.
+ * HOW:  Make the tile taller (more vertical page in frame) and shift the crop
+ *       window a hair down from the very top so the favicon/logo bar AND the
+ *       hero heading both land inside the visible box.
+ * MODIFY: `min-height` = how much page you see. `object-position` second value
+ *         = how far down the crop starts (0% = very top, 6% = slightly below).
+ * --------------------------------------------------------------------------- */
+@media (max-width: 360px) {
+  [data-web-tile] {
+    min-height: 400px !important;
+  }
+  [data-web-tile] img {
+    object-position: center 2% !important;
+  }
+  /* Letterboxed (contain) shots must never be nudged, they have no spare crop. */
+  [data-web-tile] img.object-contain {
+    object-position: center !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * ULTRA-WIDE / SHORT VIEWPORTS (landscape phones, 21:9 desktops)
+ *
+ * WHAT: On a very wide but short tile the cover crop turns the screenshot into
+ *       a letterbox slit, the heading falls out of frame under the logo bar.
+ * HOW:  Clamp the tile to a readable minimum height and pin the crop hard to
+ *       the top so the logo bar is always the first thing in the box.
+ * MODIFY: raise `min-height` for even more page, or loosen the aspect-ratio
+ *         query if you want it to kick in earlier.
+ * --------------------------------------------------------------------------- */
+@media (min-aspect-ratio: 2/1) and (max-height: 520px) {
+  [data-web-tile] {
+    min-height: 260px !important;
+  }
+  [data-web-tile] img {
+    object-position: top center !important;
+  }
+}
+
+
+/* -----------------------------------------------------------------------------
  * TILE SKELETON
  *
  * WHAT: A cheap shimmering placeholder shown inside a portfolio tile until its

@@ -13,6 +13,7 @@ import { Services } from "@/components/galaxy/Services";
 import { Portfolio } from "@/components/galaxy/Portfolio";
 import { Process } from "@/components/galaxy/Process";
 import { Pricing } from "@/components/galaxy/Pricing";
+import { Testimonials } from "@/components/galaxy/Testimonials";
 import { FAQ } from "@/components/galaxy/FAQ";
 import { Contact } from "@/components/galaxy/Contact";
 import { Footer } from "@/components/galaxy/Footer";
@@ -137,6 +138,7 @@ function Index() {
               {/* Below-fold: paint-deferred via content-visibility:auto (see .cv-auto in styles.css). */}
               <div className="cv-auto"><Process /></div>
               <div className="cv-auto"><Pricing plans={livePricing ?? undefined} /></div>
+              <div className="cv-auto"><Testimonials /></div>
               <div className="cv-auto"><FAQ /></div>
               <div className="cv-auto"><Contact /></div>
             </main>

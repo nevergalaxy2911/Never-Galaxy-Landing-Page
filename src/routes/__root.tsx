@@ -56,7 +56,7 @@ export const Route = createRootRoute({
         type: "font/woff2",
         href: archivoBlackWoff2,
         crossOrigin: "anonymous",
-        fetchpriority: "high",
+        fetchPriority: "high",
       },
       // Fonts are now self-hosted via @fontsource in src/styles.css, no
       // Google Fonts <link> or drift-prone hard-coded preload. Kills the

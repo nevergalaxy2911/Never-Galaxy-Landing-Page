@@ -26,7 +26,7 @@ export function FAQ() {
     <section id="faq" className="sec-aurora nebula-wash relative py-28">
       <div className="mx-auto max-w-5xl px-6">
         <div ref={head} className="reveal text-center max-w-2xl mx-auto">
-          <span className="label-chip">05 · FAQ</span>
+          <span className="label-chip">06 · FAQ</span>
           <h2 className="mt-6 font-display uppercase text-[clamp(2rem,5vw,4rem)]">
             Answers, <span className="text-gradient-nebula">first</span>.
           </h2>

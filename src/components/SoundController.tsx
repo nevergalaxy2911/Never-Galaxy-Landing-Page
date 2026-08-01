@@ -23,6 +23,8 @@ import {
   startAmbience,
   stopAmbience,
   unlockOnFirstGesture,
+  resumeAudioAfterInterruption,
+
 } from "@/lib/soundEngine";
 import { shouldPrefetchHeavyAssets } from "@/lib/deviceTier";
 
@@ -285,15 +287,28 @@ export function SoundController() {
    * up, and because nothing is torn down the music keeps its position.
    * ------------------------------------------------------------------------- */
   useEffect(() => {
-    const onVisibility = () => setGlobalMute(document.hidden);
+    const onVisibility = () => {
+      setGlobalMute(document.hidden);
+      // Returning to the tab: iOS/Android may have frozen or killed the audio
+      // context while we were away, so nudge it back to life.
+      if (!document.hidden) resumeAudioAfterInterruption();
+    };
+    const onWake = () => resumeAudioAfterInterruption();
     document.addEventListener("visibilitychange", onVisibility);
+    // pageshow fires on bfcache restores (iOS back-swipe), focus covers the
+    // "phone call ended, Safari came back" case.
+    window.addEventListener("pageshow", onWake);
+    window.addEventListener("focus", onWake);
     onVisibility();
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onWake);
+      window.removeEventListener("focus", onWake);
       setGlobalMute(false);
     };
   }, []);
+
 
   /* Warm the ambient track into on-device storage while the browser is idle,
    * so the first time the visitor flips ambience on it starts instantly. */

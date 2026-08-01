@@ -124,21 +124,52 @@ function ensureContext(): AudioContext | null {
   return ctx;
 }
 
-/** Resume audio on the first real user gesture (autoplay-policy compliance). */
+/** Resume audio on the first real user gesture (autoplay-policy compliance).
+ *
+ * iOS NOTE: Safari only counts a *completed* touch as a gesture, and it can
+ * refuse the very first resume() attempt. So we listen to several gesture
+ * types and keep listening until the context is genuinely "running". */
 export function unlockOnFirstGesture() {
   if (typeof window === "undefined") return () => {};
+  const EVENTS = ["pointerdown", "touchend", "click", "keydown"] as const;
+  const remove = () => EVENTS.forEach((e) => window.removeEventListener(e, unlock));
   const unlock = () => {
-    ensureContext();
-    window.removeEventListener("pointerdown", unlock);
-    window.removeEventListener("keydown", unlock);
+    const c = ensureContext();
+    if (!c) return remove();
+    void Promise.resolve(c.state === "suspended" ? c.resume() : undefined)
+      .catch(() => {})
+      .then(() => {
+        if (c.state !== "running") return; // still blocked, wait for next gesture
+        // A gesture that arrives after an iOS interruption may find the pad
+        // wanted but silent — bring it back.
+        resumeAudioAfterInterruption();
+        remove();
+      });
   };
-  window.addEventListener("pointerdown", unlock, { passive: true });
-  window.addEventListener("keydown", unlock);
-  return () => {
-    window.removeEventListener("pointerdown", unlock);
-    window.removeEventListener("keydown", unlock);
-  };
+  EVENTS.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
+  return remove;
 }
+
+/**
+ * Recover the audio graph after the OS/browser froze it (tab return, iOS phone
+ * call, screen lock, Safari media interruption). Safe to call at any time:
+ * it only acts when the visitor actually wants ambience.
+ *
+ * HOW TO MODIFY: nothing to tune. Called from SoundController on
+ * visibilitychange / pageshow / focus.
+ */
+export function resumeAudioAfterInterruption() {
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+  if (!ambienceWanted || ambiencePausedForTab || ambienceNodes) return;
+  const c = ensureContext();
+  if (!c) return;
+  void loadAmbienceBuffer(c).then((buffer) => {
+    if (!buffer || !ambienceWanted || ambienceNodes || ambiencePausedForTab) return;
+    spawnAmbience(buffer, Math.max(0, ambienceOffset - AMBIENCE_RESUME_REWIND_S), 0.8);
+  });
+}
+
 
 /**
  * Looping noise buffer. Built once and reused. It is deliberately long (4s) and
