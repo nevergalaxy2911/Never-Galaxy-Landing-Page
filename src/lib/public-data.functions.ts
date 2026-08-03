@@ -57,7 +57,8 @@ function parseYouTubeId(u: string): string | undefined {
     if (url.hostname.includes("youtube.com")) {
       const v = url.searchParams.get("v");
       if (v) return v;
-      const m = url.pathname.match(/\/embed\/([^/?#]+)/);
+      // Supports /embed/ID, /shorts/ID, /live/ID and /v/ID
+      const m = url.pathname.match(/\/(?:embed|shorts|live|v)\/([^/?#]+)/);
       if (m) return m[1];
     }
   } catch {

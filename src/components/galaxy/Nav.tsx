@@ -123,9 +123,13 @@ export function Nav() {
           >
             <Orbit className="h-4.5 w-4.5 text-white" />
           </span>
-          <span className="hidden min-w-0 truncate font-display text-[14px] font-semibold leading-none tracking-tight min-[380px]:block sm:text-[15px]">
-            Never<span className="text-gradient-nebula">Galaxy</span>
-            <span className="label-mono mt-1 hidden text-[9px] opacity-70 sm:block">
+          {/* Brand lockup: column so the tagline sits under the name instead of
+              being squeezed by `truncate` (which was clipping it to "N. / CR"). */}
+          <span className="hidden min-w-0 flex-col justify-center leading-tight min-[380px]:flex">
+            <span className="truncate whitespace-nowrap font-display text-[14px] font-semibold leading-[1.15] tracking-tight sm:text-[15px]">
+              Never<span className="text-gradient-nebula">Galaxy</span>
+            </span>
+            <span className="label-mono hidden truncate whitespace-nowrap text-[9px] leading-[1.3] opacity-70 sm:block">
               creative studio · est. 2025
             </span>
           </span>
