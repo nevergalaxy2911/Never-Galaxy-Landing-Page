@@ -68,8 +68,9 @@
   gap: var(--marquee-gap);
   width: max-content;
   will-change: transform;
-  /* One promoted layer for the whole row; cards inside stay un-layered. */
-  transform: translateZ(0);
+  /* One promoted layer for the whole row; cards inside stay un-layered.
+   * NOTE: the keyframes below also set translate3d, so this only serves as a
+   * pre-animation hint. `will-change` is what actually keeps the layer alive. */
   backface-visibility: hidden;
   animation: marquee-slide var(--marquee-duration) linear infinite;
 }
@@ -88,9 +89,11 @@
 .marquee-item {
   flex: 0 0 var(--marquee-card);
   max-width: 88vw;
-  /* Keep each card's layout/style work to itself while the row slides. */
-  contain: layout style;
+  /* NO `contain` here on purpose: contain:style forced a style-recalc per card
+   * on every frame of the slide, which is what produced the tiny "skipping".
+   * Paint containment is already handled by the track's own layer. */
 }
+
 
 @keyframes marquee-slide {
   from {

@@ -153,7 +153,20 @@
 .bento-unclipped::before,
 .bento-unclipped::after { border-radius: inherit; }
 
+/* HOVER-ONLY GLOW ------------------------------------------------------------
+ * `.bento-hover-glow` hard-gates both glow layers behind a real :hover on that
+ * exact card. Without it a card keeps a residual glow while --active fades out
+ * (and neighbouring cards can catch a stray reading as the marquee slides past
+ * the cursor). Also kills the tilt so a moving row never tips mid-slide. */
+.bento-hover-glow::before,
+.bento-hover-glow::after { opacity: 0; }
+.bento-hover-glow:hover::before { opacity: var(--active); }
+.bento-hover-glow:hover::after { opacity: calc(var(--edge) * var(--active)); }
+.light .bento-hover-glow:hover::after { opacity: calc(var(--edge) * var(--active)); }
+.bento-hover-glow:not(:hover) { transform: none; }
+
 .bento > * { position: relative; z-index: 2; }
+
 
 .bento:hover,
 .bento:focus-visible,

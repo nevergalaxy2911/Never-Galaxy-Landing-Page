@@ -86,7 +86,7 @@ function Row({
               aria-hidden={isClone || undefined}
               /* bento-unclipped: lets the hover glow bleed past the card edge
                  instead of being cut into a hard square by overflow:hidden. */
-              className="marquee-item bento bento-unclipped p-7 md:p-8 flex flex-col gap-5"
+              className="marquee-item bento bento-unclipped bento-hover-glow p-7 md:p-8 flex flex-col gap-5"
               /* NOTE: no per-card `filter` here on purpose. A filter on every
                  card forces a separate composited layer for all 12+ tiles while
                  the track animates, which is what made this section feel laggy. */
