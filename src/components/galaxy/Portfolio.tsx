@@ -9,7 +9,7 @@ import {
   type PortfolioCategory,
 } from "@/lib/portfolio-config";
 import { aspectRatioCss, spanForAspect } from "@/lib/portfolio-aspect";
-import { listPortfolioSites, type PortfolioSite } from "@/config/portfolio-sites";
+import { DEFAULT_WEBSITES, visibleWebsites, type WebsiteEntry } from "@/lib/websites-config";
 import { PORTFOLIO } from "@/config/site";
 
 
@@ -97,12 +97,16 @@ function warmWebsiteOrigins(urls: Array<string | undefined>, connect = false) {
   });
 }
 
-// Live shipped websites — showcased under the "Website" tab. Order + copy
-// live in `src/config/portfolio-sites.ts` (single source of truth, also
-// powers the /work/<slug> detail pages). The first `featured` entry (else
-// the first entry) claims the biggest bento tile.
-const FEATURED_WEBSITES: (GraphicItem & { slug: string; liveUrl: string })[] = (() => {
-  const sites = listPortfolioSites();
+// Live shipped websites, showcased under the "Website" tab.
+// SOURCE OF TRUTH: /admin -> Websites (site_settings row `portfolio.websites`),
+// delivered through the route loader as the `websites` prop. When the database
+// has nothing saved we fall back to the shipped static list so the tab is never
+// empty. The first `featured` entry (else the first entry) claims the biggest
+// bento tile.
+type WebsiteTile = GraphicItem & { slug: string; liveUrl: string };
+
+function buildWebsiteTiles(list: WebsiteEntry[]): WebsiteTile[] {
+  const sites = visibleWebsites(list);
   const featuredIdx = Math.max(0, sites.findIndex((s) => s.featured));
   return sites.map((s, i) => ({
     id: `web-${s.slug}`,
@@ -110,7 +114,7 @@ const FEATURED_WEBSITES: (GraphicItem & { slug: string; liveUrl: string })[] = (
     title: s.title,
     kind: s.subtitle,
     // Homepage tiles use purpose-made WebP shots instead of the original PNGs:
-    // desktop tile ≈12-26KB, mobile tile ≈13-23KB, blur placeholder <1KB.
+    // desktop tile ~12-26KB, mobile tile ~13-23KB, blur placeholder <1KB.
     src: s.tileSrc,
     srcMobile: s.tileMobileSrc,
     placeholderSrc: s.blurSrc,
@@ -121,7 +125,7 @@ const FEATURED_WEBSITES: (GraphicItem & { slug: string; liveUrl: string })[] = (
     // spans in order so the bento stays visually balanced.
     span: i === featuredIdx ? SPAN_CYCLE[0] : SPAN_CYCLE[1 + ((i < featuredIdx ? i : i - 1) % (SPAN_CYCLE.length - 1))],
   }));
-})();
+}
 
 function pickSpan(i: number): string {
   return SPAN_CYCLE[i % SPAN_CYCLE.length];
@@ -146,13 +150,22 @@ function isWebsiteCategory(category?: PortfolioCategory) {
 export function Portfolio({
   liveItems,
   categories,
+  websites,
 }: {
   liveItems?: PublicPortfolioItem[];
   categories?: PortfolioCategory[];
+  /** Admin-managed website list (loader-fed). Falls back to the static list. */
+  websites?: WebsiteEntry[];
 }) {
   const cats = useMemo(
     () => (categories?.length ? categories : DEFAULT_CATEGORIES).filter((c) => c.enabled),
     [categories],
+  );
+  // Built once per list change so tile spans / image URLs stay referentially
+  // stable across re-renders (no needless re-decode of the screenshots).
+  const websiteTiles = useMemo(
+    () => buildWebsiteTiles(websites?.length ? websites : DEFAULT_WEBSITES),
+    [websites],
   );
   const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
@@ -173,7 +186,7 @@ export function Portfolio({
    * HOW TO MODIFY: see warmImageCacheNow / warmImageCache in lib/imageCache.ts. */
   useEffect(() => {
     const low = screenshotTier() === "low";
-    const srcs = FEATURED_WEBSITES.flatMap((w) =>
+    const srcs = websiteTiles.flatMap((w) =>
       low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
     );
     let cancelIdle: () => void = () => {};
@@ -181,7 +194,7 @@ export function Portfolio({
 
     // Cheap DNS warm-up for the live preview origins. Actual connections wait
     // for pointer/focus intent so the home page stays light.
-    warmWebsiteOrigins(FEATURED_WEBSITES.map((w) => w.liveUrl), false);
+    warmWebsiteOrigins(websiteTiles.map((w) => w.liveUrl), false);
 
     /* STEP 1 — decode into the BROWSER's own image cache right away. This is
      * the bit that makes the Website filter paint instantly: by the time the
@@ -219,7 +232,7 @@ export function Portfolio({
       window.clearTimeout(t);
       cancelIdle();
     };
-  }, []);
+  }, [websiteTiles]);
 
   /* INTENT PREFETCH — warm a tab's imagery the instant the visitor shows they
    * are about to open it. Runs at most once per tab (prefetchedTabs). */
@@ -229,13 +242,13 @@ export function Portfolio({
     if (!isWebsiteCategory(category) || prefetchedTabs.current.has(id)) return;
     prefetchedTabs.current.add(id);
     const low = screenshotTier() === "low";
-    const srcs = FEATURED_WEBSITES.flatMap((w) =>
+    const srcs = websiteTiles.flatMap((w) =>
       low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
     );
-    warmWebsiteOrigins(FEATURED_WEBSITES.map((w) => w.liveUrl), true);
+    warmWebsiteOrigins(websiteTiles.map((w) => w.liveUrl), true);
     void loadWebsitePreviewModal();
     void import("@/lib/imageCache").then(({ warmImageCacheNow }) => warmImageCacheNow(srcs));
-  }, [cats]);
+  }, [cats, websiteTiles]);
 
   const head = useReveal<HTMLDivElement>(0);
   const grid = useReveal<HTMLDivElement>(120);
@@ -279,7 +292,7 @@ export function Portfolio({
       }))
     : activeCat.kind === "image"
       ? activeIsWebsite
-        ? FEATURED_WEBSITES
+        ? websiteTiles
         : STATIC_IMAGE_FALLBACK
       : [];
 
@@ -375,7 +388,9 @@ export function Portfolio({
 function VideoTile({ item }: { item: VideoItem }) {
   const [playing, setPlaying] = useState(false);
   return (
-    <article className={`bento overflow-hidden flex flex-col ${item.span}`}>
+    /* data-playing tells useInteractiveCards to drop the spotlight + tilt
+       while the YouTube embed is on screen. */
+    <article data-playing={playing ? "true" : undefined} className={`bento overflow-hidden flex flex-col ${item.span}`}>
       <div
         className="relative flex-1 min-h-[180px] tile-surface"
         style={item.aspect ? { aspectRatio: aspectRatioCss(item.aspect), minHeight: 0 } : undefined}

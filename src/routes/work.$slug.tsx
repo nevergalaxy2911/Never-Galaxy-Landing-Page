@@ -6,14 +6,28 @@
  */
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { ExternalLink, ArrowLeft, Check } from "lucide-react";
-import { getPortfolioSite, PORTFOLIO_SITES } from "@/config/portfolio-sites";
+import { getPublicWebsites } from "@/lib/public-data.functions";
 import { BRAND } from "@/config/site";
 
 export const Route = createFileRoute("/work/$slug")({
-  loader: ({ params }) => {
-    const site = getPortfolioSite(params.slug);
-    if (!site) throw notFound();
-    return { site };
+  /* Case studies are ADMIN-EDITABLE: the list comes from /admin -> Websites
+     (site_settings row `portfolio.websites`) and falls back to the shipped
+     static list whenever the database is empty or unreachable. */
+  loader: async ({ params }) => {
+    const all = await getPublicWebsites();
+    const entry = all.find((s) => s.slug === params.slug);
+    if (!entry) throw notFound();
+    // Legacy aliases so the markup below keeps working unchanged.
+    const site = {
+      ...entry,
+      desktopSrc: entry.detailDesktopSrc,
+      mobileSrc: entry.detailMobileSrc,
+    };
+    const others = all
+      .filter((s) => s.slug !== entry.slug)
+      .slice(0, 3)
+      .map((s) => ({ slug: s.slug, title: s.title }));
+    return { site, others };
   },
   head: ({ loaderData }) => {
     const s = loaderData?.site;
@@ -70,7 +84,7 @@ export const Route = createFileRoute("/work/$slug")({
 });
 
 function CaseStudyPage() {
-  const { site } = Route.useLoaderData();
+  const { site, others } = Route.useLoaderData();
   const desktopSrc = site.detailDesktopSrc || site.desktopSrc;
   const mobileSrc = site.detailMobileSrc || site.mobileSrc;
   return (
@@ -164,18 +178,16 @@ function CaseStudyPage() {
             ← All work
           </Link>
           <div className="flex flex-wrap gap-2">
-            {PORTFOLIO_SITES.filter((s) => s.slug !== site.slug && s.enabled !== false)
-              .slice(0, 3)
-              .map((s) => (
-                <Link
-                  key={s.slug}
-                  to="/work/$slug"
-                  params={{ slug: s.slug }}
-                  className="rounded-full border border-white/15 px-3 py-1.5 hover:bg-white/10"
-                >
-                  {s.title}
-                </Link>
-              ))}
+            {others.map((s: { slug: string; title: string }) => (
+              <Link
+                key={s.slug}
+                to="/work/$slug"
+                params={{ slug: s.slug }}
+                className="rounded-full border border-white/15 px-3 py-1.5 hover:bg-white/10"
+              >
+                {s.title}
+              </Link>
+            ))}
           </div>
         </nav>
       </div>

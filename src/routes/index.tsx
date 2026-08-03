@@ -17,10 +17,11 @@ import { Testimonials } from "@/components/galaxy/Testimonials";
 import { FAQ } from "@/components/galaxy/FAQ";
 import { Contact } from "@/components/galaxy/Contact";
 import { Footer } from "@/components/galaxy/Footer";
-import { getPublicPricing, getPublicPortfolio, getPublicCategories, getPublicTestimonials, type PublicPortfolioItem } from "@/lib/public-data.functions";
+import { getPublicPricing, getPublicPortfolio, getPublicCategories, getPublicTestimonials, getPublicWebsites, type PublicPortfolioItem } from "@/lib/public-data.functions";
 import type { PricingPlan } from "@/config/site";
 import type { PortfolioCategory } from "@/lib/portfolio-config";
 import type { Testimonial } from "@/lib/testimonials-config";
+import type { WebsiteEntry } from "@/lib/websites-config";
 
 
 /* ============================================================================
@@ -35,13 +36,14 @@ export const Route = createFileRoute("/")({
   // Loader-fed live data: SSR fetches published plans + portfolio in parallel;
   // on any failure returns null and components fall back to static defaults.
   loader: async () => {
-    const [pricing, portfolio, categories, testimonials] = await Promise.all([
+    const [pricing, portfolio, categories, testimonials, websites] = await Promise.all([
       getPublicPricing(),
       getPublicPortfolio(),
       getPublicCategories(),
       getPublicTestimonials(),
+      getPublicWebsites(),
     ]);
-    return { pricing, portfolio, categories, testimonials };
+    return { pricing, portfolio, categories, testimonials, websites };
   },
 
   errorComponent: () => <Index />,
@@ -120,12 +122,14 @@ function Index() {
         portfolio: PublicPortfolioItem[] | null;
         categories?: PortfolioCategory[];
         testimonials?: Testimonial[];
+        websites?: WebsiteEntry[];
       }
     | undefined;
   const livePricing = data?.pricing ?? null;
   const livePortfolio = data?.portfolio ?? null;
   const liveCategories = data?.categories;
   const liveTestimonials = data?.testimonials;
+  const liveWebsites = data?.websites;
   return (
     <CurrencyProvider>
       <SmoothScroll>
@@ -143,7 +147,7 @@ function Index() {
             <main>
               <Hero />
               <Services />
-              <Portfolio liveItems={livePortfolio ?? undefined} categories={liveCategories} />
+              <Portfolio liveItems={livePortfolio ?? undefined} categories={liveCategories} websites={liveWebsites} />
               {/* Below-fold: paint-deferred via content-visibility:auto (see .cv-auto in styles.css). */}
               <div className="cv-auto"><Process /></div>
               <div className="cv-auto"><Pricing plans={livePricing ?? undefined} /></div>

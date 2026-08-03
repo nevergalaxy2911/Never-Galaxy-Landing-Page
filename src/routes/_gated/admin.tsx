@@ -1,7 +1,7 @@
 /**
  * /admin, the Never Galaxy content console.
  *
- * SECTIONS (top nav): Portfolio · Testimonials · Pricing · Filters · Settings
+ * SECTIONS (top nav): Portfolio · Websites · Testimonials · Pricing · Filters · Settings
  *
  * DESIGN NOTES (why it looks the way it does)
  *   • One consistent shell: every section is a <Panel> with a title, a short
@@ -24,6 +24,7 @@ import {
   Check,
   ChevronDown,
   Filter,
+  Globe,
   Image as ImageIcon,
   LayoutGrid,
   Loader2,
@@ -52,7 +53,16 @@ import {
   saveItemAspects,
   getTestimonials,
   saveTestimonials,
+  getWebsites,
+  saveWebsites,
+  resetWebsitesToDefaults,
 } from "@/lib/admin-data.functions";
+import {
+  DEFAULT_WEBSITES,
+  emptyWebsite,
+  slugify,
+  type WebsiteEntry,
+} from "@/lib/websites-config";
 import {
   DEFAULT_CATEGORIES,
   ICON_CHOICES,
@@ -81,10 +91,11 @@ export const Route = createFileRoute("/_gated/admin")({
   component: AdminPage,
 });
 
-type Tab = "portfolio" | "testimonials" | "pricing" | "filters" | "settings";
+type Tab = "portfolio" | "websites" | "testimonials" | "pricing" | "filters" | "settings";
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutGrid; blurb: string }> = [
   { id: "portfolio", label: "Portfolio", icon: LayoutGrid, blurb: "Videos, graphics and site tiles" },
+  { id: "websites", label: "Websites", icon: Globe, blurb: "Live client sites and their preview images" },
   { id: "testimonials", label: "Testimonials", icon: MessageSquareQuote, blurb: "Client quotes and proof chips" },
   { id: "pricing", label: "Pricing", icon: Tag, blurb: "Plans shown on the pricing section" },
   { id: "filters", label: "Filters", icon: Filter, blurb: "The portfolio tab bar" },
@@ -132,6 +143,7 @@ function AdminPage() {
       </nav>
 
       {tab === "portfolio" && <PortfolioEditor />}
+      {tab === "websites" && <WebsitesEditor />}
       {tab === "testimonials" && <TestimonialsEditor />}
       {tab === "pricing" && <PricingEditor />}
       {tab === "filters" && <FiltersEditor />}
@@ -1176,4 +1188,260 @@ function LoadingRow({ label }: { label: string }) {
 
 function Empty({ msg }: { msg: string }) {
   return <p className="py-6 text-sm text-white/45">{msg}</p>;
+}
+
+/* ========================================================================== */
+/* WEBSITES, the "Website" portfolio tab + /work/<slug> case studies          */
+/* ========================================================================== */
+/* Stored as ONE site_settings row (`portfolio.websites`), so adding or
+   removing a client site here instantly changes the homepage tiles, the
+   preview modal and the case-study page. Images are plain URLs: either a file
+   you dropped in `public/` (e.g. /Icons%20and%20images/portfolio/x.webp) or a
+   full https link.
+   HOW TO MODIFY: field meanings live in src/lib/websites-config.ts. */
+
+function WebsitesEditor() {
+  const load = useServerFn(getWebsites);
+  const save = useServerFn(saveWebsites);
+  const resetAll = useServerFn(resetWebsitesToDefaults);
+  const [items, setItems] = useState<WebsiteEntry[]>(DEFAULT_WEBSITES);
+  const [open, setOpen] = useState<number | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await load();
+      setItems(r.items as WebsiteEntry[]);
+      setErr(r.error);
+      setDirty(false);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [load]);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  function update(i: number, patch: Partial<WebsiteEntry>) {
+    setItems((prev) => prev.map((w, idx) => (idx === i ? { ...w, ...patch } : w)));
+    setDirty(true);
+  }
+  function move(i: number, dir: -1 | 1) {
+    setItems((prev) => {
+      const next = [...prev];
+      const j = i + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+    setDirty(true);
+  }
+  function remove(i: number) {
+    if (!confirm(`Remove "${items[i].title}" from the Website tab and delete its case study page?`)) return;
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+    setOpen(null);
+    setDirty(true);
+  }
+  function add() {
+    setItems((prev) => [...prev, emptyWebsite()]);
+    setOpen(items.length);
+    setDirty(true);
+  }
+  // Only one site can own the biggest bento tile, so featuring one clears the rest.
+  function feature(i: number, on: boolean) {
+    setItems((prev) => prev.map((w, idx) => ({ ...w, featured: on ? idx === i : idx === i ? false : w.featured })));
+    setDirty(true);
+  }
+  async function persist() {
+    setBusy(true); setErr(null); setNote(null);
+    try {
+      const r = await save({ data: { items } });
+      setNote(`Saved ${r.count} websites. The live site updates on the next page load.`);
+      await refresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function restoreDefaults() {
+    if (!confirm("Replace the current list with the six shipped websites?")) return;
+    setBusy(true); setErr(null); setNote(null);
+    try {
+      const r = await resetAll();
+      setNote(`Restored ${r.count} default websites.`);
+      await refresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {err && <Banner tone="error" msg={err} />}
+      {note && <Banner tone="ok" msg={note} />}
+      <Panel
+        title="Client websites"
+        desc="Every entry becomes a tile under the Website filter and its own case study page at /work/<slug>. Paste image URLs from the public folder or any https link."
+        toolbar={
+          <>
+            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={() => void restoreDefaults()} disabled={busy}>
+              <RotateCcw className="h-4 w-4" aria-hidden /> Defaults
+            </button>
+            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={add}>
+              <Plus className="h-4 w-4" aria-hidden /> Add website
+            </button>
+            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => void persist()} disabled={busy || !dirty}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
+              {busy ? "Saving" : dirty ? "Save changes" : "Saved"}
+            </button>
+          </>
+        }
+      >
+        {loading ? (
+          <LoadingRow label="Loading websites" />
+        ) : items.length === 0 ? (
+          <p className="py-6 text-center text-sm text-white/50">No websites yet. Use "Add website" to create the first one.</p>
+        ) : (
+          <div className="space-y-3">
+            {items.map((w, i) => {
+              const expanded = open === i;
+              const preview = w.tileMobileSrc || w.tileSrc || w.detailDesktopSrc;
+              return (
+                <div key={`${w.slug}-${i}`} className="rounded-xl border border-white/10 bg-white/[0.03]">
+                  {/* Collapsed summary row: thumbnail + status chips. */}
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="h-12 w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40">
+                      {preview ? (
+                        <img src={preview} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center text-white/30">
+                          <ImageIcon className="h-4 w-4" aria-hidden />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{w.title || "Untitled"}</p>
+                      <p className="truncate text-xs text-white/45">{w.liveUrl || "No live URL yet"}</p>
+                    </div>
+                    <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                      {w.featured && <Chip tone="ok">Featured</Chip>}
+                      <Chip tone={w.enabled ? "ok" : "muted"}>{w.enabled ? "Visible" : "Hidden"}</Chip>
+                    </div>
+                    <button
+                      className="btn-secondary inline-flex shrink-0 items-center gap-1.5"
+                      onClick={() => setOpen(expanded ? null : i)}
+                      aria-expanded={expanded}
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
+                      {expanded ? "Close" : "Edit"}
+                    </button>
+                  </div>
+
+                  {expanded && (
+                    <div className="space-y-3 border-t border-white/10 p-4">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <Field label="Title">
+                          <input className="input" value={w.title}
+                            onChange={(e) => update(i, { title: e.target.value })} />
+                        </Field>
+                        <Field label="Subtitle">
+                          <input className="input" placeholder="Luxury jewellery house" value={w.subtitle}
+                            onChange={(e) => update(i, { subtitle: e.target.value })} />
+                        </Field>
+                        <Field label="Category">
+                          <input className="input" placeholder="Luxury eCommerce" value={w.category}
+                            onChange={(e) => update(i, { category: e.target.value })} />
+                        </Field>
+                        <Field label="Live URL" className="md:col-span-2">
+                          <input className="input" placeholder="https://client-site.com" value={w.liveUrl}
+                            onChange={(e) => update(i, { liveUrl: e.target.value })} />
+                        </Field>
+                        <Field label="Page slug (/work/…)">
+                          <input className="input" placeholder="auto from title" value={w.slug}
+                            onChange={(e) => update(i, { slug: slugify(e.target.value) })}
+                            onBlur={() => !w.slug && update(i, { slug: slugify(w.title) })} />
+                        </Field>
+
+                        <Field label="Tile image (desktop)" className="md:col-span-3">
+                          <input className="input" placeholder="/Icons%20and%20images/portfolio/optimized/site-tile.webp"
+                            value={w.tileSrc} onChange={(e) => update(i, { tileSrc: e.target.value })} />
+                        </Field>
+                        <Field label="Tile image (phone)">
+                          <input className="input" placeholder="Empty = reuse desktop tile" value={w.tileMobileSrc}
+                            onChange={(e) => update(i, { tileMobileSrc: e.target.value })} />
+                        </Field>
+                        <Field label="Blur placeholder">
+                          <input className="input" placeholder="Empty = reuse desktop tile" value={w.blurSrc}
+                            onChange={(e) => update(i, { blurSrc: e.target.value })} />
+                        </Field>
+                        <Field label="Case study shot (desktop)">
+                          <input className="input" placeholder="Big screenshot" value={w.detailDesktopSrc}
+                            onChange={(e) => update(i, { detailDesktopSrc: e.target.value })} />
+                        </Field>
+                        <Field label="Case study shot (phone)" className="md:col-span-3">
+                          <input className="input" placeholder="Empty = reuse the desktop shot" value={w.detailMobileSrc}
+                            onChange={(e) => update(i, { detailMobileSrc: e.target.value })} />
+                        </Field>
+
+                        <Field label="Description" className="md:col-span-3">
+                          <textarea className="input min-h-[80px]" value={w.description}
+                            onChange={(e) => update(i, { description: e.target.value })} />
+                        </Field>
+                        <Field label="Highlights, one per line" className="md:col-span-3">
+                          <textarea className="input min-h-[80px]" value={w.highlights.join("\n")}
+                            onChange={(e) => update(i, { highlights: e.target.value.split("\n") })} />
+                        </Field>
+                      </div>
+
+                      {/* Live thumbnails so a wrong image path is obvious immediately. */}
+                      <div className="flex flex-wrap gap-3 border-t border-white/10 pt-3">
+                        {[
+                          { label: "Desktop tile", src: w.tileSrc },
+                          { label: "Phone tile", src: w.tileMobileSrc },
+                          { label: "Case study", src: w.detailDesktopSrc },
+                        ].filter((p) => p.src).map((p) => (
+                          <figure key={p.label} className="w-32">
+                            <img src={p.src} alt={p.label} loading="lazy" decoding="async"
+                              className="h-20 w-32 rounded-lg border border-white/10 object-cover" />
+                            <figcaption className="mt-1 text-[10px] uppercase tracking-wider text-white/40">{p.label}</figcaption>
+                          </figure>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" checked={w.enabled}
+                            onChange={(e) => update(i, { enabled: e.target.checked })} />
+                          Visible
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" checked={w.featured}
+                            onChange={(e) => feature(i, e.target.checked)} />
+                          Featured, biggest tile
+                        </label>
+                        <span className="flex-1" />
+                        <button className="btn-secondary px-2" onClick={() => move(i, -1)} aria-label="Move up">↑</button>
+                        <button className="btn-secondary px-2" onClick={() => move(i, +1)} aria-label="Move down">↓</button>
+                        <button className="btn-danger inline-flex items-center gap-1.5" onClick={() => remove(i)}>
+                          <Trash2 className="h-4 w-4" aria-hidden /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
 }

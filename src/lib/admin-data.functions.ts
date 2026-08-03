@@ -417,3 +417,54 @@ export const saveCategories = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, count: clean.length };
   });
+
+/* -------------------------------------------------------------------------- */
+/* WEBSITES (the "Website" portfolio tab + /work/<slug> case studies)         */
+/* -------------------------------------------------------------------------- */
+/* Stored as ONE site_settings row: key = "portfolio.websites".
+   Falls back to the shipped static list so the editor is never empty. */
+
+export const getWebsites = createServerFn({ method: "GET" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { DEFAULT_WEBSITES, sanitizeWebsites } = await import("./websites-config");
+  if (!supabaseAdmin) return { items: DEFAULT_WEBSITES, error: "Supabase not configured" };
+  const { data, error } = await supabaseAdmin
+    .from("site_settings").select("value").eq("key", "portfolio.websites").maybeSingle();
+  if (error) return { items: DEFAULT_WEBSITES, error: error.message };
+  const items = data ? sanitizeWebsites((data as { value: unknown }).value) : DEFAULT_WEBSITES;
+  return { items, error: null as string | null };
+});
+
+export const saveWebsites = createServerFn({ method: "POST" })
+  .inputValidator((d: { items: unknown }) => {
+    if (!d || !Array.isArray(d.items)) throw new Error("items array required");
+    return d;
+  })
+  .handler(async ({ data }) => {
+    await auth();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sanitizeWebsites } = await import("./websites-config");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const clean = sanitizeWebsites(data.items);
+    const { error } = await supabaseAdmin.from("site_settings").upsert(
+      { key: "portfolio.websites", value: clean, updated_at: new Date().toISOString() },
+      { onConflict: "key" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: clean.length };
+  });
+
+/** Restore the shipped six sites, used by the "Reset to defaults" button. */
+export const resetWebsitesToDefaults = createServerFn({ method: "POST" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { DEFAULT_WEBSITES } = await import("./websites-config");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+  const { error } = await supabaseAdmin.from("site_settings").upsert(
+    { key: "portfolio.websites", value: DEFAULT_WEBSITES, updated_at: new Date().toISOString() },
+    { onConflict: "key" },
+  );
+  if (error) throw new Error(error.message);
+  return { ok: true, count: DEFAULT_WEBSITES.length };
+});

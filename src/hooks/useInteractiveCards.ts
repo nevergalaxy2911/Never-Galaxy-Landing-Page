@@ -105,6 +105,15 @@ export function useInteractiveCards() {
     const onMove = (e: PointerEvent) => {
       const target = (e.target as HTMLElement | null)?.closest?.(TARGET_SELECTOR) as HTMLElement | null;
       if (!target) return;
+      // A card that is actively playing media (YouTube embed) opts out of the
+      // spotlight/tilt so the glow never washes over the video. The tile sets
+      // data-playing="true" while its iframe is mounted.
+      if (target.dataset["playing"] === "true") {
+        const st = states.get(target);
+        if (st) { st.tact = 0; st.tedge = 0; st.ttx = 0; st.tty = 0; }
+        return;
+      }
+
       const rect = target.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;

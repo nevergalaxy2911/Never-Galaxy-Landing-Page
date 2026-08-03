@@ -29,6 +29,12 @@ import {
   sanitizeTestimonials,
   type Testimonial,
 } from "@/lib/testimonials-config";
+import {
+  DEFAULT_WEBSITES,
+  sanitizeWebsites,
+  visibleWebsites,
+  type WebsiteEntry,
+} from "@/lib/websites-config";
 
 type PricingRow = {
   name: string;
@@ -193,6 +199,32 @@ export const getPublicCategories = createServerFn({ method: "GET" }).handler(
       return sanitizeCategories((data as { value: unknown }).value);
     } catch {
       return DEFAULT_CATEGORIES;
+    }
+  },
+);
+
+/**
+ * Public read for the "Website" showcase + /work/<slug> case studies.
+ * Stored as one `site_settings` row: `key = 'portfolio.websites'`.
+ * Falls back to the shipped static list on ANY failure, and only returns
+ * entries marked visible, so the section is never empty or half-broken.
+ */
+export const getPublicWebsites = createServerFn({ method: "GET" }).handler(
+  async (): Promise<WebsiteEntry[]> => {
+    try {
+      const sb = await client();
+      if (!sb) return visibleWebsites(DEFAULT_WEBSITES);
+      const { data, error } = await sb
+        .from("site_settings")
+        .select("value")
+        .eq("key", "portfolio.websites")
+        .maybeSingle();
+      if (error || !data) return visibleWebsites(DEFAULT_WEBSITES);
+      const list = sanitizeWebsites((data as { value: unknown }).value);
+      const visible = visibleWebsites(list);
+      return visible.length ? visible : visibleWebsites(DEFAULT_WEBSITES);
+    } catch {
+      return visibleWebsites(DEFAULT_WEBSITES);
     }
   },
 );
