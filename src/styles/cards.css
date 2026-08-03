@@ -145,6 +145,14 @@
   --glow-power: 1.8;
 }
 
+/* Opt-out of the clipping surface. `.bento` sets overflow:hidden so image
+ * tiles stay rounded, but that also chopped the ::after border-glow bloom into
+ * a hard square. Cards with no bleeding children (testimonials) use this so the
+ * glow can breathe past the edge. */
+.bento-unclipped { overflow: visible; }
+.bento-unclipped::before,
+.bento-unclipped::after { border-radius: inherit; }
+
 .bento > * { position: relative; z-index: 2; }
 
 .bento:hover,

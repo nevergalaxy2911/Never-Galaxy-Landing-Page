@@ -1,11 +1,12 @@
 /**
  * /analytics, admin-only analytics dashboard.
- * Visits totals, 14-day sparkline, top paths, recent system events.
+ * Visits totals, 14-day sparkline, per-day drilldown (hourly chart + visit log
+ * with exact times), top paths, portfolio clicks, recent system events.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { getAnalyticsSummary } from "@/lib/analytics.functions";
+import { useCallback, useEffect, useState } from "react";
+import { getAnalyticsSummary, getDayAnalytics } from "@/lib/analytics.functions";
 import { getPortfolioClickStats } from "@/lib/portfolio-clicks.functions";
 
 export const Route = createFileRoute("/_gated/analytics")({
@@ -72,6 +73,12 @@ function AnalyticsPage() {
           </div>
         </div>
       </section>
+
+      {/* Per-day drilldown: pick a date, see hour-by-hour traffic and the
+          exact visit log with times. */}
+      <DayDrilldown />
+
+
 
       {/* Top paths */}
       <section>
@@ -223,5 +230,179 @@ function VisitsChart({ daily, maxDaily }: { daily: { date: string; total: number
         </g>
       ))}
     </svg>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * DayDrilldown — pick any calendar day and inspect it in detail.
+ *
+ * HOW TO MODIFY:
+ *  • Rows shown in the log        -> the `.slice(0, 500)` cap lives server-side
+ *                                    in getDayAnalytics (src/lib/analytics.functions.ts).
+ *  • Time format                  -> `fmtTime` below.
+ *  • Add a column (device, geo…)  -> add the column to page_views in
+ *                                    SUPABASE_SETUP.sql, return it from
+ *                                    getDayAnalytics, then render it here.
+ * ------------------------------------------------------------------------- */
+type DayData = Awaited<ReturnType<typeof getDayAnalytics>>;
+
+function todayLocalISO() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function DayDrilldown() {
+  const loadDay = useServerFn(getDayAnalytics);
+  const [date, setDate] = useState(todayLocalISO);
+  const [day, setDay] = useState<DayData | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const fetchDay = useCallback(
+    (d: string) => {
+      setBusy(true);
+      setErr(null);
+      loadDay({ data: { date: d, tzOffsetMinutes: new Date().getTimezoneOffset() } })
+        .then((r) => setDay(r))
+        .catch((e) => setErr((e as Error).message))
+        .finally(() => setBusy(false));
+    },
+    [loadDay],
+  );
+
+  useEffect(() => { fetchDay(date); }, [date, fetchDay]);
+
+  const shift = (days: number) => {
+    const d = new Date(`${date}T12:00:00`);
+    d.setDate(d.getDate() + days);
+    setDate(new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10));
+  };
+
+  const maxHour = day?.ok ? Math.max(1, ...day.hourly.map((h) => h.count)) : 1;
+
+  return (
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <h2 className="text-lg font-semibold">Day drilldown</h2>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => shift(-1)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm hover:bg-white/10"
+            aria-label="Previous day"
+          >
+            ‹
+          </button>
+          <input
+            type="date"
+            value={date}
+            max={todayLocalISO()}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm [color-scheme:dark]"
+            aria-label="Pick a date"
+          />
+          <button
+            type="button"
+            onClick={() => shift(1)}
+            disabled={date >= todayLocalISO()}
+            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm hover:bg-white/10 disabled:opacity-30"
+            aria-label="Next day"
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            onClick={() => setDate(todayLocalISO())}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:bg-white/10"
+          >
+            Today
+          </button>
+        </div>
+      </div>
+
+      {err && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">{err}</div>
+      )}
+
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-5">
+        {busy && !day && <p className="text-white/50 text-sm">Loading day…</p>}
+        {day && !day.ok && <p className="text-white/50 text-sm">{day.reason}</p>}
+
+        {day?.ok && (
+          <>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+              <span className="text-2xl font-semibold tabular-nums">{day.total}</span>
+              <span className="text-white/60">visits on {day.date}</span>
+              {day.peakHour !== null && (
+                <span className="text-white/40 text-xs tabular-nums">
+                  Busiest hour {String(day.peakHour).padStart(2, "0")}:00
+                </span>
+              )}
+              {day.truncated && <span className="text-amber-300/80 text-xs">Capped at 2000 rows</span>}
+            </div>
+
+            {/* Hour-by-hour bars, 00:00 to 23:00 in the admin's local time. */}
+            <div>
+              <div className="flex items-end gap-[3px] h-28">
+                {day.hourly.map((h) => (
+                  <div key={h.hour} className="flex-1 flex items-end h-full" title={`${String(h.hour).padStart(2, "0")}:00 · ${h.count} visits`}>
+                    <div
+                      className="w-full rounded-t bg-gradient-to-t from-fuchsia-700/60 to-fuchsia-400"
+                      style={{ height: `${Math.max(h.count > 0 ? 4 : 1, (h.count / maxHour) * 100)}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-white/40 tabular-nums">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <MiniList title="Pages" rows={day.topPaths} empty="No pages" />
+              <MiniList title="Referrers" rows={day.topReferrers} empty="No referrers" />
+            </div>
+
+            {/* Exact visit log with times */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Visit log</h3>
+              <div className="rounded-lg border border-white/10 divide-y divide-white/10 max-h-96 overflow-auto">
+                {day.visits.length === 0 && (
+                  <p className="px-4 py-6 text-white/50 text-sm text-center">No visits on this day.</p>
+                )}
+                {day.visits.map((v, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+                    <span className="tabular-nums text-white/50 w-20 shrink-0">{fmtTime(v.at)}</span>
+                    <code className="text-fuchsia-300 flex-1 truncate">{v.path}</code>
+                    <span className="text-white/40 truncate max-w-[9rem]">{v.referrer ?? "direct"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MiniList({ title, rows, empty }: { title: string; rows: { key: string; count: number }[]; empty: string }) {
+  return (
+    <div className="rounded-lg border border-white/10">
+      <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-white/40">{title}</div>
+      <div className="divide-y divide-white/10">
+        {rows.length === 0 && <p className="px-3 py-4 text-white/40 text-xs text-center">{empty}</p>}
+        {rows.map((r) => (
+          <div key={r.key} className="flex items-center px-3 py-1.5 text-xs">
+            <span className="flex-1 truncate text-white/70">{r.key}</span>
+            <span className="tabular-nums text-white/50">{r.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

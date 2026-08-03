@@ -3,7 +3,8 @@ import { useReveal } from "@/hooks/useReveal";
 import { DEFAULT_TESTIMONIALS, type Testimonial } from "@/lib/testimonials-config";
 
 /* -----------------------------------------------------------------------------
- * TESTIMONIALS, client quotes in a bento masonry grid.
+ * TESTIMONIALS, client quotes on an infinite two-row marquee.
+ *
  * HOW TO MODIFY:
  * • Add / edit / reorder a quote → /admin -> Testimonials tab (stored in the
  *   `testimonials.items` site setting and passed in here as `items`).
@@ -11,17 +12,27 @@ import { DEFAULT_TESTIMONIALS, type Testimonial } from "@/lib/testimonials-confi
  *   src/lib/testimonials-config.ts, used whenever the database is empty or
  *   unreachable so the section never blanks out.
  * • Social proof chip            → the `proof` field, e.g. "$40 paid".
- *   Leave it empty and the card shows the neutral "Verified client" chip.
+ * • Scroll speed / card width    → src/styles/marquee.css (`--marquee-duration`,
+ *   `--marquee-card`). Each row sets its own duration inline below.
+ * • One row instead of two       → set `rows` to `[list]` in the render below.
  * • Recolor                      → change `sec-nova` on the <section>.
- * • Reorder in the page          → move <Testimonials /> in src/routes/index.tsx.
+ *
+ * WHY A MARQUEE AND NOT A SLIDER: no JS timers, no layout thrash, pauses on
+ * hover/focus, and under prefers-reduced-motion it degrades into a plain
+ * swipeable row (see marquee.css), so small screens never break.
  * --------------------------------------------------------------------------- */
 
 export function Testimonials({ items }: { items?: Testimonial[] }) {
   const head = useReveal<HTMLDivElement>(0);
-  const grid = useReveal<HTMLDivElement>(120);
+  const body = useReveal<HTMLDivElement>(120);
   const list = (items?.length ? items : DEFAULT_TESTIMONIALS).filter((t) => t.enabled !== false);
 
   if (!list.length) return null;
+
+  // Split into two rows that travel in opposite directions. With a single
+  // quote we just use one row so it does not look empty.
+  const half = Math.ceil(list.length / 2);
+  const rows: Testimonial[][] = list.length > 2 ? [list.slice(0, half), list.slice(half)] : [list];
 
   return (
     <section id="testimonials" className="sec-nova nebula-wash relative py-28">
@@ -36,18 +47,49 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
             next brief.
           </p>
         </div>
+      </div>
 
-        <div
-          ref={grid}
-          className="reveal mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {list.map((t, i) => (
+      <div ref={body} className="reveal mt-14 space-y-4">
+        {rows.map((row, r) => (
+          <Row key={r} row={row} reverse={r % 2 === 1} duration={r % 2 === 1 ? 78 : 64} />
+        ))}
+      </div>
 
+      <p className="mt-6 text-center text-xs text-muted-foreground/70">
+        Hover to pause · swipe to browse
+      </p>
+    </section>
+  );
+}
+
+/** One infinite ticker row. The list is rendered twice so the loop is seamless. */
+function Row({
+  row,
+  reverse,
+  duration,
+}: {
+  row: Testimonial[];
+  reverse: boolean;
+  duration: number;
+}) {
+  // Duplicate the row; the second copy is aria-hidden so screen readers and
+  // search engines only ever see each quote once.
+  const copies = [false, true];
+
+  return (
+    <div className="marquee" style={{ ["--marquee-duration" as string]: `${duration}s` }}>
+      <div className={`marquee-track ${reverse ? "marquee-reverse" : ""}`}>
+        {copies.map((isClone) =>
+          row.map((t, i) => (
             <figure
-              key={t.name}
-              className="bento p-7 md:p-8 flex flex-col gap-5"
-              // Slight per-tile hue rotation keeps the grid from looking flat.
-              style={{ filter: `hue-rotate(${i * 5}deg)` }}
+              key={`${isClone ? "c" : "o"}-${t.name}-${i}`}
+              aria-hidden={isClone || undefined}
+              /* bento-unclipped: lets the hover glow bleed past the card edge
+                 instead of being cut into a hard square by overflow:hidden. */
+              className="marquee-item bento bento-unclipped p-7 md:p-8 flex flex-col gap-5"
+              /* NOTE: no per-card `filter` here on purpose. A filter on every
+                 card forces a separate composited layer for all 12+ tiles while
+                 the track animates, which is what made this section feel laggy. */
             >
               <Quote
                 className="h-6 w-6 shrink-0 opacity-80"
@@ -62,17 +104,13 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
                   <span className="block font-display uppercase text-base leading-tight">
                     {t.name}
                   </span>
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    {t.role}
-                  </span>
+                  <span className="block text-xs text-muted-foreground mt-1">{t.role}</span>
                 </span>
                 <span
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap"
                   style={{
-                    background:
-                      "color-mix(in oklab, var(--sec-a) 16%, transparent)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--sec-a) 40%, transparent)",
+                    background: "color-mix(in oklab, var(--sec-a) 16%, transparent)",
+                    border: "1px solid color-mix(in oklab, var(--sec-a) 40%, transparent)",
                     color: "color-mix(in oklab, var(--sec-a) 92%, white)",
                   }}
                 >
@@ -81,9 +119,9 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
                 </span>
               </figcaption>
             </figure>
-          ))}
-        </div>
+          )),
+        )}
       </div>
-    </section>
+    </div>
   );
 }

@@ -1,0 +1,130 @@
+/* -----------------------------------------------------------------------------
+ * MARQUEE, infinite horizontal card ticker (used by the Testimonials section).
+ *
+ * HOW IT WORKS (ELI10)
+ * • `.marquee` is the window you look through, it hides overflow and fades the
+ *   two edges so cards appear to melt away instead of getting chopped.
+ * • `.marquee-track` is a very wide row that slides left forever. We render the
+ *   card list TWICE inside it, so when the first copy has fully scrolled off we
+ *   are exactly at the start of the second copy, the jump back to 0% is
+ *   invisible. That is why the animation moves exactly -50%.
+ * • Hovering or keyboard-focusing anything inside pauses the slide so people can
+ *   read a quote.
+ *
+ * HOW TO MODIFY
+ * • Speed              -> `--marquee-duration` on the `.marquee` element
+ *                         (bigger number = slower). Set per row inline.
+ * • Direction          -> add `.marquee-reverse` to the track.
+ * • Gap between cards  -> `--marquee-gap`.
+ * • Card width         -> `--marquee-card` (mobile override lower down).
+ * • Edge fade width    -> `--marquee-fade`.
+ * • Kill motion        -> nothing to do, the reduced-motion block below turns
+ *                         the ticker into a normal horizontal scroller.
+ * --------------------------------------------------------------------------- */
+
+.marquee {
+  --marquee-duration: 60s;
+  --marquee-gap: 1rem;
+  --marquee-card: 26rem;
+  --marquee-fade: 6rem;
+  /* Breathing room so a card's hover glow can spill vertically. */
+  --marquee-bleed: 2.5rem;
+
+  position: relative;
+  /* IMPORTANT: clip only sideways. `overflow: hidden` (or a mask-image) clips
+   * BOTH axes and cut every card's hover glow into a hard square box.
+   * `overflow-x: clip` + `overflow-y: visible` is legal and keeps the glow. */
+  overflow-x: clip;
+  overflow-y: visible;
+  padding-block: var(--marquee-bleed);
+  margin-block: calc(var(--marquee-bleed) * -1);
+  /* Isolate layout/paint bookkeeping from the rest of the page. */
+  contain: layout style;
+}
+
+/* Edge fades as painted overlays instead of a mask-image, because a mask would
+ * clip the vertical glow again. pointer-events: none keeps hover-to-pause. */
+.marquee::before,
+.marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--marquee-fade);
+  z-index: 3;
+  pointer-events: none;
+}
+.marquee::before {
+  left: 0;
+  background: linear-gradient(to right, var(--background) 0%, color-mix(in oklab, var(--background) 70%, transparent) 45%, transparent 100%);
+}
+.marquee::after {
+  right: 0;
+  background: linear-gradient(to left, var(--background) 0%, color-mix(in oklab, var(--background) 70%, transparent) 45%, transparent 100%);
+}
+
+.marquee-track {
+  display: flex;
+  gap: var(--marquee-gap);
+  width: max-content;
+  will-change: transform;
+  /* One promoted layer for the whole row; cards inside stay un-layered. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  animation: marquee-slide var(--marquee-duration) linear infinite;
+}
+
+
+.marquee-reverse {
+  animation-direction: reverse;
+}
+
+/* Pause on hover / focus so a quote can actually be read. */
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-item {
+  flex: 0 0 var(--marquee-card);
+  max-width: 88vw;
+  /* Keep each card's layout/style work to itself while the row slides. */
+  contain: layout style;
+}
+
+@keyframes marquee-slide {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    /* -50% because the list is duplicated exactly once. */
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Phones: smaller cards, tighter fade, a touch faster so it never feels stuck. */
+@media (max-width: 767px) {
+  .marquee {
+    --marquee-card: 19rem;
+    --marquee-gap: 0.75rem;
+    --marquee-fade: 2rem;
+  }
+}
+
+/* Reduced motion / no-animation users: stop the ticker, let them swipe. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee::before,
+  .marquee::after { display: none; }
+  .marquee {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .marquee-track {
+    animation: none;
+    width: auto;
+  }
+  .marquee-item {
+    scroll-snap-align: center;
+  }
+}
