@@ -88,34 +88,52 @@ function GatedLayout() {
     );
   }
   return (
-    <div className="min-h-screen bg-black text-white">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4">
-          <div className="flex flex-wrap items-center gap-3 sm:gap-6 min-w-0">
-            <span className="font-semibold truncate">Never Galaxy | Console</span>
+    // Console shell: a calm slate surface with one accent (fuchsia) so the
+    // editor reads as a professional back office instead of a second website.
+    <div className="min-h-screen bg-[#07070c] text-white">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07070c]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-5">
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[11px] font-bold"
+                style={{ background: "linear-gradient(135deg,#a21caf,#4f46e5)" }}
+                aria-hidden
+              >
+                NG
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold leading-tight">Never Galaxy</span>
+                <span className="block text-[10px] uppercase tracking-[0.18em] text-white/40">Console</span>
+              </span>
+            </span>
             <nav className="flex flex-wrap gap-1 text-sm" aria-label="Console sections">
               {/*
                 preload="intent" makes the router warm the route module + loader
-                as soon as the user hovers/focuses the link — clicks then feel
+                as soon as the user hovers/focuses the link, so clicks feel
                 instant even on slow networks. Zero visual change.
               */}
-              <Link to="/admin" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Admin</Link>
-              <Link to="/api-panel" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>API Panel</Link>
+              <Link to="/admin" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Editor</Link>
+              <Link to="/api-panel" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Operations</Link>
               <Link to="/analytics" preload="intent" className="nav-pill" activeProps={{ className: "nav-pill nav-pill-active" }}>Analytics</Link>
-              <Link to="/" preload="intent" className="nav-pill">↗ Site</Link>
+              <Link to="/" preload="intent" className="nav-pill">View site ↗</Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">
             {state.kind === "ok" && state.email && (
-              <span className="text-xs text-white/50 hidden sm:inline">{state.email}</span>
+              <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-200 sm:inline-flex">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                {state.email}
+              </span>
             )}
             <button onClick={onLogout} className="btn-secondary">Sign out</button>
           </div>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <main className="mx-auto max-w-6xl px-3 py-6 sm:px-4 sm:py-8">
         <Outlet />
       </main>
     </div>
   );
 }
+

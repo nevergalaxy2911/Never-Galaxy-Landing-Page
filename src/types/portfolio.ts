@@ -8,6 +8,8 @@
  *     (client, server, tests) without pulling in React.
  */
 
+import type { AspectConfig } from "@/lib/portfolio-aspect";
+
 export type PortfolioKind = "video" | "motion" | "graphic";
 
 export type VideoItem = {
@@ -16,6 +18,8 @@ export type VideoItem = {
   kind: string;
   youtubeId?: string;
   span: string;
+  /** Admin-chosen media shape. Reserves the exact box so nothing shifts. */
+  aspect?: AspectConfig;
 };
 
 export type GraphicItem = {
@@ -31,4 +35,7 @@ export type GraphicItem = {
   previewSrc?: string;
   href?: string;
   span: string;
+  /** Admin-chosen media shape. Reserves the exact box so nothing shifts. */
+  aspect?: AspectConfig;
 };
+

@@ -18,7 +18,6 @@ import { Route as WorkSlugRouteImport } from './routes/work.$slug'
 import { Route as GatedApiPanelRouteImport } from './routes/_gated/api-panel'
 import { Route as GatedAnalyticsRouteImport } from './routes/_gated/analytics'
 import { Route as GatedAdminRouteImport } from './routes/_gated/admin'
-import { Route as ApiPublicAdblockDiagnosticsRouteImport } from './routes/api/public/adblock-diagnostics'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -64,12 +63,6 @@ const GatedAdminRoute = GatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => GatedRouteRoute,
 } as any)
-const ApiPublicAdblockDiagnosticsRoute =
-  ApiPublicAdblockDiagnosticsRouteImport.update({
-    id: '/api/public/adblock-diagnostics',
-    path: '/api/public/adblock-diagnostics',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,7 +73,6 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,7 +83,6 @@ export interface FileRoutesByTo {
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,7 +95,6 @@ export interface FileRoutesById {
   '/_gated/analytics': typeof GatedAnalyticsRoute
   '/_gated/api-panel': typeof GatedApiPanelRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,7 +107,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/api-panel'
     | '/work/$slug'
-    | '/api/public/adblock-diagnostics'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,7 +117,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/api-panel'
     | '/work/$slug'
-    | '/api/public/adblock-diagnostics'
   id:
     | '__root__'
     | '/'
@@ -140,7 +128,6 @@ export interface FileRouteTypes {
     | '/_gated/analytics'
     | '/_gated/api-panel'
     | '/work/$slug'
-    | '/api/public/adblock-diagnostics'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -150,7 +137,6 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   WorkSlugRoute: typeof WorkSlugRoute
-  ApiPublicAdblockDiagnosticsRoute: typeof ApiPublicAdblockDiagnosticsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -218,13 +204,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedAdminRouteImport
       parentRoute: typeof GatedRouteRoute
     }
-    '/api/public/adblock-diagnostics': {
-      id: '/api/public/adblock-diagnostics'
-      path: '/api/public/adblock-diagnostics'
-      fullPath: '/api/public/adblock-diagnostics'
-      preLoaderRoute: typeof ApiPublicAdblockDiagnosticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -251,7 +230,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   WorkSlugRoute: WorkSlugRoute,
-  ApiPublicAdblockDiagnosticsRoute: ApiPublicAdblockDiagnosticsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

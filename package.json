@@ -19,9 +19,6 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:smoke": "vitest run tests/adblock-smoke.test.tsx --reporter=verbose",
-    "validate:reports": "node scripts/validate-reports.mjs",
-    "report:diff": "node scripts/report-diff-summary.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

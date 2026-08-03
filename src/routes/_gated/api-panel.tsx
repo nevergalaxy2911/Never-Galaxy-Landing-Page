@@ -365,7 +365,6 @@ function Stat({ label, value, accent }: any) {
 /* -------------------------------------------------------------------------- */
 
 const FLAG_TEMPLATES = [
-  { key: "adblock_gate_enabled", enabled: true },
   { key: "cursor_trail_default_on", enabled: true },
   { key: "theme_default_dark", enabled: true },
   { key: "maintenance_mode", enabled: false },

@@ -21,12 +21,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Validate documentation reports
-        run: bun run validate:reports
-
-      - name: Print report diff summary
-        run: bun run report:diff
-
       - name: Run Vitest suite
         run: bun run test
 

@@ -1,4 +1,4 @@
-// Vitest setup — polyfills and jsdom quirks used by AdblockGate tests.
+// Vitest setup: polyfills and jsdom quirks the component tests rely on.
 import "@testing-library/react";
 
 if (typeof (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT === "undefined") {

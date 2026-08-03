@@ -73,7 +73,9 @@ export function Nav() {
   useEffect(() => {
     if (!mobileOpen) return;
 
-    // Keep the drawer stable on phones: no body scroll fighting the open menu,
+    // Keep the drawer stable on phones and small laptops (the full link bar
+    // only appears from xl up, because at lg the logo + 7 links + the action
+    // cluster overflow a 1024px viewport and clip the brand).: no body scroll fighting the open menu,
     // and close it cleanly with Escape or when the user rotates/resizes wider.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -81,7 +83,7 @@ export function Nav() {
       if (e.key === "Escape") setMobileOpen(false);
     };
     const onResize = () => {
-      if (window.innerWidth >= 1024) setMobileOpen(false);
+      if (window.innerWidth >= 1280) setMobileOpen(false);
     };
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onResize, { passive: true });
@@ -107,11 +109,14 @@ export function Nav() {
           : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:flex lg:justify-between">
+      {/* The container widens at 2xl because that is where the "Launch project"
+          CTA joins the row; inside the standard max-w-7xl the full lockup +
+          links + toggles + CTA exceed 1280px and start clipping. */}
+      <nav className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4 xl:flex xl:justify-between 2xl:max-w-[1600px]">
         <a
           href="#top"
           onClick={(e) => handleMobileLink(e, "#top")}
-          className="group flex min-w-0 items-center gap-2.5"
+          className="group flex min-w-0 items-center gap-2.5 xl:min-w-fit xl:shrink-0"
         >
           <span
             className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full"
@@ -123,19 +128,25 @@ export function Nav() {
           >
             <Orbit className="h-4.5 w-4.5 text-white" />
           </span>
-          {/* Brand lockup: column so the tagline sits under the name instead of
-              being squeezed by `truncate` (which was clipping it to "N. / CR"). */}
-          <span className="hidden min-w-0 flex-col justify-center leading-tight min-[380px]:flex">
-            <span className="truncate whitespace-nowrap font-display text-[14px] font-semibold leading-[1.15] tracking-tight sm:text-[15px]">
+          {/* Brand lockup.
+              WHY `xl:shrink-0` + no `truncate` on desktop: on large screens the
+              nav is a flex row (logo | links | actions). Flex items are allowed
+              to shrink below their content width, so the centre link pill was
+              squeezing the brand and `truncate` then clipped it to "NeverGala…".
+              Keeping the lockup unshrinkable from lg up, and only truncating on
+              genuinely narrow phones, means the name is never cut. */}
+          <span className="hidden min-w-0 flex-col justify-center leading-tight min-[380px]:flex xl:min-w-fit xl:shrink-0">
+            <span className="truncate whitespace-nowrap font-display text-[14px] font-semibold leading-[1.15] tracking-tight sm:text-[15px] xl:overflow-visible xl:text-clip">
               Never<span className="text-gradient-nebula">Galaxy</span>
             </span>
-            <span className="label-mono hidden truncate whitespace-nowrap text-[9px] leading-[1.3] opacity-70 sm:block">
+            <span className="label-mono hidden truncate whitespace-nowrap text-[9px] leading-[1.3] opacity-70 sm:block xl:overflow-visible xl:text-clip">
               creative studio · est. 2025
             </span>
           </span>
         </a>
 
-        <ul className="hidden items-center gap-1 rounded-full border border-border/40 bg-background/30 px-2 py-1.5 text-sm backdrop-blur lg:flex">
+
+        <ul className="hidden items-center gap-1 rounded-full border border-border/40 bg-background/30 px-2 py-1.5 text-sm backdrop-blur xl:flex">
           {links.map((l) => (
             <li key={l.href}>
               <a
@@ -166,7 +177,11 @@ export function Nav() {
           <a
             href="#contact"
             onClick={(e) => handleNavClick(e, "#contact")}
-            className="btn-glow hidden rounded-full px-5 py-2.5 font-display text-xs uppercase tracking-widest transition-all lg:inline-flex"
+            /* CTA appears only from 2xl up. Between xl and 2xl the row already
+               carries logo + 7 links + currency + 4 toggles, and adding the
+               button pushed the whole row past the viewport (which is what was
+               clipping the brand). "Contact" in the link list covers it there. */
+            className="btn-glow hidden rounded-full px-5 py-2.5 font-display text-xs uppercase tracking-widest transition-all 2xl:inline-flex"
           >
             Launch project →
           </a>
@@ -175,7 +190,7 @@ export function Nav() {
             aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((v) => !v)}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/50 bg-background/45 text-foreground backdrop-blur transition-colors hover:bg-background/70 lg:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border/50 bg-background/45 text-foreground backdrop-blur transition-colors hover:bg-background/70 xl:hidden"
           >
             {mobileOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
           </button>
@@ -183,7 +198,7 @@ export function Nav() {
       </nav>
 
       {mobileOpen && (
-        <div className="lg:hidden" aria-hidden={!mobileOpen}>
+        <div className="xl:hidden" aria-hidden={!mobileOpen}>
           <div className="mx-4 mb-4 rounded-2xl border border-border/50 bg-background/85 p-2 shadow-[0_24px_80px_-30px_color-mix(in_oklab,var(--sec-a)_70%,transparent)] backdrop-blur-2xl sm:mx-6">
             <ul className="grid gap-1">
               {links.map((l) => (

@@ -5,7 +5,7 @@ import { SmoothScroll } from "@/components/SmoothScroll";
 import { InteractiveCards } from "@/components/InteractiveCards";
 import { SoundController } from "@/components/SoundController";
 import { TabTitleAttention } from "@/components/TabTitleAttention";
-import { DeferredAdblockGate } from "@/components/DeferredAdblockGate";
+
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { Nav } from "@/components/galaxy/Nav";
 import { Hero } from "@/components/galaxy/Hero";
@@ -17,9 +17,11 @@ import { Testimonials } from "@/components/galaxy/Testimonials";
 import { FAQ } from "@/components/galaxy/FAQ";
 import { Contact } from "@/components/galaxy/Contact";
 import { Footer } from "@/components/galaxy/Footer";
-import { getPublicPricing, getPublicPortfolio, getPublicCategories, type PublicPortfolioItem } from "@/lib/public-data.functions";
+import { getPublicPricing, getPublicPortfolio, getPublicCategories, getPublicTestimonials, type PublicPortfolioItem } from "@/lib/public-data.functions";
 import type { PricingPlan } from "@/config/site";
 import type { PortfolioCategory } from "@/lib/portfolio-config";
+import type { Testimonial } from "@/lib/testimonials-config";
+
 
 /* ============================================================================
  * NEVER GALAXY, LANDING PAGE (Bento / Multi-Nebula edition)
@@ -33,13 +35,15 @@ export const Route = createFileRoute("/")({
   // Loader-fed live data: SSR fetches published plans + portfolio in parallel;
   // on any failure returns null and components fall back to static defaults.
   loader: async () => {
-    const [pricing, portfolio, categories] = await Promise.all([
+    const [pricing, portfolio, categories, testimonials] = await Promise.all([
       getPublicPricing(),
       getPublicPortfolio(),
       getPublicCategories(),
+      getPublicTestimonials(),
     ]);
-    return { pricing, portfolio, categories };
+    return { pricing, portfolio, categories, testimonials };
   },
+
   errorComponent: () => <Index />,
   notFoundComponent: () => <Index />,
   head: () => ({
@@ -111,11 +115,17 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const data = Route.useLoaderData?.() as
-    | { pricing: PricingPlan[] | null; portfolio: PublicPortfolioItem[] | null; categories?: PortfolioCategory[] }
+    | {
+        pricing: PricingPlan[] | null;
+        portfolio: PublicPortfolioItem[] | null;
+        categories?: PortfolioCategory[];
+        testimonials?: Testimonial[];
+      }
     | undefined;
   const livePricing = data?.pricing ?? null;
   const livePortfolio = data?.portfolio ?? null;
   const liveCategories = data?.categories;
+  const liveTestimonials = data?.testimonials;
   return (
     <CurrencyProvider>
       <SmoothScroll>
@@ -127,7 +137,6 @@ function Index() {
           <SoundController />
           {/* Headless: blinks a "come back" nudge in the tab title while hidden. */}
           <TabTitleAttention />
-          <DeferredAdblockGate />
 
           <div className="relative z-10">
             <Nav />
@@ -138,7 +147,8 @@ function Index() {
               {/* Below-fold: paint-deferred via content-visibility:auto (see .cv-auto in styles.css). */}
               <div className="cv-auto"><Process /></div>
               <div className="cv-auto"><Pricing plans={livePricing ?? undefined} /></div>
-              <div className="cv-auto"><Testimonials /></div>
+              <div className="cv-auto"><Testimonials items={liveTestimonials} /></div>
+
               <div className="cv-auto"><FAQ /></div>
               <div className="cv-auto"><Contact /></div>
             </main>

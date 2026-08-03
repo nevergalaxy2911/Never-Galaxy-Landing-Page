@@ -18,6 +18,17 @@ import {
   sanitizeCategories,
   type PortfolioCategory,
 } from "@/lib/portfolio-config";
+import { parseYouTubeId } from "@/lib/media-links";
+import {
+  DEFAULT_ASPECT,
+  sanitizeAspectMap,
+  type AspectConfig,
+} from "@/lib/portfolio-aspect";
+import {
+  DEFAULT_TESTIMONIALS,
+  sanitizeTestimonials,
+  type Testimonial,
+} from "@/lib/testimonials-config";
 
 type PricingRow = {
   name: string;
@@ -48,24 +59,10 @@ export type PublicPortfolioItem = {
   url: string;
   thumbUrl: string;
   youtubeId?: string;
+  /** Card shape chosen in /admin, drives the bento span + media box. */
+  aspect: AspectConfig;
 };
 
-function parseYouTubeId(u: string): string | undefined {
-  try {
-    const url = new URL(u);
-    if (url.hostname.includes("youtu.be")) return url.pathname.slice(1) || undefined;
-    if (url.hostname.includes("youtube.com")) {
-      const v = url.searchParams.get("v");
-      if (v) return v;
-      // Supports /embed/ID, /shorts/ID, /live/ID and /v/ID
-      const m = url.pathname.match(/\/(?:embed|shorts|live|v)\/([^/?#]+)/);
-      if (m) return m[1];
-    }
-  } catch {
-    /* ignore */
-  }
-  return undefined;
-}
 
 function rowToPlan(r: PricingRow): PricingPlan {
   return {
@@ -118,12 +115,21 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
     try {
       const sb = await client();
       if (!sb) return null;
-      const { data, error } = await sb
-        .from("portfolio_items")
-        .select("id,category,title,subtitle,url,badge,thumb_url")
-        .eq("published", true)
-        .order("position");
+      // Items and their per-item card shapes are fetched together so the grid
+      // can reserve the right box on the very first paint (no layout shift).
+      const [itemsRes, aspectsRes] = await Promise.all([
+        sb
+          .from("portfolio_items")
+          .select("id,category,title,subtitle,url,badge,thumb_url")
+          .eq("published", true)
+          .order("position"),
+        sb.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle(),
+      ]);
+      const { data, error } = itemsRes;
       if (error || !data || data.length === 0) return null;
+      const aspects = aspectsRes.error
+        ? {}
+        : sanitizeAspectMap((aspectsRes.data as { value: unknown } | null)?.value);
       return (data as PortfolioRow[]).map((r) => {
         const url = r.url ?? "";
         return {
@@ -134,6 +140,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
           url,
           thumbUrl: r.thumb_url ?? "",
           youtubeId: parseYouTubeId(url),
+          aspect: aspects[r.id] ?? { ...DEFAULT_ASPECT },
         };
       });
     } catch {
@@ -141,6 +148,30 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+/**
+ * Public read for testimonials. Stored as one `site_settings` row:
+ * `key = 'testimonials.items'`, `value = Testimonial[]`. Falls back to the
+ * built-in list on ANY failure so the Reviews section is never empty.
+ */
+export const getPublicTestimonials = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Testimonial[]> => {
+    try {
+      const sb = await client();
+      if (!sb) return DEFAULT_TESTIMONIALS;
+      const { data, error } = await sb
+        .from("site_settings")
+        .select("value")
+        .eq("key", "testimonials.items")
+        .maybeSingle();
+      if (error || !data) return DEFAULT_TESTIMONIALS;
+      return sanitizeTestimonials((data as { value: unknown }).value).filter((t) => t.enabled);
+    } catch {
+      return DEFAULT_TESTIMONIALS;
+    }
+  },
+);
+
 
 /**
  * Public read for portfolio categories/filter tabs. Stored as a single row

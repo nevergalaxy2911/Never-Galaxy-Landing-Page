@@ -120,16 +120,27 @@ export const listPortfolio = createServerFn({ method: "GET" }).handler(async () 
 
 export const upsertPortfolio = createServerFn({ method: "POST" })
   .inputValidator((d: any) => {
-    if (!d?.title || !d?.category) throw new Error("title + category required");
+    if (!d?.title || typeof d.title !== "string" || !d.title.trim()) {
+      throw new Error("Give this item a title before saving.");
+    }
+    if (!d?.category || typeof d.category !== "string") {
+      throw new Error("Pick a category so the item knows which filter tab it belongs to.");
+    }
     return d;
   })
   .handler(async ({ data }) => {
     await auth();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (!supabaseAdmin) throw new Error("Supabase not configured");
-    const { error } = await supabaseAdmin.from("portfolio_items").upsert({ ...data, updated_at: new Date().toISOString() });
+    // `aspect` is stored in site_settings, not on the row, so strip it here.
+    const { aspect, ...row } = data as Record<string, unknown> & { aspect?: unknown };
+    const { data: saved, error } = await supabaseAdmin
+      .from("portfolio_items")
+      .upsert({ ...row, updated_at: new Date().toISOString() })
+      .select("id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, id: (saved as { id?: string } | null)?.id ?? null };
   });
 
 export const deletePortfolio = createServerFn({ method: "POST" })
@@ -142,6 +153,81 @@ export const deletePortfolio = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/* --- Per-item card shape (aspect ratio + resolution + bento size) --------- */
+/* Stored in one site_settings row so no schema migration is needed:
+ *   key = "portfolio.aspects", value = { [itemId]: AspectConfig }            */
+
+export const getItemAspects = createServerFn({ method: "GET" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { sanitizeAspectMap } = await import("./portfolio-aspect");
+  if (!supabaseAdmin) return { aspects: {}, error: "Supabase not configured" };
+  const { data, error } = await supabaseAdmin
+    .from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle();
+  if (error) return { aspects: {}, error: error.message };
+  return {
+    aspects: sanitizeAspectMap((data as { value: unknown } | null)?.value),
+    error: null as string | null,
+  };
+});
+
+export const saveItemAspects = createServerFn({ method: "POST" })
+  .inputValidator((d: { aspects: unknown }) => {
+    if (!d || typeof d.aspects !== "object") throw new Error("aspects map required");
+    return d;
+  })
+  .handler(async ({ data }) => {
+    await auth();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sanitizeAspectMap } = await import("./portfolio-aspect");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const clean = sanitizeAspectMap(data.aspects);
+    const { error } = await supabaseAdmin.from("site_settings").upsert(
+      { key: "portfolio.aspects", value: clean, updated_at: new Date().toISOString() },
+      { onConflict: "key" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: Object.keys(clean).length };
+  });
+
+/* -------------------------------------------------------------------------- */
+/* TESTIMONIALS, stored as site_settings["testimonials.items"]                */
+/* -------------------------------------------------------------------------- */
+
+export const getTestimonials = createServerFn({ method: "GET" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { DEFAULT_TESTIMONIALS, sanitizeTestimonials } = await import("./testimonials-config");
+  if (!supabaseAdmin) return { items: DEFAULT_TESTIMONIALS, error: "Supabase not configured" };
+  const { data, error } = await supabaseAdmin
+    .from("site_settings").select("value").eq("key", "testimonials.items").maybeSingle();
+  if (error) return { items: DEFAULT_TESTIMONIALS, error: error.message };
+  return {
+    items: data ? sanitizeTestimonials((data as { value: unknown }).value) : DEFAULT_TESTIMONIALS,
+    error: null as string | null,
+  };
+});
+
+export const saveTestimonials = createServerFn({ method: "POST" })
+  .inputValidator((d: { items: unknown }) => {
+    if (!d || !Array.isArray(d.items)) throw new Error("items array required");
+    return d;
+  })
+  .handler(async ({ data }) => {
+    await auth();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sanitizeTestimonials } = await import("./testimonials-config");
+    if (!supabaseAdmin) throw new Error("Supabase not configured");
+    const clean = sanitizeTestimonials(data.items);
+    const { error } = await supabaseAdmin.from("site_settings").upsert(
+      { key: "testimonials.items", value: clean, updated_at: new Date().toISOString() },
+      { onConflict: "key" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, count: clean.length };
+  });
+
 
 /* -------------------------------------------------------------------------- */
 /* FEATURE FLAGS                                                              */

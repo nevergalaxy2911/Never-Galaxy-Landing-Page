@@ -3,9 +3,8 @@
  *   - logPageView({path, referrer, verdict}) is PUBLIC (anon INSERT policy).
  *   - getAnalyticsSummary() is ADMIN-ONLY (requireAdmin).
  *
- * The client fires logPageView on every route change and after the adblock
- * probe finishes. No cookies, no PII, no third-party. Data lives in
- * public.page_views.
+ * The client fires logPageView on every route change. No cookies, no PII, no
+ * third-party. Data lives in public.page_views.
  */
 import { createServerFn } from "@tanstack/react-start";
 

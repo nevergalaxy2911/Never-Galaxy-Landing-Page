@@ -8,8 +8,10 @@ import {
   DEFAULT_CATEGORIES,
   type PortfolioCategory,
 } from "@/lib/portfolio-config";
+import { aspectRatioCss, spanForAspect } from "@/lib/portfolio-aspect";
 import { listPortfolioSites, type PortfolioSite } from "@/config/portfolio-sites";
 import { PORTFOLIO } from "@/config/site";
+
 
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
 import { useProgressiveImage, warmImageCache, noteImageLoaded, markImageDecoded } from "@/lib/imageCache";
@@ -55,19 +57,20 @@ const SPAN_CYCLE = [
 // Static placeholder tiles per category kind, shown when a category has zero
 // live rows so the section never looks empty on a fresh deploy.
 const STATIC_VIDEO_FALLBACK: VideoItem[] = [
-  { id: "sv1", title: "Your next edit lands here", kind: "Add via /admin", span: SPAN_CYCLE[0] },
-  { id: "sv2", title: "Brand film",                kind: "Coming soon",    span: SPAN_CYCLE[1] },
-  { id: "sv3", title: "Short-form reel",           kind: "Coming soon",    span: SPAN_CYCLE[2] },
-  { id: "sv4", title: "Long-form cut",             kind: "Coming soon",    span: SPAN_CYCLE[3] },
-  { id: "sv5", title: "Launch trailer",            kind: "Coming soon",    span: SPAN_CYCLE[4] },
+  { id: "sv1", title: "Featured edit",     kind: "New drop incoming", span: SPAN_CYCLE[0] },
+  { id: "sv2", title: "Brand film",        kind: "Coming soon",       span: SPAN_CYCLE[1] },
+  { id: "sv3", title: "Short-form reel",   kind: "Coming soon",       span: SPAN_CYCLE[2] },
+  { id: "sv4", title: "Long-form cut",     kind: "Coming soon",       span: SPAN_CYCLE[3] },
+  { id: "sv5", title: "Launch trailer",    kind: "Coming soon",       span: SPAN_CYCLE[4] },
 ];
 const STATIC_IMAGE_FALLBACK: GraphicItem[] = [
-  { id: "sg1", title: "Featured design",  kind: "Add via /admin", span: SPAN_CYCLE[0] },
-  { id: "sg2", title: "Poster",           kind: "Coming soon",    span: SPAN_CYCLE[1] },
-  { id: "sg3", title: "Cover art",        kind: "Coming soon",    span: SPAN_CYCLE[2] },
-  { id: "sg4", title: "Social carousel",  kind: "Coming soon",    span: SPAN_CYCLE[3] },
-  { id: "sg5", title: "Brand mark",       kind: "Coming soon",    span: SPAN_CYCLE[4] },
+  { id: "sg1", title: "Featured design",  kind: "New drop incoming", span: SPAN_CYCLE[0] },
+  { id: "sg2", title: "Poster",           kind: "Coming soon",       span: SPAN_CYCLE[1] },
+  { id: "sg3", title: "Cover art",        kind: "Coming soon",       span: SPAN_CYCLE[2] },
+  { id: "sg4", title: "Social carousel",  kind: "Coming soon",       span: SPAN_CYCLE[3] },
+  { id: "sg5", title: "Brand mark",       kind: "Coming soon",       span: SPAN_CYCLE[4] },
 ];
+
 
 // Browser-level origin warm-up for iframe previews. We keep this tiny and
 // idempotent: DNS prefetch is cheap for every site; preconnect only happens on
@@ -247,13 +250,19 @@ export function Portfolio({
   if (!activeCat) return null;
 
   const rows = activeIsWebsite ? [] : grouped[activeCat.id] ?? [];
+  // Live rows carry a per-item `aspect` chosen in /admin. It decides BOTH the
+  // bento span (how much grid the card claims) and the media box shape, so a
+  // 9:16 Short gets a tall card and a 16:9 film gets a wide one, with the
+  // bento pattern preserved. Rows without a saved shape fall back to the
+  // classic cycling span pattern.
   const videos: VideoItem[] = rows.length
     ? rows.map((it, i) => ({
         id: it.id,
         title: it.title,
         kind: it.subtitle || activeCat.label,
         youtubeId: it.youtubeId,
-        span: pickSpan(i),
+        span: it.aspect ? spanForAspect(it.aspect) : pickSpan(i),
+        aspect: it.aspect,
       }))
     : activeCat.kind === "video"
       ? STATIC_VIDEO_FALLBACK
@@ -265,13 +274,15 @@ export function Portfolio({
         kind: it.subtitle || activeCat.label,
         src: it.thumbUrl || it.url,
         href: it.url && /^https?:\/\//.test(it.url) ? it.url : undefined,
-        span: pickSpan(i),
+        span: it.aspect ? spanForAspect(it.aspect) : pickSpan(i),
+        aspect: it.aspect,
       }))
     : activeCat.kind === "image"
       ? activeIsWebsite
         ? FEATURED_WEBSITES
         : STATIC_IMAGE_FALLBACK
       : [];
+
 
   return (
     <section id="portfolio" className="sec-plum nebula-wash relative py-28">
@@ -356,12 +367,20 @@ export function Portfolio({
   );
 }
 
-/* ---------- Video tile: YouTube facade ---------- */
+/* ---------- Video tile: YouTube facade ----------
+ * The media box uses the admin-chosen aspect ratio (16:9, 9:16, 1:1 or an
+ * exact pixel resolution). The browser reserves that exact box before the
+ * thumbnail arrives, so the bento never jumps while tiles load.
+ * HOW TO MODIFY: /admin -> Portfolio -> Card shape on the item. */
 function VideoTile({ item }: { item: VideoItem }) {
   const [playing, setPlaying] = useState(false);
   return (
     <article className={`bento overflow-hidden flex flex-col ${item.span}`}>
-      <div className="relative flex-1 min-h-[180px] tile-surface">
+      <div
+        className="relative flex-1 min-h-[180px] tile-surface"
+        style={item.aspect ? { aspectRatio: aspectRatioCss(item.aspect), minHeight: 0 } : undefined}
+      >
+
         {item.youtubeId ? (
           playing ? (
             <iframe
@@ -529,7 +548,11 @@ function GraphicTile({
         // taller crop box is only useful for cover shots.
         data-tile-fit={isWebsite ? (useContain ? "contain" : "cover") : undefined}
         className="relative flex-1 min-h-[200px] tile-surface overflow-hidden"
+        // Admin-chosen shape wins for normal image tiles. Website tiles keep
+        // their tuned responsive crop rules from portfolio.css.
+        style={!isWebsite && item.aspect ? { aspectRatio: aspectRatioCss(item.aspect), minHeight: 0 } : undefined}
       >
+
         {item.src ? (
           <>
             {/* Skeleton: visible only until the shot paints. */}
