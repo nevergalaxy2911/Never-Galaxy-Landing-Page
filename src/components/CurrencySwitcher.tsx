@@ -186,7 +186,7 @@ export function CurrencySwitcher() {
         className="cur-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Change display currency"
+        aria-label="nah man undo that.\njust make the layout better yo..what are you doing.\nmake it look clean and proffessional"
       >
         <span className="cur-symbol">{currency.symbol.trim()}</span>
         <span className="cur-code">{currency.code}</span>
@@ -215,7 +215,8 @@ export function CurrencySwitcher() {
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={onNavKey}
                   placeholder="Search currency…"
-                  aria-label="Search currency"
+                   aria-label="Search currency"
+
                 />
                 {query && (
                   <button
@@ -232,7 +233,8 @@ export function CurrencySwitcher() {
                 ref={listRef}
                 className="cur-menu-list"
                 role="listbox"
-                aria-label="Currency"
+                aria-label="Currency options"
+
                 data-lenis-prevent
                 style={{ overscrollBehavior: "contain" }}
               >
@@ -256,14 +258,14 @@ export function CurrencySwitcher() {
           className="cur-modal-backdrop"
           role="dialog"
           aria-modal="true"
-          aria-label="Choose currency"
+           aria-label="Currency selection modal"
           onClick={(e) => {
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
           <div className="cur-modal">
             <div className="cur-modal-head">
-              <span className="cur-modal-title">Select currency</span>
+              <span className="cur-modal-title">Select Currency</span>
               <button
                 type="button"
                 className="cur-modal-close"
@@ -302,7 +304,7 @@ export function CurrencySwitcher() {
               ref={isMobile ? listRef : undefined}
               className="cur-modal-list"
               role="listbox"
-              aria-label="Currency"
+              aria-label="Currency options"
               data-lenis-prevent
               style={{ overscrollBehavior: "contain" }}
             >

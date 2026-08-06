@@ -1,4 +1,5 @@
-import { Quote, BadgeCheck } from "lucide-react";
+import * as React from "react";
+import { Quote, BadgeCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import { DEFAULT_TESTIMONIALS, type Testimonial } from "@/lib/testimonials-config";
 
@@ -34,6 +35,12 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
   const half = Math.ceil(list.length / 2);
   const rows: Testimonial[][] = list.length > 2 ? [list.slice(0, half), list.slice(half)] : [list];
 
+  // Mobile expansion logic
+  const [showAll, setShowAll] = React.useState(false);
+  const mobileDisplayLimit = 3;
+  const hasMore = list.length > mobileDisplayLimit;
+  const displayedItems = showAll ? list : list.slice(0, mobileDisplayLimit);
+
   return (
     <section id="testimonials" className="sec-nova nebula-wash relative py-28">
       <div className="mx-auto max-w-7xl px-6">
@@ -49,15 +56,74 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
         </div>
       </div>
 
-      <div ref={body} className="reveal mt-14 space-y-4">
-        {rows.map((row, r) => (
-          <Row key={r} row={row} reverse={r % 2 === 1} duration={r % 2 === 1 ? 78 : 64} />
-        ))}
-      </div>
+      <div ref={body} className="reveal mt-14">
+        {/* Desktop Marquee */}
+        <div className="hidden lg:block space-y-4">
+          {rows.map((row, r) => (
+            <Row key={r} row={row} reverse={r % 2 === 1} />
+          ))}
+          <p className="mt-6 text-center text-xs text-muted-foreground/70">
+            Hover to pause · swipe to browse
+          </p>
+        </div>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground/70">
-        Hover to pause · swipe to browse
-      </p>
+        {/* Mobile Stack / Grid */}
+        <div className="lg:hidden px-6">
+          <div className="space-y-6">
+            {displayedItems.map((t, i) => (
+              <figure
+                key={t.name + i}
+                className="bento bento-hover-glow p-7 flex flex-col gap-5"
+              >
+                <Quote
+                  className="h-6 w-6 shrink-0 opacity-80"
+                  style={{ color: "color-mix(in oklab, var(--sec-a) 90%, white)" }}
+                  aria-hidden="true"
+                />
+                <blockquote className="text-[15px] leading-relaxed text-muted-foreground">
+                  {t.quote}
+                </blockquote>
+                <figcaption className="mt-auto flex items-center justify-between gap-3 border-t border-white/5 pt-4">
+                  <span>
+                    <span className="block font-display uppercase text-base leading-tight">
+                      {t.name}
+                    </span>
+                    <span className="block text-xs text-muted-foreground mt-1">{t.role}</span>
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap"
+                    style={{
+                      background: "color-mix(in oklab, var(--sec-a) 16%, transparent)",
+                      border: "1px solid color-mix(in oklab, var(--sec-a) 40%, transparent)",
+                      color: "color-mix(in oklab, var(--sec-a) 92%, white)",
+                    }}
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t.proof ?? "Verified client"}
+                  </span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+
+          {hasMore && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="mt-10 mx-auto flex items-center gap-2 px-6 py-3 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-all font-display uppercase text-sm tracking-widest group"
+            >
+              {showAll ? (
+                <>
+                  Show Less <ChevronUp className="h-4 w-4 group-hover:-translate-y-0.5 transition-transform" />
+                </>
+              ) : (
+                <>
+                  Show More <ChevronDown className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -66,24 +132,23 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
 function Row({
   row,
   reverse,
-  duration,
 }: {
   row: Testimonial[];
   reverse: boolean;
-  duration: number;
 }) {
-  // Duplicate the row; the second copy is aria-hidden so screen readers and
-  // search engines only ever see each quote once.
-  const copies = [false, true];
+  // To ensure a seamless infinite loop without gaps (especially on ultra-wide screens),
+  // we repeat the items 4 times. The track moves -50% (2 full copies), 
+  // while the extra copies ensure the "seamless" illusion never breaks.
+  const copies = [0, 1, 2, 3];
 
   return (
-    <div className="marquee" style={{ ["--marquee-duration" as string]: `${duration}s` }}>
+    <div className="marquee">
       <div className={`marquee-track ${reverse ? "marquee-reverse" : ""}`}>
         {copies.map((isClone) =>
           row.map((t, i) => (
             <figure
-              key={`${isClone ? "c" : "o"}-${t.name}-${i}`}
-              aria-hidden={isClone || undefined}
+              key={`${isClone ? `c${isClone}` : "o"}-${t.name}-${i}`}
+              aria-hidden={isClone > 0 || undefined}
               /* bento-unclipped: lets the hover glow bleed past the card edge
                  instead of being cut into a hard square by overflow:hidden. */
               className="marquee-item bento bento-unclipped bento-hover-glow p-7 md:p-8 flex flex-col gap-5"

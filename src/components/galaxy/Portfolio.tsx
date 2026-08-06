@@ -121,9 +121,9 @@ function buildWebsiteTiles(list: WebsiteEntry[]): WebsiteTile[] {
     previewSrc: s.detailDesktopSrc,
     href: s.liveUrl,
     liveUrl: s.liveUrl,
-    // Featured entry gets the hero span; others cycle through the remaining
-    // spans in order so the bento stays visually balanced.
-    span: i === featuredIdx ? SPAN_CYCLE[0] : SPAN_CYCLE[1 + ((i < featuredIdx ? i : i - 1) % (SPAN_CYCLE.length - 1))],
+    // Featured entry (first item) claims the biggest hero span.
+    // All other entries follow in a tight, professional bento grid.
+    span: i === 0 ? "md:col-span-6 md:row-span-3" : "md:col-span-2 md:row-span-1",
   }));
 }
 
@@ -433,12 +433,12 @@ function VideoTile({ item }: { item: VideoItem }) {
           <ComingSoonSurface icon={<Play className="h-8 w-8" />} label="YouTube URL slot" />
         )}
       </div>
-      <div className="p-5 flex items-center justify-between gap-4">
+      <div className="p-5 flex items-center justify-between gap-4 bg-[#0a0814]">
         <div className="min-w-0">
-          <h3 className="font-display uppercase text-lg truncate">{item.title}</h3>
-          <p className="label-mono mt-1">{item.kind}</p>
+          <h3 className="font-display uppercase text-lg truncate leading-none">{item.title}</h3>
+          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest">{item.kind}</p>
         </div>
-        <span className="label-mono text-[9px] opacity-70 shrink-0">{item.youtubeId ? "Play" : "Soon"}</span>
+        <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0">{item.youtubeId ? "Play" : "Soon"}</span>
       </div>
     </article>
   );
@@ -635,21 +635,20 @@ function GraphicTile({
           </span>
         )}
       </div>
-      <div className="p-5 flex items-center justify-between gap-4">
+      <div className="p-5 flex items-center justify-between gap-4 bg-[#0a0814]">
         <div className="min-w-0">
-          <h3 className="font-display uppercase text-lg truncate">{item.title}</h3>
-          <p className="label-mono mt-1">{item.kind}</p>
+          <h3 className="font-display uppercase text-lg truncate leading-none">{item.title}</h3>
+          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest">{item.kind}</p>
         </div>
         {isWebsite && clickable ? (
-          <span className="label-mono flex items-center gap-1 text-[9px] opacity-70 shrink-0">
-            {/* Mobile/tablet path: new tab. Desktop: in-page preview. */}
-            <span className="lg:hidden inline-flex items-center gap-1">
-              New tab <ExternalLink className="h-3 w-3" aria-hidden />
+          <span className="label-mono flex items-center gap-1 text-[9px] opacity-60 shrink-0">
+            <span className="lg:hidden inline-flex items-center gap-1 uppercase tracking-tighter">
+              Open ↗
             </span>
-            <span className="hidden lg:inline">Preview ↗</span>
+            <span className="hidden lg:inline uppercase tracking-tighter">Preview ↗</span>
           </span>
         ) : (
-          <span className="label-mono text-[9px] opacity-70 shrink-0">
+          <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0">
             {clickable ? "Visit ↗" : item.src ? "View" : "Soon"}
           </span>
         )}

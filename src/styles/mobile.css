@@ -167,7 +167,7 @@
   /* MOBILE: no looping decorative motion anywhere. Anything that animates
    * forever is pure battery burn on a phone — one-shot reveals still run.
    * HOW TO MODIFY: delete this block to bring ambient motion back to phones. */
-  [class*="animate-"],
+  [class*="animate-"]:not(.marquee-track):not(.marquee-track-v2),
   .aurora,
   .nebula,
   .shimmer,
@@ -237,8 +237,9 @@
   /* 5. Shorter, cheaper transitions everywhere. */
   * {
     transition-duration: 0.18s !important;
-    animation-duration: 0.18s !important;
   }
+  /* animation-duration overrides moved to specific components */
+  /* animation-duration handled per-element to preserve functional tickers. */
 
   /* 6. Images decode async and never animate scale. */
   img {

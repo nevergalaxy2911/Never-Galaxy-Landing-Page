@@ -44,6 +44,10 @@ import noctisMobile  from "@/assets/portfolio-noctis-mobile.png.asset.json";
 import voltaMobile   from "@/assets/portfolio-volta-mobile.png.asset.json";
 import atelierMobile from "@/assets/portfolio-atelier-mobile.png.asset.json";
 
+const NEVER_GALAXY_DESKTOP = "/Icons%20and%20images/portfolio/optimized/never-galaxy-desktop.webp";
+const NEVER_GALAXY_MOBILE = "/Icons%20and%20images/portfolio/optimized/never-galaxy-mobile.webp";
+const WEB_RESUME_THUMB = "/Icons%20and%20images/portfolio/optimized/web-resume-desktop.webp";
+
 export type PortfolioSite = {
   slug: string;
   title: string;
@@ -86,6 +90,28 @@ export const PORTFOLIO_SITES: PortfolioSite[] = [
       "Custom typography pairing (serif display + humanist sans)",
     ],
     featured: true,
+  },
+  {
+    slug: "web-resume",
+    title: "Celestial CV",
+    subtitle: "Interactive Web Resume",
+    category: "Personal Branding",
+    liveUrl: "https://webresumeabhishek.vercel.app/",
+    desktopSrc: WEB_RESUME_THUMB,
+    mobileSrc: "/Icons%20and%20images/portfolio/optimized/web-resume-mobile.webp",
+    tileSrc: WEB_RESUME_THUMB,
+    tileMobileSrc: WEB_RESUME_THUMB,
+    blurSrc: WEB_RESUME_THUMB,
+    detailDesktopSrc: "/Icons%20and%20images/portfolio/optimized/web-resume-case-study.webp",
+    detailMobileSrc: WEB_RESUME_THUMB,
+    description:
+      "A professional, interactive web-based resume designed for high-impact personal branding. Features optimized PDF export and local data persistence.",
+    highlights: [
+      "One-click 'Print as PDF' with iframe bypass fix",
+      "Local project data storage via localStorage",
+      "Responsive typography and high-contrast layouts",
+      "Speed-optimized asset delivery and minimal bundle size",
+    ],
   },
   {
     slug: "vortex",

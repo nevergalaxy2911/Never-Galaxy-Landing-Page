@@ -156,7 +156,7 @@
 }
 
 /* Video/graphic tile inner surface — themable */
-.tile-surface { background: color-mix(in oklab, black 45%, transparent); }
+.tile-surface { background: color-mix(in oklab, #0a0814 85%, transparent); }
 .light .tile-surface { background: color-mix(in oklab, var(--sec-a) 8%, white); }
 
 .coming-soon-icon {
@@ -189,7 +189,9 @@
  * --------------------------------------------------------------------------- */
 [data-web-tile] {
   /* !important beats the tile's Tailwind `min-h-[200px]` utility. */
-  min-height: 300px !important;
+  min-height: 480px !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px -12px black;
 }
 /* Letterboxed shots are centred, otherwise a tall row leaves a dead band
  * under the screenshot. */

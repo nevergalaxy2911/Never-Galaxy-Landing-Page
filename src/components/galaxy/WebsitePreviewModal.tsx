@@ -349,11 +349,20 @@ export default function WebsitePreviewModal({
             onLoad={(e) => {
               (e.currentTarget as HTMLIFrameElement & { __loaded?: boolean }).__loaded = true;
               setLoaded(true);
-              // First load = the landing page; every later load is an in-frame
-              // navigation, which is what makes the in-preview back button useful.
               setFrameDepth((d) => d + 1);
+
+              // PDF PRINT BUG FIX: Listen for a custom 'print-trigger' message from inside the iframe.
+              // This allows the iframe to request a print that the parent modal executes,
+              // bypassing iframe security restrictions that block window.print().
+              const handler = (event: MessageEvent) => {
+                if (event.data === "print-never-galaxy-pdf") {
+                  window.print();
+                }
+              };
+              window.addEventListener("message", handler);
+              return () => window.removeEventListener("message", handler);
             }}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             referrerPolicy="no-referrer"
           />
         )}

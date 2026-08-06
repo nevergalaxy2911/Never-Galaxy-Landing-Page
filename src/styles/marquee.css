@@ -24,7 +24,7 @@
 
 .marquee {
   --marquee-duration: 60s;
-  --marquee-gap: 1rem;
+  --marquee-gap: 1.5rem;
   --marquee-card: 26rem;
   --marquee-fade: 6rem;
   /* Breathing room so a card's hover glow can spill vertically. */
@@ -68,21 +68,18 @@
   gap: var(--marquee-gap);
   width: max-content;
   will-change: transform;
-  /* One promoted layer for the whole row; cards inside stay un-layered.
-   * NOTE: the keyframes below also set translate3d, so this only serves as a
-   * pre-animation hint. `will-change` is what actually keeps the layer alive. */
   backface-visibility: hidden;
   animation: marquee-slide var(--marquee-duration) linear infinite;
 }
 
 
 .marquee-reverse {
-  animation-direction: reverse;
+  animation-direction: reverse !important;
 }
 
 /* Pause on hover / focus so a quote can actually be read. */
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track {
+.marquee:hover [class*="marquee-track"],
+.marquee:focus-within [class*="marquee-track"] {
   animation-play-state: paused;
 }
 
@@ -100,19 +97,18 @@
     transform: translate3d(0, 0, 0);
   }
   to {
-    /* -50% because the list is duplicated exactly once. */
+    /* Moving -50% corresponds to exactly two full copies of the content. 
+       With 4 copies total, this creates a perfectly seamless loop. */
     transform: translate3d(-50%, 0, 0);
   }
 }
 
-/* Phones: smaller cards, tighter fade, a touch faster so it never feels stuck. */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .marquee {
-    --marquee-card: 19rem;
-    --marquee-gap: 0.75rem;
-    --marquee-fade: 2rem;
+    display: none;
   }
 }
+
 
 /* Reduced motion / no-animation users: stop the ticker, let them swipe. */
 @media (prefers-reduced-motion: reduce) {
@@ -123,7 +119,7 @@
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
   }
-  .marquee-track {
+  [class*="marquee-track"] {
     animation: none;
     width: auto;
   }
