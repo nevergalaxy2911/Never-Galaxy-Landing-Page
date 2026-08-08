@@ -37,5 +37,7 @@ export type GraphicItem = {
   span: string;
   /** Admin-chosen media shape. Reserves the exact box so nothing shifts. */
   aspect?: AspectConfig;
+  /** If true, item claims large-format hero styling in the bento grid. */
+  featured?: boolean;
 };
 

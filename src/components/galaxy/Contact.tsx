@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Mail, Send, Instagram, Youtube, Globe, ChevronDown, Video, Sparkles, Image as ImageIcon, Globe2, Layers, Check } from "lucide-react";
+import { Mail, Send, Instagram, Youtube, Globe, ChevronDown, Video, Sparkles, Image as ImageIcon, Globe2, Layers, Check, ShoppingBag } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
 import { CONTACT, SOCIALS, MAIL_HREF } from "@/config/site";
 
@@ -25,6 +25,7 @@ const SOCIALS_UI = [
   { icon: Instagram, label: "Instagram", href: SOCIALS.instagram },
   { icon: Youtube,   label: "YouTube",   href: SOCIALS.youtube },
   { icon: Globe,     label: "Behance",   href: SOCIALS.behance },
+  { icon: ShoppingBag, label: "Fiverr",    href: "https://www.fiverr.com/nevergalaxy" },
 ];
 
 /* Scope options for the custom dropdown. HOW TO MODIFY: add/remove entries;

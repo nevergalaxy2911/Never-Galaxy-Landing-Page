@@ -264,7 +264,7 @@ export function startWind() {
   if (panner) tail.connect(panner).connect(master);
   else tail.connect(master);
 
-  src.start(now);
+  try { src.start(now); } catch { /* autoplay block */ }
   windNodes = { src, filter, gain, userGain, envGain, panner };
 }
 
@@ -445,7 +445,17 @@ function spawnAmbience(buffer: AudioBuffer, offset: number, fade: number) {
   else out.connect(master);
 
   const safeOffset = ((offset % buffer.duration) + buffer.duration) % buffer.duration;
-  src.start(now, safeOffset);
+  
+  // Autoplay safeguard: catch blocks even after gestures
+  try {
+    src.start(now, safeOffset);
+  } catch (err) {
+    console.warn("Ambience start blocked:", err);
+    // Tear down so we don't leak nodes
+    out.gain.cancelScheduledValues(now);
+    out.gain.value = 0;
+  }
+
   ambienceOffset = safeOffset;
   ambienceStartedAtCtxTime = now;
 

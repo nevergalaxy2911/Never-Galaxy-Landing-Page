@@ -42,7 +42,7 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
   const displayedItems = showAll ? list : list.slice(0, mobileDisplayLimit);
 
   return (
-    <section id="testimonials" className="sec-nova nebula-wash relative py-28">
+    <section id="testimonials" className="testimonial-container sec-nova nebula-wash relative py-28">
       <div className="mx-auto max-w-7xl px-6">
         <div ref={head} className="reveal max-w-3xl">
           <span className="label-chip">05 · Testimonials</span>
@@ -56,7 +56,7 @@ export function Testimonials({ items }: { items?: Testimonial[] }) {
         </div>
       </div>
 
-      <div ref={body} className="reveal mt-14">
+      <div ref={body} className="reveal relative z-10 mt-14">
         {/* Desktop Marquee */}
         <div className="hidden lg:block space-y-4">
           {rows.map((row, r) => (

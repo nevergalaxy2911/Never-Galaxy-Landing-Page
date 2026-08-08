@@ -45,7 +45,7 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/icons/NeverGalaxy.png" },
       { rel: "apple-touch-icon", href: "/icons/NeverGalaxy.png" },
-      { rel: "canonical", href: "https://nevergalaxy.vercel.app/" },
+      { rel: "canonical", href: "https://nevergalaxy.studio/" },
       // Preload ONLY the LCP display font (Archivo Black). Hind body font
       // and JetBrains Mono are discovered via the CSS @import chain, which
       // keeps the critical request chain short (Lighthouse win). fetchpriority
@@ -76,7 +76,7 @@ export const Route = createRootRoute({
           name: "Never Galaxy",
           description:
             "Creative studio for cinematic video editing, motion graphics, and thumbnail design.",
-          url: "https://nevergalaxy.vercel.app/",
+          url: "https://nevergalaxy.studio/",
 
         }),
       },
@@ -86,7 +86,7 @@ export const Route = createRootRoute({
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Never Galaxy",
-          url: "https://nevergalaxy.vercel.app/",
+          url: "https://nevergalaxy.studio/",
         }),
       },
     ],

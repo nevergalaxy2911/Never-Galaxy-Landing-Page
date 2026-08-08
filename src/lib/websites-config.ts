@@ -39,6 +39,7 @@ export type WebsiteEntry = {
   category: string;
   liveUrl: string;
   tileSrc: string;
+  tileTabletSrc?: string;
   tileMobileSrc: string;
   blurSrc: string;
   detailDesktopSrc: string;
@@ -57,6 +58,7 @@ export const DEFAULT_WEBSITES: WebsiteEntry[] = PORTFOLIO_SITES.map((s) => ({
   category: s.category,
   liveUrl: s.liveUrl,
   tileSrc: s.tileSrc,
+  tileTabletSrc: s.tileTabletSrc,
   tileMobileSrc: s.tileMobileSrc,
   blurSrc: s.blurSrc,
   detailDesktopSrc: s.detailDesktopSrc || s.desktopSrc,
@@ -113,6 +115,7 @@ export function sanitizeWebsites(value: unknown): WebsiteEntry[] {
       category: str(r.category, 80),
       liveUrl,
       tileSrc,
+      tileTabletSrc: str(r.tileTabletSrc, 500) || undefined,
       tileMobileSrc: str(r.tileMobileSrc, 500) || tileSrc,
       blurSrc: str(r.blurSrc, 500) || tileSrc,
       detailDesktopSrc,

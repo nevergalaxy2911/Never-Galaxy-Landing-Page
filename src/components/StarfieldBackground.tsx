@@ -402,7 +402,9 @@ export function StarfieldBackground() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 h-full w-full"
+      /* 1. Force the stars background to stay beneath everything */
+      className="starfield pointer-events-none fixed inset-0 h-full w-full mix-blend-normal"
+      style={{ zIndex: 0 }}
     />
   );
 }

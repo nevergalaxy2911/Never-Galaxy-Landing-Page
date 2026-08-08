@@ -19,18 +19,18 @@
 .portfolio-tab-list {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 .portfolio-tab-list::-webkit-scrollbar { display: none; }
 
 /* Edge fade on mobile only, so the user sees there is more to scroll. */
 @supports (mask-image: linear-gradient(90deg, transparent, black 20%, black 80%, transparent)) {
-  .portfolio-tabs {
-    mask-image: linear-gradient(90deg, transparent 0%, black 1.5rem, black calc(100% - 1.5rem), transparent 100%);
-  }
-  @media (min-width: 768px) {
+  /* Edge fade on mobile only, so the user sees there is more to scroll. */
+  @media (max-width: 767px) {
     .portfolio-tabs {
-      mask-image: none;
-      -webkit-mask-image: none;
+      mask-image: linear-gradient(90deg, transparent 0%, black 1.5rem, black calc(100% - 1.5rem), transparent 100%);
     }
   }
 }
@@ -38,6 +38,7 @@
 .portfolio-tab {
   color: color-mix(in oklab, white 78%, var(--sec-a));
   max-width: 180px;
+  scroll-snap-align: center;
 }
 .portfolio-tab:hover { color: white; background: color-mix(in oklab, var(--sec-a) 18%, transparent); }
 .portfolio-tab:focus-visible {
@@ -56,24 +57,25 @@
 
 /* Light-mode: high-contrast dark chrome so pills read on white bg */
 .light .portfolio-tabs {
-  background: color-mix(in oklab, var(--sec-a) 12%, white);
-  border-color: color-mix(in oklab, var(--sec-a) 45%, transparent);
+  background: color-mix(in oklab, white 85%, var(--sec-a) 8%);
+  border-color: color-mix(in oklab, var(--sec-a) 25%, #cbd5e1);
+  box-shadow: 0 4px 20px -10px color-mix(in oklab, var(--sec-a) 40%, transparent);
 }
 .light .portfolio-tab {
-  color: color-mix(in oklab, var(--sec-a) 80%, black);
+  color: color-mix(in oklab, black 70%, var(--sec-a));
 }
 .light .portfolio-tab:hover {
   background: color-mix(in oklab, var(--sec-a) 20%, white);
   color: color-mix(in oklab, var(--sec-a) 95%, black);
 }
 .light .portfolio-tab[data-active="true"] {
-  background: linear-gradient(135deg,
-    color-mix(in oklab, var(--sec-a) 92%, black),
-    color-mix(in oklab, var(--sec-b) 92%, black));
+  /* Vibrant pink-dominated gradient: deeper coral-pink (#ff5e89) to warm orange (#ff9e49) 
+   * The pink tone dominates the left half of the button. */
+  background: linear-gradient(135deg, #ff5e89 0%, #ff5e89 45%, #ff9e49 100%);
   color: white;
   box-shadow:
-    0 6px 20px -6px color-mix(in oklab, var(--sec-a) 70%, transparent),
-    inset 0 0 10px color-mix(in oklab, white 25%, transparent);
+    0 6px 20px -6px rgba(255, 94, 137, 0.5),
+    inset 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 /* Mobile overrides: remove backdrop-filter and keep tabs tappable */
@@ -157,7 +159,11 @@
 
 /* Video/graphic tile inner surface — themable */
 .tile-surface { background: color-mix(in oklab, #0a0814 85%, transparent); }
-.light .tile-surface { background: color-mix(in oklab, var(--sec-a) 8%, white); }
+.portfolio-tile-footer { background: #0a0814 !important; } 
+.light .portfolio-tile-footer { background: white !important; border-top: 1px solid rgba(0,0,0,0.05); } 
+.portfolio-tile-text { color: rgba(255, 255, 255, 0.9); } 
+.light .portfolio-tile-text { color: rgba(0, 0, 0, 0.85); }
+.light .tile-surface { background: color-mix(in oklab, white 95%, black); border: 1px solid color-mix(in oklab, black 10%, transparent); }
 
 .coming-soon-icon {
   background: color-mix(in oklab, var(--sec-a) 25%, black);
@@ -193,15 +199,66 @@
   border-radius: 12px;
   box-shadow: 0 4px 24px -12px black;
 }
-/* Letterboxed shots are centred, otherwise a tall row leaves a dead band
- * under the screenshot. */
-[data-web-tile] img.object-contain {
-  object-position: center !important;
-}
-/* NOTE: object-fit is left to the component (Maison Aurelia uses contain), we
- * only anchor the crop window to the top of the page shot here. */
+
+/* Force full-bleed for every website screenshot. */
 [data-web-tile] img {
-  object-position: top center;
+  object-fit: cover !important;
+  object-position: top center !important;
+}
+
+/* 
+ * PC & IPAD VIEWPORT FIXES: Celestial CV, Nebula, Noctis, Volta
+ * Adjusting object-position for Desktop and iPad Landscape viewports (>1024px)
+ * so headers/logos are perfectly aligned and cards stay full-bleed.
+ */
+@media (min-width: 1025px) {
+  /* Force edge-to-edge full-bleed for the requested sites */
+  [data-site-slug="web-resume"] [data-web-tile] img,
+  [data-site-slug="nebula"] [data-web-tile] img,
+  [data-site-slug="noctis-paradise"] [data-web-tile] img,
+  [data-site-slug="volta-arts"] [data-web-tile] img,
+  [data-site-slug="maison-atelier"] [data-web-tile] img {
+    object-position: top center !important;
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+/* 
+ * IPAD PORTRAIT FIXES (768px to 1024px)
+ */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Maison Aurelia - Fix vertical stretch in portrait */
+  [data-site-slug="maison-aurelia"] [data-web-tile] {
+    min-height: 380px !important;
+    max-height: 420px !important;
+  }
+  [data-site-slug="maison-aurelia"] [data-web-tile] img {
+    object-fit: cover !important;
+    object-position: top center !important;
+  }
+
+  /* Celestial CV - Proper centering, ensure no left-shift clipping */
+  [data-site-slug="web-resume"] [data-web-tile] img {
+    object-position: center top !important;
+    object-fit: contain !important;
+    background-color: #f8f9fa; /* Matches CV background */
+  }
+
+  /* Noctis and Volta - Native scaling for portrait slots, no side truncation */
+  [data-site-slug="noctis-paradise"] [data-web-tile] img,
+  [data-site-slug="volta-arts"] [data-web-tile] img {
+    object-position: top center !important;
+    object-fit: contain !important; 
+    background-color: #050505;
+  }
+  
+  /* Preserve Nebula */
+  [data-site-slug="nebula"] [data-web-tile] img {
+    object-position: top center !important;
+    object-fit: cover !important;
+  }
 }
 
 /* -----------------------------------------------------------------------------
@@ -217,8 +274,12 @@
  * --------------------------------------------------------------------------- */
 @media (max-width: 767px) {
   [data-web-tile] {
-    aspect-ratio: auto;
-    min-height: 360px !important;
+    aspect-ratio: 9/16 !important;
+    min-height: 520px !important;
+  }
+  .portfolio-tile-footer .opacity-60,
+  .portfolio-tile-footer .opacity-40 {
+    opacity: 0.85 !important;
   }
   [data-web-tile] img {
     object-fit: cover !important;
@@ -256,10 +317,7 @@
   [data-web-tile] img {
     object-position: center 2% !important;
   }
-  /* Letterboxed (contain) shots must never be nudged, they have no spare crop. */
-  [data-web-tile] img.object-contain {
-    object-position: center !important;
-  }
+  /* No nudging logic needed as we force cover for all now. */
 }
 
 /* -----------------------------------------------------------------------------
@@ -314,5 +372,54 @@
   .tile-skeleton {
     animation: none;
     background: color-mix(in oklab, var(--sec-a) 14%, transparent);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * BENTO HERO STYLING (Featured items)
+ * --------------------------------------------------------------------------- */
+.featured-hero {
+  border: 1px solid color-mix(in oklab, var(--sec-a) 40%, transparent) !important;
+  box-shadow: 
+    0 20px 50px -12px color-mix(in oklab, var(--sec-a) 25%, transparent),
+    inset 0 0 40px color-mix(in oklab, var(--sec-a) 10%, transparent) !important;
+}
+
+.featured-hero h3 {
+  font-size: 1.5rem !important;
+  background: linear-gradient(135deg, white 60%, color-mix(in oklab, var(--sec-a) 80%, white));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.featured-hero .portfolio-tile-footer {
+  padding: 1.5rem 1.75rem !important;
+}
+
+.light .featured-hero h3 {
+  background: linear-gradient(135deg, black 60%, color-mix(in oklab, var(--sec-a) 80%, black));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.featured-hero:hover {
+  border-color: color-mix(in oklab, var(--sec-a) 70%, white) !important;
+  transform: translateY(-4px) scale(1.005) !important;
+}
+
+/* Tighten the bento layout specifically for the website grid */
+.website-portfolio-grid article.website-tile,
+.website-portfolio-grid button.website-tile {
+  padding: 0 !important; /* Remove any padding that could cause loose fit */
+}
+
+/* Ensure images always fill the container box in the bento grid */
+.website-portfolio-grid .website-tile [data-web-tile] {
+  border-radius: 0; /* Tight puzzle-piece feel */
+}
+
+@media (min-width: 768px) {
+  .website-portfolio-grid {
+    grid-auto-flow: dense; /* Fill gaps horizontally and vertically */
   }
 }

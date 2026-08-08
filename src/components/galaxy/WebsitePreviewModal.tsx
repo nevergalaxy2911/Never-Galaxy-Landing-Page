@@ -38,6 +38,8 @@ type Props = {
   url: string;
   detailHref?: string;
   previewImage?: string;
+  previewImageTablet?: string;
+  previewImageMobile?: string;
 };
 
 export default function WebsitePreviewModal({
@@ -49,6 +51,8 @@ export default function WebsitePreviewModal({
   url,
   detailHref,
   previewImage,
+  previewImageTablet,
+  previewImageMobile,
 }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -298,17 +302,23 @@ export default function WebsitePreviewModal({
       <div className="relative flex-1 overflow-hidden bg-neutral-900">
         {!loaded && !blocked && (
           <div className="absolute inset-0 grid place-items-center text-white/70">
-            {previewImage && (
-              <img
-                src={previewImage}
-                alt=""
-                width={1440}
-                height={810}
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-                className="absolute inset-0 h-full w-full object-cover opacity-55 blur-[1px]"
-              />
+            {(previewImage || previewImageMobile || previewImageTablet) && (
+              <picture className="absolute inset-0 h-full w-full">
+                <source media="(max-width: 767px)" srcSet={previewImageMobile || previewImage} />
+                {previewImageTablet && (
+                  <source media="(min-width: 768px) and (max-width: 1024px)" srcSet={previewImageTablet} />
+                )}
+                <img
+                  src={previewImage}
+                  alt=""
+                  width={1440}
+                  height={810}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  className="h-full w-full object-cover opacity-55 blur-[1px]"
+                />
+              </picture>
             )}
             <div className="absolute inset-0 bg-black/45" aria-hidden />
             <div className="flex flex-col items-center gap-3">

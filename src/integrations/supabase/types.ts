@@ -10,10 +10,42 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
+      contact_replies: {
+        Row: {
+          admin_id: string
+          body: string
+          created_at: string
+          id: string
+          submission_id: string
+        }
+        Insert: {
+          admin_id: string
+          body: string
+          created_at?: string
+          id?: string
+          submission_id: string
+        }
+        Update: {
+          admin_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_replies_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "contact_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_submissions: {
         Row: {
           created_at: string
@@ -23,6 +55,7 @@ export type Database = {
           message: string
           name: string
           read: boolean
+          replied_at: string | null
           user_agent: string | null
         }
         Insert: {
@@ -33,6 +66,7 @@ export type Database = {
           message: string
           name: string
           read?: boolean
+          replied_at?: string | null
           user_agent?: string | null
         }
         Update: {
@@ -43,6 +77,7 @@ export type Database = {
           message?: string
           name?: string
           read?: boolean
+          replied_at?: string | null
           user_agent?: string | null
         }
         Relationships: []
@@ -89,6 +124,33 @@ export type Database = {
           id?: string
           path?: string
           referrer?: string | null
+        }
+        Relationships: []
+      }
+      portfolio_clicks: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          slug: string
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          slug: string
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          slug?: string
+          title?: string
+          url?: string
         }
         Relationships: []
       }

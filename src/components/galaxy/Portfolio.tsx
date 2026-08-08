@@ -12,14 +12,10 @@ import { aspectRatioCss, spanForAspect } from "@/lib/portfolio-aspect";
 import { DEFAULT_WEBSITES, visibleWebsites, type WebsiteEntry } from "@/lib/websites-config";
 import { PORTFOLIO } from "@/config/site";
 
-
 import { logPortfolioClick } from "@/lib/portfolio-clicks.functions";
-import { useProgressiveImage, warmImageCache, noteImageLoaded, markImageDecoded } from "@/lib/imageCache";
+import { warmImageCache, markImageDecoded } from "@/lib/imageCache";
 import { screenshotTier } from "@/lib/deviceTier";
 
-// Lazy-load the preview modal so its iframe host chrome stays out of the LCP
-// path, but expose the loader so Website-tab intent can warm the chunk before
-// the actual click. This removes the click-to-modal JavaScript wait.
 const loadWebsitePreviewModal = () => import("./WebsitePreviewModal");
 const WebsitePreviewModal = lazy(loadWebsitePreviewModal);
 
@@ -47,11 +43,19 @@ const ICONS: Record<string, typeof Play> = {
 };
 
 const SPAN_CYCLE = [
-  "md:col-span-4 md:row-span-2",
-  "md:col-span-2",
-  "md:col-span-2",
   "md:col-span-3",
   "md:col-span-3",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
+];
+
+const WEB_SPAN_CYCLE = [
+  "md:col-span-3",
+  "md:col-span-3",
+  "md:col-span-2",
+  "md:col-span-2",
+  "md:col-span-2",
 ];
 
 // Static placeholder tiles per category kind, shown when a category has zero
@@ -103,28 +107,47 @@ function warmWebsiteOrigins(urls: Array<string | undefined>, connect = false) {
 // has nothing saved we fall back to the shipped static list so the tab is never
 // empty. The first `featured` entry (else the first entry) claims the biggest
 // bento tile.
-type WebsiteTile = GraphicItem & { slug: string; liveUrl: string };
+type WebsiteTile = GraphicItem & { slug: string; liveUrl: string; srcTablet?: string };
 
 function buildWebsiteTiles(list: WebsiteEntry[]): WebsiteTile[] {
   const sites = visibleWebsites(list);
-  const featuredIdx = Math.max(0, sites.findIndex((s) => s.featured));
-  return sites.map((s, i) => ({
-    id: `web-${s.slug}`,
-    slug: s.slug,
-    title: s.title,
-    kind: s.subtitle,
-    // Homepage tiles use purpose-made WebP shots instead of the original PNGs:
-    // desktop tile ~12-26KB, mobile tile ~13-23KB, blur placeholder <1KB.
-    src: s.tileSrc,
-    srcMobile: s.tileMobileSrc,
-    placeholderSrc: s.blurSrc,
-    previewSrc: s.detailDesktopSrc,
-    href: s.liveUrl,
-    liveUrl: s.liveUrl,
-    // Featured entry (first item) claims the biggest hero span.
-    // All other entries follow in a tight, professional bento grid.
-    span: i === 0 ? "md:col-span-6 md:row-span-3" : "md:col-span-2 md:row-span-1",
-  }));
+  
+  // Sort: featured items first
+  const sortedSites = [...sites].sort((a, b) => {
+    const aFeat = a.featured ? 1 : 0;
+    const bFeat = b.featured ? 1 : 0;
+    return bFeat - aFeat;
+  });
+
+  let regularIndex = 0;
+
+  return sortedSites.map((s) => {
+    const isFeatured = s.featured;
+    
+    // Featured gets a full-width hero span (6 cols)
+    // Regular items cycle through a 3-3-2-2-2 pattern to fill the 6-col grid
+    const span = isFeatured 
+      ? "md:col-span-6 md:row-span-3" 
+      : WEB_SPAN_CYCLE[regularIndex++ % WEB_SPAN_CYCLE.length];
+    
+    return {
+      id: `web-${s.slug}`,
+      slug: s.slug,
+      title: s.title,
+      kind: s.subtitle,
+      src: s.tileSrc,
+      srcTablet: s.tileTabletSrc,
+      srcMobile: s.tileMobileSrc,
+      placeholderSrc: s.blurSrc,
+      previewSrc: s.detailDesktopSrc,
+      href: s.liveUrl,
+      liveUrl: s.liveUrl,
+      featured: isFeatured,
+      span,
+      // Pass the slug down so GraphicTile can handle per-site CSS overrides
+      itemSlug: s.slug,
+    };
+  });
 }
 
 function pickSpan(i: number): string {
@@ -138,6 +161,8 @@ type PreviewTarget = {
   url: string;
   detailHref?: string;
   previewImage?: string;
+  previewImageTablet?: string;
+  previewImageMobile?: string;
 };
 
 function isWebsiteCategory(category?: PortfolioCategory) {
@@ -167,7 +192,7 @@ export function Portfolio({
     () => buildWebsiteTiles(websites?.length ? websites : DEFAULT_WEBSITES),
     [websites],
   );
-  const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
+  const [tab, setTab] = useState<string>(() => cats[3]?.id ?? "web");
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
   const activeCat = cats.find((c) => c.id === tab) ?? cats[0];
   const activeIsWebsite = isWebsiteCategory(activeCat);
@@ -187,7 +212,7 @@ export function Portfolio({
   useEffect(() => {
     const low = screenshotTier() === "low";
     const srcs = websiteTiles.flatMap((w) =>
-      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
+      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.srcTablet, w.src, w.previewSrc],
     );
     let cancelIdle: () => void = () => {};
     let alive = true;
@@ -243,7 +268,7 @@ export function Portfolio({
     prefetchedTabs.current.add(id);
     const low = screenshotTier() === "low";
     const srcs = websiteTiles.flatMap((w) =>
-      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.src, w.previewSrc],
+      low ? [w.placeholderSrc, w.srcMobile] : [w.placeholderSrc, w.srcMobile, w.srcTablet, w.src, w.previewSrc],
     );
     warmWebsiteOrigins(websiteTiles.map((w) => w.liveUrl), true);
     void loadWebsitePreviewModal();
@@ -262,39 +287,54 @@ export function Portfolio({
 
   if (!activeCat) return null;
 
-  const rows = activeIsWebsite ? [] : grouped[activeCat.id] ?? [];
+  const rows = grouped[activeCat.id] ?? [];
   // Live rows carry a per-item `aspect` chosen in /admin. It decides BOTH the
   // bento span (how much grid the card claims) and the media box shape, so a
   // 9:16 Short gets a tall card and a 16:9 film gets a wide one, with the
   // bento pattern preserved. Rows without a saved shape fall back to the
   // classic cycling span pattern.
-  const videos: VideoItem[] = rows.length
-    ? rows.map((it, i) => ({
-        id: it.id,
-        title: it.title,
-        kind: it.subtitle || activeCat.label,
-        youtubeId: it.youtubeId,
-        span: it.aspect ? spanForAspect(it.aspect) : pickSpan(i),
-        aspect: it.aspect,
-      }))
-    : activeCat.kind === "video"
-      ? STATIC_VIDEO_FALLBACK
-      : [];
-  const graphics: GraphicItem[] = rows.length
-    ? rows.map((it, i) => ({
-        id: it.id,
-        title: it.title,
-        kind: it.subtitle || activeCat.label,
-        src: it.thumbUrl || it.url,
-        href: it.url && /^https?:\/\//.test(it.url) ? it.url : undefined,
-        span: it.aspect ? spanForAspect(it.aspect) : pickSpan(i),
-        aspect: it.aspect,
-      }))
-    : activeCat.kind === "image"
-      ? activeIsWebsite
-        ? websiteTiles
-        : STATIC_IMAGE_FALLBACK
-      : [];
+  // Filter first, then sort
+  const filteredRows = (grouped[activeCat.id] ?? []);
+  
+  // Dynamically apply sorting to ALL tabs
+  // 1. Featured items first
+  // 2. Map to display types
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    const aFeat = a.featured ? 1 : 0;
+    const bFeat = b.featured ? 1 : 0;
+    return bFeat - aFeat;
+  });
+
+  const videos: VideoItem[] = (activeCat.kind === "video")
+    ? (sortedRows.length
+      ? sortedRows.map((it, i) => ({
+          id: it.id,
+          title: it.title,
+          kind: it.subtitle || activeCat.label,
+          youtubeId: it.youtubeId,
+          span: it.featured ? "md:col-span-6 md:row-span-3" : (it.aspect ? spanForAspect(it.aspect) : pickSpan(i)),
+          aspect: it.aspect,
+          featured: it.featured,
+        }))
+      : STATIC_VIDEO_FALLBACK)
+    : [];
+
+  const graphics: GraphicItem[] = (activeCat.kind === "image")
+    ? (activeIsWebsite
+      ? websiteTiles
+      : (sortedRows.length
+        ? sortedRows.map((it, i) => ({
+            id: it.id,
+            title: it.title,
+            kind: it.subtitle || activeCat.label,
+            src: it.thumbUrl || it.url,
+            href: it.url && /^https?:\/\//.test(it.url) ? it.url : undefined,
+            span: it.featured ? "md:col-span-6 md:row-span-3" : (it.aspect ? spanForAspect(it.aspect) : pickSpan(i)),
+            aspect: it.aspect,
+            featured: it.featured,
+          }))
+        : STATIC_IMAGE_FALLBACK))
+    : [];
 
 
   return (
@@ -316,7 +356,7 @@ export function Portfolio({
               Mobile: horizontal scroll with snap so pills never wrap.
               Tablet+: wrap as a centered pill bar. */}
           <div className="portfolio-tabs w-full self-center overflow-hidden md:w-fit md:max-w-full md:self-end">
-            <div className="portfolio-tab-list flex flex-nowrap snap-x gap-1 overflow-x-auto md:justify-center">
+            <div className="portfolio-tab-list flex flex-nowrap gap-1 overflow-x-auto md:justify-center">
               {cats.map((c) => {
                 const Icon = ICONS[c.icon] ?? ImageIcon;
                 return (
@@ -344,15 +384,12 @@ export function Portfolio({
 
         </div>
 
-        <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(200px,auto)] gap-4">
+        <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(180px,auto)] gap-6 website-portfolio-grid">
           {activeCat.kind === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
           {activeCat.kind === "image" && graphics.map((g, i) => (
             <GraphicTile
               key={g.id}
               item={g}
-              // Only the first two tiles are above the fold; everything after
-              // that lazy-loads when it scrolls close, which is the single
-              // biggest data saving on a phone.
               priority={i < 2}
               isWebsite={activeIsWebsite}
               onPreview={activeIsWebsite ? (site) => setPreview(site) : undefined}
@@ -373,6 +410,8 @@ export function Portfolio({
             url={preview.url}
             detailHref={preview.detailHref}
             previewImage={preview.previewImage}
+            previewImageTablet={preview.previewImageTablet}
+            previewImageMobile={preview.previewImageMobile}
           />
         </Suspense>
       )}
@@ -433,12 +472,12 @@ function VideoTile({ item }: { item: VideoItem }) {
           <ComingSoonSurface icon={<Play className="h-8 w-8" />} label="YouTube URL slot" />
         )}
       </div>
-      <div className="p-5 flex items-center justify-between gap-4 bg-[#0a0814]">
+      <div className="p-5 flex items-center justify-between gap-4 portfolio-tile-footer">
         <div className="min-w-0">
-          <h3 className="font-display uppercase text-lg truncate leading-none">{item.title}</h3>
-          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest">{item.kind}</p>
+          <h3 className="font-display uppercase text-lg truncate leading-none portfolio-tile-text">{item.title}</h3>
+          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest portfolio-tile-text">{item.kind}</p>
         </div>
-        <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0">{item.youtubeId ? "Play" : "Soon"}</span>
+        <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0 portfolio-tile-text">{item.youtubeId ? "Play" : "Soon"}</span>
       </div>
     </article>
   );
@@ -451,7 +490,7 @@ function GraphicTile({
   onPreview,
   priority,
 }: {
-  item: GraphicItem;
+  item: GraphicItem & { srcTablet?: string; itemSlug?: string };
   isWebsite?: boolean;
   onPreview?: (t: PreviewTarget) => void;
   /** Above-the-fold tile: fetched eagerly. Everything else lazy-loads. */
@@ -461,27 +500,17 @@ function GraphicTile({
   const clickable = Boolean(item.href);
   const slug = item.id.startsWith("web-") ? item.id.slice(4) : item.id;
 
-  // MAISON AURELIA (and any future portrait / letterboxed site shot) needs
-  // `object-contain` so the left edge isn't cropped. All other tiles keep
-  // `object-cover` for the immersive edge-to-edge look.
-  const useContain = slug === "maison-aurelia";
-  const imgFit = useContain ? "object-contain" : "object-cover";
+  // Websites use `object-cover` and `object-top` for a full-bleed, edge-to-edge
+  // layout that shows the hero section recognisably.
+  const imgFit = "object-cover";
+  const imgPosition = "object-top";
 
-  // Screenshots are persisted to localStorage after their first paint (see
-  // lib/imageCache.ts), so repeat visits show the tile instantly with no
-  // request at all. Falls back to the network URL whenever nothing is stored.
-  // Screenshots are persisted to localStorage after their first paint (see
-  // lib/imageCache.ts), so repeat visits show the tile instantly with no
-  // request at all. PROGRESSIVE: the small mobile shot paints first and the
-  // full-resolution one swaps in once decoded — and on Data Saver / low-end
-  // devices the small shot is kept as the final image (adaptive scaling).
-  // Website tiles are already tiny WebP files, so they bypass the localStorage
-  // screenshot hook completely. That keeps filter switching on the browser's
-  // native memory cache path with no synchronous storage reads.
-  const progressive = useProgressiveImage(isWebsite ? undefined : item.src, isWebsite ? undefined : item.srcMobile);
-  const imgSrc = isWebsite ? item.src : progressive.src;
-  const isFinal = isWebsite || progressive.isFinal;
-  const isCached = !isWebsite && progressive.isCached;
+  // Website tiles are tiny WebP files that bypass the localStorage
+  // screenshot hook completely to keep switching on the browser's native
+  // memory cache path.
+  const imgSrc = item.src;
+  const isFinal = true;
+  const isCached = false;
 
   // Reference point for the "last rendered" figure in the diagnostics panel.
   const [mountedAt] = useState(() => (typeof performance !== "undefined" ? performance.now() : 0));
@@ -490,10 +519,9 @@ function GraphicTile({
    * shimmering placeholder instead of an empty hole. This is what removes the
    * "laggy" feeling on a phone: the grid has structure from frame one.
    * HOW TO MODIFY: the shimmer visuals live in `.tile-skeleton` (portfolio.css). */
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true);
   const onImgLoad = () => {
-    setLoaded(true);
-    noteImageLoaded(performance.now() - mountedAt);
+    // Already forced to true, but keeping handler for analytics consistency
   };
 
   // Preview modal is a DESKTOP-ONLY experience by default — mobile iframes
@@ -524,6 +552,8 @@ function GraphicTile({
       url: item.href!,
       detailHref: `/work/${slug}`,
       previewImage: item.previewSrc || item.src,
+      previewImageTablet: item.srcTablet,
+      previewImageMobile: item.srcMobile,
     });
   };
 
@@ -553,15 +583,13 @@ function GraphicTile({
   return (
     <Wrapper
       {...wrapperProps}
-      className={`bento group overflow-hidden flex flex-col text-left ${item.span} ${clickable ? "cursor-pointer" : ""}`}
+      className={`bento group overflow-hidden flex flex-col text-left ${item.span} ${clickable ? "cursor-pointer" : ""} ${item.featured ? "featured-hero" : ""} ${isWebsite ? "website-tile" : ""}`}
+      data-site-slug={item.itemSlug}
     >
       <div
         // `data-web-tile` lets portfolio.css give phone screenshots a taller,
         // top-anchored crop so the site is actually recognisable on a phone.
         data-web-tile={isWebsite ? "true" : undefined}
-        // Letterboxed (object-contain) shots keep the original short box, the
-        // taller crop box is only useful for cover shots.
-        data-tile-fit={isWebsite ? (useContain ? "contain" : "cover") : undefined}
         className="relative flex-1 min-h-[200px] tile-surface overflow-hidden"
         // Admin-chosen shape wins for normal image tiles. Website tiles keep
         // their tuned responsive crop rules from portfolio.css.
@@ -570,58 +598,60 @@ function GraphicTile({
 
         {item.src ? (
           <>
-            {/* Skeleton: visible only until the shot paints. */}
-            {!loaded && <div aria-hidden className="tile-skeleton absolute inset-0" />}
+            {/* Skeleton removed to prevent infinite loading visual bug */}
 
-            {/* Blurred backdrop of the same shot fills empty space when we
-                use object-contain, so the card never shows raw background.
-                Hidden on phones (see portfolio.css) — a full-tile blur layer
-                is one of the most expensive things a mobile GPU can paint. */}
-            {(useContain || (isWebsite && item.placeholderSrc)) && (
+            {/* Blurred placeholder backdrop: fills the container while the heavy WebP
+                is fetching/decoding. This keeps the card visually full and
+                removes the empty-box "pop" on slow connections. */}
+            {isWebsite && item.placeholderSrc && (
               <div
                 aria-hidden
                 data-tile-blur
-                className="absolute inset-0 scale-110 blur-2xl opacity-40"
+                className="absolute inset-0 blur-2xl opacity-60 transition-opacity duration-700"
                 style={{
-                  backgroundImage: `url(${item.placeholderSrc || imgSrc})`,
+                  backgroundImage: `url(${item.placeholderSrc})`,
                   backgroundSize: "cover",
-                  backgroundPosition: "center",
+                  backgroundPosition: "top center",
+                  opacity: 0,
                 }}
               />
             )}
 
-            {isWebsite && item.srcMobile && item.src ? (
+            {isWebsite && item.src ? (
               <picture className="absolute inset-0 block h-full w-full">
-                {/* Phones are pinned to the 420px WebP even on high-DPR screens.
-                    This avoids the browser choosing the larger desktop tile just
-                    because the display is dense. */}
+                {/* Mobile (under 768px): Vertical phone screenshot */}
                 <source media="(max-width: 767px)" srcSet={item.srcMobile} />
+                {/* Tablet (768px to 1024px): Tablet/iPad mockup */}
+                {item.srcTablet && (
+                  <source media="(min-width: 768px) and (max-width: 1024px)" srcSet={item.srcTablet} />
+                )}
+                {/* Desktop/PC (over 1024px): Wide desktop mockup */}
                 <img
                   src={item.src}
-                  alt={item.title}
-                  width={960}
-                  height={540}
-                  // Off-screen tiles wait for the viewport (native lazy-loading).
+                  alt={`Screenshot of the ${item.title} ${item.kind} website`}
+                  width={1920}
+                  height={1080}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   loading={priority ? "eager" : "lazy"}
                   fetchPriority={priority ? "high" : "low"}
                   decoding="async"
                   onLoad={onImgLoad}
-                  className={`h-full w-full ${imgFit} transition-[transform,opacity] duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${clickable ? "group-hover:scale-105" : ""}`}
+                  className={`h-full w-full ${imgFit} ${imgPosition} transition-[transform,opacity] duration-500 opacity-100 ${clickable ? "group-hover:scale-105" : ""}`}
                 />
               </picture>
             ) : (
               <img
                 src={imgSrc}
-                alt={item.title}
-                width={640}
-                height={480}
+                alt={`Portfolio preview: ${item.title}`}
+                width={1280}
+                height={720}
                 loading={isCached || priority ? "eager" : "lazy"}
                 fetchPriority={isCached || priority ? "high" : "auto"}
                 decoding="async"
                 onLoad={onImgLoad}
                 // While the low-res placeholder is showing we soften it a touch
                 // so the upgrade to the sharp shot reads as a refine, not a swap.
-                className={`absolute inset-0 h-full w-full ${imgFit} transition-[transform,filter,opacity] duration-500 ${loaded ? "opacity-100" : "opacity-0"} ${isFinal ? "" : "blur-[2px] scale-[1.02]"} ${clickable ? "group-hover:scale-105" : ""}`}
+                className={`absolute inset-0 h-full w-full ${imgFit} ${imgPosition} transition-[transform,filter,opacity] duration-500 opacity-100 ${isFinal ? "" : "blur-[2px] scale-[1.02]"} ${clickable ? "group-hover:scale-105" : ""}`}
               />
             )}
 
@@ -635,20 +665,20 @@ function GraphicTile({
           </span>
         )}
       </div>
-      <div className="p-5 flex items-center justify-between gap-4 bg-[#0a0814]">
+      <div className="p-5 flex items-center justify-between gap-4 portfolio-tile-footer">
         <div className="min-w-0">
-          <h3 className="font-display uppercase text-lg truncate leading-none">{item.title}</h3>
-          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest">{item.kind}</p>
+          <h3 className="font-display uppercase text-lg truncate leading-none portfolio-tile-text">{item.title}</h3>
+          <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest portfolio-tile-text">{item.kind}</p>
         </div>
         {isWebsite && clickable ? (
-          <span className="label-mono flex items-center gap-1 text-[9px] opacity-60 shrink-0">
+          <span className="label-mono flex items-center gap-1 text-[9px] opacity-60 shrink-0 portfolio-tile-text">
             <span className="lg:hidden inline-flex items-center gap-1 uppercase tracking-tighter">
               Open ↗
             </span>
             <span className="hidden lg:inline uppercase tracking-tighter">Preview ↗</span>
           </span>
         ) : (
-          <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0">
+          <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0 portfolio-tile-text">
             {clickable ? "Visit ↗" : item.src ? "View" : "Soon"}
           </span>
         )}

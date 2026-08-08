@@ -55,6 +55,7 @@ type PortfolioRow = {
   url: string | null;
   badge: string | null;
   thumb_url: string | null;
+  featured?: boolean;
 };
 
 export type PublicPortfolioItem = {
@@ -67,6 +68,7 @@ export type PublicPortfolioItem = {
   youtubeId?: string;
   /** Card shape chosen in /admin, drives the bento span + media box. */
   aspect: AspectConfig;
+  featured?: boolean;
 };
 
 
@@ -126,7 +128,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
       const [itemsRes, aspectsRes] = await Promise.all([
         sb
           .from("portfolio_items")
-          .select("id,category,title,subtitle,url,badge,thumb_url")
+          .select("id,category,title,subtitle,url,badge,thumb_url,featured")
           .eq("published", true)
           .order("position"),
         sb.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle(),
@@ -147,6 +149,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
           thumbUrl: r.thumb_url ?? "",
           youtubeId: parseYouTubeId(url),
           aspect: aspects[r.id] ?? { ...DEFAULT_ASPECT },
+          featured: !!r.featured,
         };
       });
     } catch {

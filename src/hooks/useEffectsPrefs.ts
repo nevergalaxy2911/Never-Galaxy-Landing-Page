@@ -2,7 +2,7 @@ import { createBoolPref, createNumberPref } from "./usePref";
 
 export const clickSoundPref = createBoolPref("ng-sound-click", true);
 export const cursorWindPref = createBoolPref("ng-sound-wind", true);
-export const ambiencePref = createBoolPref("ng-sound-ambience", true);
+export const ambiencePref = createBoolPref("ng-sound-ambience", true, "ambientSoundMuted");
 export const reducedAudioPref = createBoolPref("ng-reduced-audio", false);
 
 export const useClickSoundPref = clickSoundPref.use;

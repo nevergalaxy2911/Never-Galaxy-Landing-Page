@@ -35,7 +35,7 @@ export const BRAND = {
 
   /** Absolute production URL, used for canonical + og:url. Update when the
    *  real domain is live (e.g. "https://nevergalaxy.com/"). Keep the trailing "/". */
-  canonicalUrl: "https://nevergalaxy.vercel.app/",
+  canonicalUrl: "https://nevergalaxy.studio/",
 } as const;
 
 

@@ -24,9 +24,16 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", broadcast);
 }
 
-export function createBoolPref(key: string, defaultValue: boolean) {
+export function createBoolPref(key: string, defaultValue: boolean, legacyMuteKey?: string) {
   const getSnapshot = () => {
     if (typeof window === "undefined") return defaultValue;
+    
+    // Check for legacy mute key if provided (inverted logic for 'muted')
+    if (legacyMuteKey) {
+      const muted = localStorage.getItem(legacyMuteKey);
+      if (muted !== null) return muted === "false"; // if 'true', sound is off (wanted=false)
+    }
+
     const val = localStorage.getItem(key);
     if (val === null) return defaultValue;
     return val === "true";
@@ -37,12 +44,18 @@ export function createBoolPref(key: string, defaultValue: boolean) {
     set: (v: boolean) => {
       if (typeof window === "undefined") return;
       localStorage.setItem(key, String(v));
+      if (legacyMuteKey) {
+        localStorage.setItem(legacyMuteKey, String(!v));
+      }
       broadcast();
     },
     use: (): [boolean, (v: boolean) => void] => {
       const val = useSyncExternalStore(subscribe, getSnapshot, () => defaultValue);
       const setVal = useCallback((v: boolean) => {
         localStorage.setItem(key, String(v));
+        if (legacyMuteKey) {
+          localStorage.setItem(legacyMuteKey, String(!v));
+        }
         broadcast();
       }, []);
       return [val, setVal];

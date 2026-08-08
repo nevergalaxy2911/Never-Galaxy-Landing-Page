@@ -26,45 +26,27 @@
   --marquee-duration: 60s;
   --marquee-gap: 1.5rem;
   --marquee-card: 26rem;
-  --marquee-fade: 6rem;
-  /* Breathing room so a card's hover glow can spill vertically. */
+  --marquee-fade: 8rem;
   --marquee-bleed: 2.5rem;
 
-  position: relative;
-  /* IMPORTANT: clip only sideways. `overflow: hidden` (or a mask-image) clips
-   * BOTH axes and cut every card's hover glow into a hard square box.
-   * `overflow-x: clip` + `overflow-y: visible` is legal and keeps the glow. */
-  overflow-x: clip;
-  overflow-y: visible;
-  padding-block: var(--marquee-bleed);
-  margin-block: calc(var(--marquee-bleed) * -1);
-  /* Isolate layout/paint bookkeeping from the rest of the page. */
-  contain: layout style;
-}
-
-/* Edge fades as painted overlays instead of a mask-image, because a mask would
- * clip the vertical glow again. pointer-events: none keeps hover-to-pause. */
-.marquee::before,
-.marquee::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: var(--marquee-fade);
-  z-index: 3;
-  pointer-events: none;
-}
-.marquee::before {
-  left: 0;
-  background: linear-gradient(to right, var(--background) 0%, color-mix(in oklab, var(--background) 70%, transparent) 45%, transparent 100%);
-}
-.marquee::after {
-  right: 0;
-  background: linear-gradient(to left, var(--background) 0%, color-mix(in oklab, var(--background) 70%, transparent) 45%, transparent 100%);
+  /* 3. Fix edge fades and give shadows 40px of vertical breathing room */
+  position: relative !important;
+  z-index: 10 !important; /* Pushed above stars */
+  overflow: hidden !important;
+  padding-top: 40px !important;
+  padding-bottom: 40px !important;
+  mask-image: linear-gradient(to right, transparent, black 150px, black calc(100% - 150px), transparent) !important;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 150px, black calc(100% - 150px), transparent) !important;
+  
+  /* Reset container layout rules to avoid clipping */
+  contain: none !important;
 }
 
 .marquee-track {
-  display: flex;
+  /* 4. Ensure the moving track doesn't collapse or truncate glows */
+  display: flex !important;
+  overflow: visible !important;
+  
   gap: var(--marquee-gap);
   width: max-content;
   will-change: transform;

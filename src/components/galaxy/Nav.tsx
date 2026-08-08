@@ -135,7 +135,7 @@ export function Nav() {
               squeezing the brand and `truncate` then clipped it to "NeverGala…".
               Keeping the lockup unshrinkable from lg up, and only truncating on
               genuinely narrow phones, means the name is never cut. */}
-          <span className="hidden min-w-0 flex-col justify-center leading-tight min-[380px]:flex xl:min-w-fit xl:shrink-0">
+          <span className="hidden lg:flex min-w-0 flex-col justify-center leading-tight xl:min-w-fit xl:shrink-0">
             <span className="truncate whitespace-nowrap font-display text-[14px] font-semibold leading-[1.15] tracking-tight sm:text-[15px] xl:overflow-visible xl:text-clip">
               Never<span className="text-gradient-nebula">Galaxy</span>
             </span>
