@@ -48,36 +48,48 @@ export type Database = {
       }
       contact_submissions: {
         Row: {
+          budget: string | null
+          company: string | null
           created_at: string
           email: string
           id: string
           ip: string | null
           message: string
           name: string
+          phone: string | null
           read: boolean
           replied_at: string | null
+          status: string | null
           user_agent: string | null
         }
         Insert: {
+          budget?: string | null
+          company?: string | null
           created_at?: string
           email: string
           id?: string
           ip?: string | null
           message: string
           name: string
+          phone?: string | null
           read?: boolean
           replied_at?: string | null
+          status?: string | null
           user_agent?: string | null
         }
         Update: {
+          budget?: string | null
+          company?: string | null
           created_at?: string
           email?: string
           id?: string
           ip?: string | null
           message?: string
           name?: string
+          phone?: string | null
           read?: boolean
           replied_at?: string | null
+          status?: string | null
           user_agent?: string | null
         }
         Relationships: []
@@ -157,7 +169,9 @@ export type Database = {
       portfolio_items: {
         Row: {
           badge: string | null
+          badge_text: string | null
           category: string
+          featured: boolean | null
           id: string
           position: number
           published: boolean
@@ -166,10 +180,13 @@ export type Database = {
           title: string
           updated_at: string
           url: string | null
+          video_aspect: string | null
         }
         Insert: {
           badge?: string | null
+          badge_text?: string | null
           category: string
+          featured?: boolean | null
           id?: string
           position?: number
           published?: boolean
@@ -178,10 +195,13 @@ export type Database = {
           title: string
           updated_at?: string
           url?: string | null
+          video_aspect?: string | null
         }
         Update: {
           badge?: string | null
+          badge_text?: string | null
           category?: string
+          featured?: boolean | null
           id?: string
           position?: number
           published?: boolean
@@ -190,6 +210,7 @@ export type Database = {
           title?: string
           updated_at?: string
           url?: string | null
+          video_aspect?: string | null
         }
         Relationships: []
       }

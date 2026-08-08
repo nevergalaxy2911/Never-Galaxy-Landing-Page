@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { HeadContent, Outlet, Scripts, createRootRoute, useLocation } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Toaster } from "sonner";
 import { PageViewLogger } from "@/components/PageViewLogger";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { getPublicFlag } from "@/lib/public-flags.functions";
@@ -95,8 +96,8 @@ export const Route = createRootRoute({
   // SSR-fetch the maintenance flag so the wall renders on the FIRST paint
   // instead of after a client boot delay. Admin/console paths are exempt so
   // you can always turn it back off.
-  loader: async ({ location }) => {
-    const path = location.pathname;
+  loader: async (ctx) => {
+    const path = ctx.location.pathname;
     // serverNow lets the client-side countdown compute a stable offset from
     // the server clock instead of trusting the visitor's (often skewed)
     // system clock. Sent on every load so it stays fresh across navigations.
@@ -105,7 +106,10 @@ export const Route = createRootRoute({
       return { maintenance: null as null | MaintenancePayload, serverNow };
     }
     try {
+      // @ts-ignore - ctx.request might not be explicitly typed in all versions of the context but exists in Start
+      const signal = ctx.request?.signal;
       const r = await getPublicFlag({ data: { key: "maintenance_mode" } });
+      if (signal?.aborted) return { maintenance: null, serverNow };
       if (r.enabled !== true) return { maintenance: null, serverNow };
       const v = (r.value ?? {}) as {
         title?: string; message?: string;
@@ -196,6 +200,7 @@ function RootComponent() {
     <>
       <PageViewLogger />
       <AnnouncementBar />
+      <Toaster position="bottom-right" richColors />
       <Outlet />
     </>
   );

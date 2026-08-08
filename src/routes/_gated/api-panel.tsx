@@ -5,6 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
+import { Activity, AlertCircle, Zap } from "lucide-react";
 import {
   listFlags, upsertFlag, deleteFlag,
   listSubmissions, markSubmissionRead, deleteSubmission,
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/_gated/api-panel")({
 
 function ApiPanelPage() {
   return (
-    <div className="space-y-8">
+    <div className="w-full p-6 lg:p-10 space-y-8">
       <h1 className="text-2xl font-semibold">API Panel</h1>
       <HealthSection />
       <MaintenanceSection />
@@ -311,36 +312,70 @@ function QuickActionsSection() {
 function HealthSection() {
   const load = useServerFn(getHealth);
   const [h, setH] = useState<any>(null);
-  useEffect(() => { load().then(setH).catch(() => {}); }, [load]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => { 
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      try {
+        const res = await load();
+        if (cancelled) return;
+        setH(res);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError' || e?.message?.toLowerCase().includes('aborted')) return;
+        console.error("[HealthSection] Load Error:", e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [load]);
 
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-3">System Health</h2>
-      {!h && <p className="text-white/50 text-sm">Loading…</p>}
-      {h && !h.ok && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">
-          {h.reason}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 rounded-lg bg-[#4CE4F8]/10 text-[#4CE4F8]"><Activity size={20} /></div>
+        <h2 className="text-sm font-black uppercase tracking-widest">System Health Telemetry</h2>
+      </div>
+      
+      {loading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 animate-pulse">
+           {Array.from({length: 7}).map((_, i) => (
+             <div key={i} className="h-24 bg-white/5 border border-white/5 rounded-2xl" />
+           ))}
         </div>
       )}
-      {h?.ok && (
+      
+      {!loading && h && !h.ok && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 flex items-center gap-4 text-red-200">
+           <AlertCircle className="shrink-0" />
+           <p className="text-sm">{h.reason || "Unable to reach database node."}</p>
+        </div>
+      )}
+      
+      {!loading && h?.ok && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <Stat label="Settings" value={h.counts.settings} />
-          <Stat label="Pricing plans" value={h.counts.pricing} />
-          <Stat label="Portfolio" value={h.counts.portfolio} />
-          <Stat label="Feature flags" value={h.counts.flags} />
-          <Stat label="Page views" value={h.counts.pageViews} />
-          <Stat label="Admins" value={h.counts.admins} />
-          <Stat label="Unread messages" value={h.counts.unreadSubmissions} accent />
+          <Stat label="Settings" value={h.counts.settings} color="#A15CFD" />
+          <Stat label="Pricing" value={h.counts.pricing} color="#4CE4F8" />
+          <Stat label="Archive" value={h.counts.portfolio} color="#d946ef" />
+          <Stat label="Flags" value={h.counts.flags} color="#10b981" />
+          <Stat label="Views" value={h.counts.pageViews} color="#f59e0b" />
+          <Stat label="Admins" value={h.counts.admins} color="#3b82f6" />
+          <Stat label="Unread" value={h.counts.unreadSubmissions} accent color="#f43f5e" />
         </div>
       )}
+      
       {h?.env && (
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+        <div className="mt-6 flex flex-wrap gap-2">
           {Object.entries(h.env).map(([k, v]) => (
-            <div key={k} className={`px-3 py-1.5 rounded-md border ${
-              v ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/5"
-                : "border-red-500/40 text-red-300 bg-red-500/5"
+            <div key={k} className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-tighter transition-all ${
+              v ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5"
+                : "border-red-500/20 text-red-400 bg-red-500/5"
             }`}>
-              {v ? "✓" : "✗"} {k}
+              <span className="mr-2">{v ? "●" : "○"}</span>
+              {k.replace(/_/g, " ")}
             </div>
           ))}
         </div>
@@ -349,13 +384,14 @@ function HealthSection() {
   );
 }
 
-function Stat({ label, value, accent }: any) {
+function Stat({ label, value, accent, color }: any) {
   return (
-    <div className={`rounded-xl border p-4 ${
-      accent ? "border-fuchsia-500/40 bg-fuchsia-500/10" : "border-white/10 bg-white/5"
+    <div className={`console-stat-card border-none group relative overflow-hidden ${
+      accent ? "bg-fuchsia-500/5" : "bg-white/[0.02]"
     }`}>
-      <div className="text-2xl font-semibold">{value}</div>
-      <div className="text-xs text-white/60 mt-1">{label}</div>
+      {accent && <div className="absolute top-0 right-0 p-1.5"><Zap size={10} className="text-fuchsia-400 animate-pulse" /></div>}
+      <div className="text-2xl font-black tabular-nums" style={{ color: color || '#ffffff' }}>{value}</div>
+      <div className="text-[10px] text-white/20 font-black uppercase tracking-widest mt-1">{label}</div>
     </div>
   );
 }

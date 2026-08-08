@@ -18,6 +18,8 @@ import { screenshotTier } from "@/lib/deviceTier";
 
 const loadWebsitePreviewModal = () => import("./WebsitePreviewModal");
 const WebsitePreviewModal = lazy(loadWebsitePreviewModal);
+const loadVideoPreviewModal = () => import("./VideoPreviewModal");
+const VideoFullscreenPlayer = lazy(loadVideoPreviewModal);
 
 /* -----------------------------------------------------------------------------
  * PORTFOLIO, bento gallery with ADMIN-EDITABLE FILTER TABS.
@@ -163,6 +165,7 @@ type PreviewTarget = {
   previewImage?: string;
   previewImageTablet?: string;
   previewImageMobile?: string;
+  youtubeId?: string;
 };
 
 function isWebsiteCategory(category?: PortfolioCategory) {
@@ -192,7 +195,7 @@ export function Portfolio({
     () => buildWebsiteTiles(websites?.length ? websites : DEFAULT_WEBSITES),
     [websites],
   );
-  const [tab, setTab] = useState<string>(() => cats[3]?.id ?? "web");
+  const [tab, setTab] = useState<string>(() => cats[0]?.id ?? "video");
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
   const activeCat = cats.find((c) => c.id === tab) ?? cats[0];
   const activeIsWebsite = isWebsiteCategory(activeCat);
@@ -385,7 +388,13 @@ export function Portfolio({
         </div>
 
         <div ref={grid} className="reveal mt-14 grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(180px,auto)] gap-6 website-portfolio-grid">
-          {activeCat.kind === "video" && videos.map((v) => <VideoTile key={v.id} item={v} />)}
+          {activeCat.kind === "video" && videos.map((v) => (
+            <VideoTile 
+              key={v.id} 
+              item={v} 
+              onPreview={(target) => setPreview(target)}
+            />
+          ))}
           {activeCat.kind === "image" && graphics.map((g, i) => (
             <GraphicTile
               key={g.id}
@@ -398,8 +407,21 @@ export function Portfolio({
         </div>
       </div>
 
-      {/* Lazy-mounted iframe preview modal — only reachable from Website tiles. */}
-      {preview && (
+      {/* Lazy-mounted modals — only reachable from tiles. */}
+      {preview && preview.youtubeId && (
+        <Suspense fallback={null}>
+          <VideoFullscreenPlayer
+            open={!!preview}
+            onClose={() => setPreview(null)}
+            youtubeId={preview.youtubeId}
+            title={preview.title}
+            subtitle={preview.subtitle}
+            url={preview.url}
+          />
+        </Suspense>
+      )}
+
+      {preview && !preview.youtubeId && (
         <Suspense fallback={null}>
           <WebsitePreviewModal
             open={!!preview}
@@ -424,52 +446,71 @@ export function Portfolio({
  * exact pixel resolution). The browser reserves that exact box before the
  * thumbnail arrives, so the bento never jumps while tiles load.
  * HOW TO MODIFY: /admin -> Portfolio -> Card shape on the item. */
-function VideoTile({ item }: { item: VideoItem }) {
-  const [playing, setPlaying] = useState(false);
+function VideoTile({ 
+  item,
+  onPreview 
+}: { 
+  item: VideoItem;
+  onPreview?: (target: PreviewTarget) => void;
+}) {
+  const slug = item.id;
+  
+  const handlePlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (item.youtubeId && onPreview) {
+      onPreview({
+        slug,
+        title: item.title,
+        subtitle: item.kind,
+        url: `https://www.youtube.com/watch?v=${item.youtubeId}`,
+        youtubeId: item.youtubeId,
+      });
+    }
+  };
+
   return (
-    /* data-playing tells useInteractiveCards to drop the spotlight + tilt
-       while the YouTube embed is on screen. */
-    <article data-playing={playing ? "true" : undefined} className={`bento overflow-hidden flex flex-col ${item.span}`}>
+    <article className={`bento overflow-hidden flex flex-col ${item.span}`}>
       <div
         className="relative flex-1 min-h-[180px] tile-surface"
         style={item.aspect ? { aspectRatio: aspectRatioCss(item.aspect), minHeight: 0 } : undefined}
       >
 
         {item.youtubeId ? (
-          playing ? (
-            <iframe
-              className="absolute inset-0 h-full w-full"
-              src={`https://www.youtube.com/embed/${item.youtubeId}?rel=0&modestbranding=1&autoplay=1`}
-              title={item.title}
+          <button
+            type="button"
+            onClick={handlePlay}
+            aria-label={`Play ${item.title}`}
+            className="group absolute inset-0 h-full w-full overflow-hidden"
+          >
+            <img
+              src={`https://i.ytimg.com/vi/${item.youtubeId}/maxresdefault.jpg`}
+              alt=""
+              width={1280}
+              height={720}
               loading="lazy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                // Fallback to hqdefault if maxres doesn't exist (common for older/smaller videos)
+                const target = e.target as HTMLImageElement;
+                if (!target.src.includes('hqdefault')) {
+                  target.src = `https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg`;
+                }
+              }}
             />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPlaying(true)}
-              aria-label={`Play ${item.title}`}
-              className="group absolute inset-0 h-full w-full overflow-hidden"
-            >
-              <img
-                src={`https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg`}
-                alt=""
-                width={480}
-                height={360}
-                loading="lazy"
-                decoding="async"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <span className="absolute inset-0 grid place-items-center bg-black/25 transition-colors group-hover:bg-black/10">
-                <span className="grid h-16 w-16 place-items-center rounded-full bg-white/90 text-black shadow-2xl transition-transform group-hover:scale-110">
-                  <Play className="h-6 w-6 translate-x-[2px]" fill="currentColor" />
-                </span>
+            <span className="absolute inset-0 grid place-items-center bg-black/25 transition-colors group-hover:bg-black/10">
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-white/90 text-black shadow-2xl transition-transform group-hover:scale-110">
+                <Play className="h-6 w-6 translate-x-[2px]" fill="currentColor" />
               </span>
-            </button>
-          )
+            </span>
+          </button>
         ) : (
-          <ComingSoonSurface icon={<Play className="h-8 w-8" />} label="YouTube URL slot" />
+          <div className="absolute inset-0 bg-neutral-900 grid place-items-center">
+             <div className="text-center opacity-40">
+               <Video className="h-10 w-10 mx-auto mb-2" />
+               <p className="label-mono text-[10px] uppercase">No YouTube ID</p>
+             </div>
+          </div>
         )}
       </div>
       <div className="p-5 flex items-center justify-between gap-4 portfolio-tile-footer">

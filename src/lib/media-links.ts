@@ -96,7 +96,8 @@ export function parseMediaLink(raw: string, expect: "video" | "link"): LinkParse
   if (expect === "video") {
     const id = parseYouTubeId(s);
     if (id && YT_ID_RE.test(id)) {
-      return { ok: true, kind: "youtube", id, canonical: `https://www.youtube.com/watch?v=${id}`, thumb: youTubeThumb(id) };
+      const canonical = `https://www.youtube.com/watch?v=${id}`;
+      return { ok: true, kind: "youtube", id, canonical, thumb: youTubeThumb(id) };
     }
     if (id) {
       return {

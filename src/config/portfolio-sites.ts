@@ -46,7 +46,7 @@ import atelierMobile from "@/assets/portfolio-atelier-mobile.png.asset.json";
 
 const NEVER_GALAXY_DESKTOP = "/Icons%20and%20images/portfolio/optimized/never-galaxy-desktop.webp";
 const NEVER_GALAXY_MOBILE = "/Icons%20and%20images/portfolio/optimized/never-galaxy-mobile.webp";
-const WEB_RESUME_THUMB = "/Icons%20and%20images/portfolio/optimized/web-resume-desktop.webp";
+const WEB_RESUME_THUMB = "/Icons%20and%20images/portfolio/optimized/site-tile.webp";
 
 export type PortfolioSite = {
   slug: string;

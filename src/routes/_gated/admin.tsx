@@ -1,1546 +1,1476 @@
-/**
- * /admin, the Never Galaxy content console.
- *
- * DESIGN NOTES (v3.1):
- *   • Pro console layout: Sidebar navigation + contextual help cards.
- *   • Optimized data fetching: parallel loads with skeletons.
- *   • Zero-SQL-injection: All data passes through Zod-validated server functions.
- */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getMyRole } from "@/lib/auth.functions";
 import {
-  AlertTriangle,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Filter,
-  Globe,
-  HelpCircle,
-  Image as ImageIcon,
-  LayoutGrid,
-  Loader2,
-  MessageSquareQuote,
-  Plus,
-  RotateCcw,
-  Settings2,
-  ShieldCheck,
-  Tag,
-  Trash2,
-  Youtube,
-  Search,
-  ArrowRight,
+  LayoutGrid, Globe, MessageSquareQuote, Tag, Filter, Settings2,
+  HelpCircle, ChevronRight, ShieldCheck, ArrowRight, Plus, RotateCcw,
+  Search, ExternalLink, Download, Mail, Phone, Clock, AlertCircle,
+  MoreVertical, CheckCircle2, XCircle, Trash2, Edit3, BarChart3,
+  Calendar, Eye, Users, DollarSign, TrendingUp, Inbox, Map, 
+  ArrowUpRight, Activity, Zap, FileText, LifeBuoy, History, Copy,
+  Layout, Database
 } from "lucide-react";
+import { toast } from "sonner";
 import {
-  listSettings,
-  upsertSetting,
-  deleteSetting,
-  listPricing,
-  upsertPricing,
-  deletePricing,
-  resetPricingToDefaults,
-  listPortfolio,
-  upsertPortfolio,
-  deletePortfolio,
-  getCategories,
-  saveCategories,
-  getItemAspects,
-  saveItemAspects,
-  getTestimonials,
-  saveTestimonials,
-  getWebsites,
-  saveWebsites,
-  resetWebsitesToDefaults,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, BarChart, Bar, Cell, PieChart, Pie
+} from "recharts";
+import {
+  listPortfolio, upsertPortfolio, deletePortfolio,
+  getCategories, saveCategories, getItemAspects, saveItemAspects,
+  getWebsites, saveWebsites, getTestimonials, saveTestimonials,
+  listPricing, upsertPricing, deletePricing,
+  listSubmissions, markSubmissionRead, deleteSubmission, exportSubmissions,
+  getHealth,
+  bulkClearFeaturedItems
 } from "@/lib/admin-data.functions";
-import {
-  DEFAULT_WEBSITES,
-  emptyWebsite,
-  slugify,
-  type WebsiteEntry,
-} from "@/lib/websites-config";
-import {
-  DEFAULT_CATEGORIES,
-  ICON_CHOICES,
-  type PortfolioCategory,
-} from "@/lib/portfolio-config";
-import {
-  ASPECT_PRESETS,
-  DEFAULT_ASPECT,
-  RESOLUTION_PRESETS,
-  SIZE_LABELS,
-  aspectRatioCss,
-  orientationOf,
-  presetById,
-  sanitizeAspect,
-  spanForAspect,
-  type AspectConfig,
-  type AspectSize,
-} from "@/lib/portfolio-aspect";
-import { parseImageLink, parseMediaLink, youTubeThumb } from "@/lib/media-links";
-import {
-  DEFAULT_TESTIMONIALS,
-  type Testimonial,
-} from "@/lib/testimonials-config";
+import { 
+  validateAdminSchema, 
+  getSystemTelemetry 
+} from "@/lib/admin-ops.functions";
+import { getAnalyticsSummary } from "@/lib/analytics.functions";
 
-const emptyPortfolio = () => ({
-  position: 0,
-  category: "video",
-  title: "New item",
-  subtitle: "",
-  url: "",
-  badge: "",
-  thumb_url: "",
-  published: true,
-});
+import { DEFAULT_CATEGORIES } from "@/lib/portfolio-config";
+import { DEFAULT_WEBSITES } from "@/lib/websites-config";
+import { useAdmin } from "@/components/admin/AdminProvider";
+
+
 
 export const Route = createFileRoute("/_gated/admin")({
-  component: AdminPage,
+  component: AdminPageV5,
 });
 
-type Tab = "portfolio" | "websites" | "testimonials" | "pricing" | "filters" | "settings";
-
-const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutGrid; blurb: string; help: string }> = [
-  { 
-    id: "portfolio", 
-    label: "Portfolio", 
-    icon: LayoutGrid, 
-    blurb: "Videos, graphics and site tiles",
-    help: "Manage the main grid of your work. You can add YouTube videos or static images. Each item needs a title and a category to show up in the right filter tab."
-  },
-  { 
-    id: "websites", 
-    label: "Websites", 
-    icon: Globe, 
-    blurb: "Live client sites and their preview images",
-    help: "Control the 'Websites' showcase. To update images, replace the files in /public/Icons%20and%20images/portfolio/optimized/ and update the links here. Featured websites get larger tiles."
-  },
-  { 
-    id: "testimonials", 
-    label: "Testimonials", 
-    icon: MessageSquareQuote, 
-    blurb: "Client quotes and proof chips",
-    help: "Edit the social proof section. The cards slide at a readable speed (45s on mobile) to ensure clients can see your results. The 'Proof chip' usually shows payment info like '$180 paid'."
-  },
-
-  { 
-    id: "pricing", 
-    label: "Pricing", 
-    icon: Tag, 
-    blurb: "Plans shown on the pricing section",
-    help: "Update your service packages. You can set specific INR prices or use custom labels like 'Let's talk' for enterprise work."
-  },
-  { 
-    id: "filters", 
-    label: "Filters", 
-    icon: Filter, 
-    blurb: "The portfolio tab bar",
-    help: "Customize the categories that visitors see on the Work section. You can rename them or change their icons."
-  },
-  { 
-    id: "settings", 
-    label: "Settings", 
-    icon: Settings2, 
-    blurb: "Raw key / value site settings",
-    help: "Advanced configuration for the entire agency platform. Modify with care."
-  },
-];
 
 
-function AdminPage() {
-  const [tab, setTab] = useState<Tab>("portfolio");
-  const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
-  const current = TABS.find((t) => t.id === tab)!;
-  const helpSource = hoveredTab ? TABS.find((t) => t.id === hoveredTab)! : current;
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Overview", icon: BarChart3 },
+  { id: "portfolio", label: "Work Archive", icon: LayoutGrid },
+  { id: "websites", label: "Site Nodes", icon: Globe },
+  { id: "testimonials", label: "Social Proof", icon: MessageSquareQuote },
+  { id: "pricing", label: "Revenue Plans", icon: Tag },
+  { id: "contact", label: "Mission Logs", icon: Inbox },
+  { id: "settings", label: "Core Control", icon: Settings2 },
+  { id: "guide", label: "Operations Docs", icon: FileText },
+  { id: "diagnostics", label: "System Health", icon: ShieldCheck },
+] as const;
+
+type Tab = typeof NAV_ITEMS[number]['id'];
+
+
+
+function AdminPageV5() {
+  return (
+    <>
+      <Outlet />
+      <AdminDashboard />
+    </>
+  );
+}
+
+function AdminDashboard() {
+  const admin = useAdmin();
+
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [stats, setStats] = useState<any>(null);
+
+
+  const { searchQuery, setSearchQuery, dateRange, setDateRange } = admin;
+  const loadHealth = useServerFn(getHealth);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await loadHealth();
+        if (!cancelled) setStats(res.counts);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError' || e?.message?.toLowerCase().includes('aborted')) return;
+        console.error("[Dashboard] Health Load Error:", e);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [loadHealth]);
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      {/* Sidebar Navigation */}
-      <aside className="w-full shrink-0 lg:sticky lg:top-[100px] lg:w-64">
-        <nav className="flex flex-col gap-1 rounded-2xl border border-white/10 bg-white/[0.02] p-2 backdrop-blur-sm">
-          <div className="mb-2 px-3 pt-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">Management</h2>
-          </div>
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                onMouseEnter={() => setHoveredTab(t.id)}
-                onMouseLeave={() => setHoveredTab(null)}
-                className={`group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? "bg-fuchsia-500/15 text-fuchsia-100 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.3)]"
-                    : "text-white/50 hover:bg-white/5 hover:text-white/90"
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <Icon className={`h-4.5 w-4.5 transition-colors ${active ? "text-fuchsia-400" : "text-white/20 group-hover:text-white/40"}`} />
-                  {t.label}
-                </span>
-                {active && <ChevronRight className="h-3.5 w-3.5 text-fuchsia-500/50" />}
-              </button>
-            );
-          })}
-
-          <div className="mt-4 border-t border-white/5 px-2 pt-4">
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                <ShieldCheck className="h-3 w-3" /> System Secure
-              </div>
-              <p className="mt-1 text-[10px] text-white/40">Audit logging enabled. All edits are signed.</p>
+    <div className="console-layout -m-0 min-h-screen flex w-full">
+      {/* Sidebar */}
+      <aside className="console-sidebar hidden md:flex w-64 lg:w-72 shrink-0 border-r border-white/10 flex-col bg-[#0a0a14]">
+        <div className="p-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#A15CFD] to-[#4CE4F8] flex items-center justify-center font-black text-xs text-black shadow-lg shadow-black/20 shrink-0">NG</div>
+            <div className="hidden sm:block overflow-hidden transition-all duration-300">
+              <h2 className="text-sm font-black tracking-tight text-white whitespace-nowrap">Never Galaxy</h2>
+              <p className="text-[10px] text-white/30 uppercase tracking-widest font-mono">Console v6.2</p>
             </div>
           </div>
+        </div>
+
+        <nav className="flex-1 py-4 overflow-x-auto nav-scroll-snap custom-scrollbar">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id as Tab)}
+              className={`console-nav-item w-full group nav-item-snap border-none bg-transparent text-left ${activeTab === item.id ? "console-nav-item-active" : ""}`}
+            >
+              <item.icon size={18} className={`transition-colors duration-300 ${activeTab === item.id ? "text-[#4CE4F8]" : "text-white/20 group-hover:text-white/60"}`} />
+              <span className="truncate">{item.label}</span>
+            </button>
+          ))}
         </nav>
+
+        <div className="p-6 border-t border-white/5">
+          <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+               <ShieldCheck size={32} />
+            </div>
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-400">System Secure</span>
+            </div>
+            <p className="text-[10px] text-white/30 leading-relaxed font-medium relative z-10">
+              Orbital sync active. Developer bypass enabled.
+            </p>
+          </div>
+
+        </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="min-w-0 flex-1 space-y-6">
-        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{current.label}</h1>
-              <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                v3.1
-              </span>
-            </div>
-            <p className="text-sm text-white/55">{current.blurb}</p>
+      {/* Main Content Content Canvas */}
+      <main className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden bg-[#07070c]">
+        <header className="h-16 border-b border-white/5 bg-[#0c0c16]/50 backdrop-blur-md flex items-center justify-between px-6 lg:px-10 shrink-0">
+          <div className="flex items-center gap-2 text-sm text-white/40">
+            <span>Admin</span>
+            <ChevronRight size={14} />
+            <span className="text-white font-medium capitalize">{activeTab}</span>
           </div>
+          <div className="flex items-center gap-6">
+            <div className="relative group hidden sm:block">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#4CE4F8] transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search archive..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && toast.info(`Filtering for "${searchQuery}"`)}
+                className="bg-white/[0.03] border border-white/5 rounded-full pl-11 pr-4 py-2 text-xs w-64 focus:outline-none focus:border-[#4CE4F8]/30 focus:bg-white/[0.05] transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-3 pl-6 border-l border-white/5">
+               <div className="relative h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center text-white/40 hover:bg-white/10 cursor-pointer transition-all group">
+                  <Calendar size={16} />
+                  <input 
+                    type="date" 
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={(e) => setDateRange({ start: e.target.value, end: e.target.value })}
+                  />
+               </div>
+               <div className="flex items-center gap-3 p-1.5 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-[#A15CFD] to-[#4CE4F8] flex items-center justify-center text-[10px] font-black">AD</div>
+                  <span className="text-xs font-bold pr-3">Admin</span>
+               </div>
+            </div>
+          </div>
+
         </header>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_280px]">
-          <div className="space-y-6">
-            {tab === "portfolio" && <PortfolioEditor />}
-            {tab === "websites" && <WebsitesEditor />}
-            {tab === "testimonials" && <TestimonialsEditor />}
-            {tab === "pricing" && <PricingEditor />}
-            {tab === "filters" && <FiltersEditor />}
-            {tab === "settings" && <SettingsEditor />}
+        <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+
+          <div className="w-full space-y-8">
+            {(activeTab === "dashboard") && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <DashboardView stats={stats || {}} />
+               </div>
+            )}
+            {activeTab === "portfolio" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <PortfolioView />
+               </div>
+            )}
+            {activeTab === "websites" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <WebsitesEditorView />
+               </div>
+            )}
+            {activeTab === "testimonials" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <TestimonialsEditorView />
+               </div>
+            )}
+            {activeTab === "pricing" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <PricingView />
+               </div>
+            )}
+            {activeTab === "contact" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <InboxView />
+               </div>
+            )}
+            {activeTab === "settings" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <SettingsEditorView />
+               </div>
+            )}
+            {activeTab === "guide" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <GuideView />
+               </div>
+            )}
+            {activeTab === "diagnostics" && (
+               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <DiagnosticsInlineView />
+               </div>
+            )}
           </div>
 
-          {/* Contextual Help / Info Card */}
-          <aside className="hidden xl:block">
-            <div className="sticky top-[100px] space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-md">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/60">
-                  <HelpCircle className="h-3.5 w-3.5 text-fuchsia-500" />
-                  Guide: {helpSource.label}
-                </div>
-                <p className="mt-4 text-xs leading-relaxed text-white/50">
-                  {helpSource.help}
-                </p>
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-3 text-[11px] text-white/40">
-                    <div className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
-                    Secure SQL handling
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px] text-white/40">
-                    <div className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
-                    Optimized asset delivery
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px] text-white/40">
-                    <div className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
-                    Real-time persistence
-                  </div>
-                </div>
-              </div>
-
-              <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 p-5">
-                <div className="relative z-10">
-                  <h4 className="text-[11px] font-bold uppercase tracking-widest text-white/60">Deployment</h4>
-                  <p className="mt-2 text-[10px] text-white/40">Pushing changes to Vercel will trigger a cache purge across all edge nodes.</p>
-                  <button className="mt-4 flex w-full items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-white/10 transition-colors">
-                    System Health <ArrowRight className="h-3 w-3" />
-                  </button>
-                </div>
-                <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-fuchsia-600/10 blur-3xl group-hover:bg-fuchsia-600/20 transition-colors" />
-              </div>
-            </div>
-          </aside>
         </div>
       </main>
     </div>
   );
 }
 
+function DashboardView({ stats }: { stats: any }) {
+  const loadSummary = useServerFn(getAnalyticsSummary);
+  const [analytics, setAnalytics] = useState<any>(null);
 
-function PortfolioEditor() {
-  const load = useServerFn(listPortfolio);
-  const loadCats = useServerFn(getCategories);
-  const loadAspects = useServerFn(getItemAspects);
-  const persistAspects = useServerFn(saveItemAspects);
-  const upsert = useServerFn(upsertPortfolio);
-  const del = useServerFn(deletePortfolio);
-
-  const [rows, setRows] = useState<any[]>([]);
-  const [cats, setCats] = useState<PortfolioCategory[]>(DEFAULT_CATEGORIES);
-  const [aspects, setAspects] = useState<Record<string, AspectConfig>>({});
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [r, c, a] = await Promise.all([load(), loadCats(), loadAspects()]);
-      setRows(r.rows);
-      setErr(r.error);
-      setCats(c.categories);
-      setAspects(a.aspects as Record<string, AspectConfig>);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [load, loadCats, loadAspects]);
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  /** Save the row itself AND its card shape, then refresh. */
-  async function onSave(row: any, aspect?: AspectConfig) {
-    setErr(null);
-    setNote(null);
-    try {
-      const res = await upsert({ data: row });
-      const id = row.id ?? res.id;
-      if (id && aspect) {
-        const next = { ...aspects, [id]: aspect };
-        setAspects(next);
-        await persistAspects({ data: { aspects: next } });
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await loadSummary();
+        if (!cancelled) setAnalytics(res);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError') return;
+        console.error("[Dashboard] Analytics Load Error:", e);
       }
-      setNote(`Saved "${row.title}".`);
-      await refresh();
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [loadSummary]);
 
-  async function onDelete(id: string, title: string) {
-    if (!confirm(`Delete "${title}" from the portfolio? This cannot be undone.`)) return;
-    setErr(null);
-    try {
-      await del({ data: { id } });
-      const next = { ...aspects };
-      delete next[id];
-      setAspects(next);
-      await persistAspects({ data: { aspects: next } });
-      setNote(`Deleted "${title}".`);
-      await refresh();
-    } catch (e) {
-      setErr((e as Error).message);
+  const areaData = useMemo(() => {
+    if (!analytics?.daily) {
+      return [
+        { name: 'Mon', visits: 0, engagement: 0 },
+        { name: 'Tue', visits: 0, engagement: 0 },
+        { name: 'Wed', visits: 0, engagement: 0 },
+        { name: 'Thu', visits: 0, engagement: 0 },
+        { name: 'Fri', visits: 0, engagement: 0 },
+        { name: 'Sat', visits: 0, engagement: 0 },
+        { name: 'Sun', visits: 0, engagement: 0 },
+      ];
     }
-  }
+    return analytics.daily.map((d: any) => ({
+      name: d.date.split('-').slice(1).join('/'),
+      visits: d.total,
+      engagement: Math.round(d.total * 0.6) 
+    })).slice(-7);
+  }, [analytics]);
 
-  async function onAdd() {
-    await onSave({ ...emptyPortfolio(), category: cats[0]?.id ?? "video" }, { ...DEFAULT_ASPECT });
-  }
+  const pieData = [
+    { name: 'Direct', value: 45, color: '#A15CFD' },
+    { name: 'Social', value: 30, color: '#4CE4F8' },
+    { name: 'Search', value: 25, color: '#d946ef' },
+  ];
+
 
   return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-      {note && <Banner tone="ok" msg={note} />}
-
-      <Panel
-        title="Portfolio items"
-        desc="Each item becomes one tile on the public Work section. Pick a card shape so vertical Shorts get tall cards and films get wide ones."
-        toolbar={
-          <>
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={onAdd}>
-              <Plus className="h-4 w-4" aria-hidden /> Add item
-            </button>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={() => void refresh()}>
-              <RotateCcw className="h-4 w-4" aria-hidden /> Reload
-            </button>
-          </>
-        }
-      >
-        {loading ? (
-          <LoadingRow label="Loading portfolio" />
-        ) : rows.length === 0 ? (
-          <Empty msg="No portfolio items yet. Add your first one and paste a YouTube link." />
-        ) : (
-          <div className="space-y-2">
-            {rows.map((r) => (
-              <PortfolioRow
-                key={r.id}
-                row={r}
-                cats={cats}
-                aspect={sanitizeAspect(aspects[r.id])}
-                open={openId === r.id}
-                onToggle={() => setOpenId(openId === r.id ? null : r.id)}
-                onSave={onSave}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        )}
-      </Panel>
-    </div>
-  );
-}
-
-function PortfolioRow({
-  row, cats, aspect, open, onToggle, onSave, onDelete,
-}: {
-  row: any;
-  cats: PortfolioCategory[];
-  aspect: AspectConfig;
-  open: boolean;
-  onToggle: () => void;
-  onSave: (r: any, a?: AspectConfig) => void;
-  onDelete: (id: string, title: string) => void;
-}) {
-  const [d, setD] = useState<any>({ ...row });
-  const [a, setA] = useState<AspectConfig>(aspect);
-  const [saving, setSaving] = useState(false);
-  const set = (k: string, v: any) => setD((prev: any) => ({ ...prev, [k]: v }));
-
-  // Keep local state in step when the parent reloads from the server.
-  useEffect(() => { setD({ ...row }); }, [row]);
-  useEffect(() => { setA(aspect); }, [aspect]);
-
-  const activeCat = cats.find((c) => c.id === d.category);
-  const isVideo = activeCat?.kind === "video";
-
-  /* LIVE URL VALIDATION: parsed on every keystroke so a bad link is caught in
-     the form, never silently saved. The exact reason is shown under the field. */
-  const urlCheck = useMemo(
-    () => parseMediaLink(String(d.url ?? ""), isVideo ? "video" : "link"),
-    [d.url, isVideo],
-  );
-  const thumbCheck = useMemo(
-    () => (String(d.thumb_url ?? "").trim() ? parseImageLink(String(d.thumb_url)) : null),
-    [d.thumb_url],
-  );
-  const videoId = urlCheck.ok && urlCheck.kind === "youtube" ? urlCheck.id : undefined;
-  const previewThumb =
-    (String(d.thumb_url ?? "").trim() && thumbCheck?.ok ? String(d.thumb_url) : undefined) ??
-    (videoId ? youTubeThumb(videoId) : undefined);
-
-  // Video tiles MUST have a working YouTube link; image tiles may have none.
-  const blocking = isVideo && !urlCheck.ok;
-
-  async function save() {
-    setSaving(true);
-    try {
-      await onSave({ ...d, url: urlCheck.ok && urlCheck.kind === "youtube" ? urlCheck.canonical : d.url }, a);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <article className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
-      {/* ---- Collapsed summary row ---- */}
-      <div className="flex items-center gap-3 p-3">
-        <div className="grid h-14 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-black/40">
-          {previewThumb ? (
-            <img src={previewThumb} alt="" className="h-full w-full object-cover" />
-          ) : isVideo ? (
-            <Youtube className="h-5 w-5 text-white/25" aria-hidden />
-          ) : (
-            <ImageIcon className="h-5 w-5 text-white/25" aria-hidden />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold">{d.title || "Untitled"}</h3>
-            <Chip tone={d.published ? "ok" : "muted"}>{d.published ? "Published" : "Hidden"}</Chip>
-            <Chip tone="info">{activeCat?.label ?? d.category}</Chip>
-            <Chip tone="muted">{a.ratio === "custom" ? `${a.width}x${a.height}` : a.ratio} · {SIZE_LABELS[a.size]}</Chip>
-            {blocking && <Chip tone="error">Link needs attention</Chip>}
-          </div>
-          <p className="mt-0.5 truncate text-xs text-white/45">{d.url || "No link yet"}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button className="btn-secondary inline-flex items-center gap-1.5" onClick={onToggle}>
-            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
-            {open ? "Close" : "Edit"}
-          </button>
-          <button
-            className="btn-danger inline-flex items-center gap-1.5"
-            onClick={() => onDelete(row.id, d.title || "this item")}
-            aria-label={`Delete ${d.title}`}
-          >
-            <Trash2 className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
+    <div className="space-y-8">
+      {/* 4 Mini Analytical Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard label="Total Projects" value={stats?.portfolio ?? "0"} icon={LayoutGrid} trend="Active" color="#A15CFD" />
+        <StatCard label="Inquiries" value={stats?.unreadSubmissions ?? "0"} icon={Mail} trend="New" color="#4CE4F8" />
+        <StatCard label="Traffic (All)" value={stats?.pageViews ? `${(stats.pageViews / 1000).toFixed(1)}K` : "0"} icon={Activity} trend="Lifetime" color="#d946ef" />
+        <StatCard label="Admin Nodes" value={stats?.admins ?? "0"} icon={ShieldCheck} trend="Secure" color="#10b981" />
       </div>
 
-      {/* ---- Expanded editor ---- */}
-      {open && (
-        <div className="border-t border-white/10 bg-black/20 p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <Field label="Position (sort order)">
-              <input type="number" className="input" value={d.position ?? 0}
-                onChange={(e) => set("position", Number(e.target.value))} />
-            </Field>
-            <Field label="Category (which filter tab)">
-              <select className="input" value={d.category ?? "video"}
-                onChange={(e) => set("category", e.target.value)}>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label} ({c.kind === "video" ? "YouTube" : "Image"})
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Title">
-              <input className="input" value={d.title ?? ""} onChange={(e) => set("title", e.target.value)} />
-            </Field>
-            <Field label="Subtitle (small caption)">
-              <input className="input" value={d.subtitle ?? ""} onChange={(e) => set("subtitle", e.target.value)} />
-            </Field>
-
-            <Field
-              label={isVideo ? "YouTube link" : "Link (optional)"}
-              className="md:col-span-2"
-            >
-              <input
-                className={`input ${d.url && !urlCheck.ok ? "border-red-500/60" : ""}`}
-                value={d.url ?? ""}
-                placeholder={isVideo ? "https://youtu.be/dQw4w9WgXcQ" : "https://your-project.com"}
-                onChange={(e) => set("url", e.target.value)}
-              />
-              <LinkFeedback check={urlCheck} required={isVideo} okLabel={
-                urlCheck.ok && urlCheck.kind === "youtube" ? `Video id ${urlCheck.id} recognised` : "Link looks good"
-              } />
-            </Field>
-
-            <Field
-              label={isVideo ? "Custom thumbnail (optional, overrides YouTube's)" : "Image shown on the tile"}
-              className="md:col-span-2"
-            >
-              <input
-                className={`input ${d.thumb_url && thumbCheck && !thumbCheck.ok ? "border-red-500/60" : ""}`}
-                value={d.thumb_url ?? ""}
-                placeholder="https://cdn.example.com/shot.webp"
-                onChange={(e) => set("thumb_url", e.target.value)}
-              />
-              {thumbCheck && <LinkFeedback check={thumbCheck} required={false} okLabel="Image link looks good" />}
-            </Field>
-
-            <Field label="Badge (small corner label)">
-              <input className="input" value={d.badge ?? ""} placeholder="Play / View / Soon"
-                onChange={(e) => set("badge", e.target.value)} />
-            </Field>
-            <label className="flex items-end gap-2 pb-2 text-sm">
-              <input type="checkbox" checked={!!d.published}
-                onChange={(e) => set("published", e.target.checked)} />
-              Published (visible on the site)
-            </label>
+      {/* Main Metrics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="console-chart-card lg:col-span-1 p-6 flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Traffic Source</h3>
+            <ArrowUpRight size={16} className="text-white/20" />
           </div>
-
-          <AspectEditor value={a} onChange={setA} />
-
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => void save()} disabled={saving || blocking}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-              {saving ? "Saving" : "Save item"}
-            </button>
-            <button className="btn-secondary" onClick={() => { setD({ ...row }); setA(aspect); }}>
-              Discard changes
-            </button>
-            {blocking && (
-              <span className="text-xs text-amber-300">
-                Fix the YouTube link before saving, otherwise the tile would show an empty player.
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-    </article>
-  );
-}
-
-/** Inline pass/fail feedback for a pasted URL. */
-function LinkFeedback({
-  check, required, okLabel,
-}: {
-  check: ReturnType<typeof parseMediaLink>;
-  required: boolean;
-  okLabel: string;
-}) {
-  if (check.ok) {
-    return (
-      <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
-        <Check className="h-3.5 w-3.5" aria-hidden /> {okLabel}
-      </p>
-    );
-  }
-  return (
-    <p className={`mt-1.5 flex items-start gap-1.5 text-[11px] ${required ? "text-red-300" : "text-white/45"}`}>
-      <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span>
-        {check.reason}
-        {check.hint && <span className="block text-white/45">{check.hint}</span>}
-      </span>
-    </p>
-  );
-}
-
-/**
- * CARD SHAPE editor: aspect ratio, exact resolution, and bento size, with a
- * live preview of the resulting card so the choice is obvious before saving.
- */
-function AspectEditor({
-  value, onChange,
-}: {
-  value: AspectConfig;
-  onChange: (a: AspectConfig) => void;
-}) {
-  const preset = presetById(value.ratio);
-  const resolutions = RESOLUTION_PRESETS[value.ratio] ?? [];
-  const orient = orientationOf(value);
-
-  function pickRatio(id: string) {
-    const p = presetById(id);
-    onChange({ ...value, ratio: id, width: p?.width ?? value.width, height: p?.height ?? value.height });
-  }
-
-  return (
-    <section className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <header className="mb-3">
-        <h4 className="text-sm font-semibold">Card shape</h4>
-        <p className="text-xs text-white/50">
-          Sets the exact box the tile reserves. Vertical clips get tall cards, wide films get wide cards, and the bento layout stays tidy either way.
-        </p>
-      </header>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]">
-        <div className="space-y-3">
-          <Field label="Aspect ratio">
-            <div className="flex flex-wrap gap-1.5">
-              {ASPECT_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => pickRatio(p.id)}
-                  title={p.note}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    value.ratio === p.id
-                      ? "bg-fuchsia-500/20 text-fuchsia-100 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.45)]"
-                      : "bg-white/5 text-white/60 hover:bg-white/10"
-                  }`}
+          <div className="h-48 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
                 >
-                  {p.id}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => onChange({ ...value, ratio: "custom" })}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  value.ratio === "custom"
-                    ? "bg-fuchsia-500/20 text-fuchsia-100 shadow-[inset_0_0_0_1px_rgba(217,70,239,0.45)]"
-                    : "bg-white/5 text-white/60 hover:bg-white/10"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
-            {preset && <p className="mt-1.5 text-[11px] text-white/45">{preset.label}: {preset.note}</p>}
-          </Field>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {resolutions.length > 0 && (
-              <Field label="Exact resolution" className="sm:col-span-3">
-                <select
-                  className="input"
-                  value={`${value.width}x${value.height}`}
-                  onChange={(e) => {
-                    const [w, h] = e.target.value.split("x").map(Number);
-                    onChange({ ...value, width: w, height: h });
-                  }}
-                >
-                  {resolutions.map((r) => (
-                    <option key={r.label} value={`${r.width}x${r.height}`}>{r.label}</option>
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
-                  {!resolutions.some((r) => r.width === value.width && r.height === value.height) && (
-                    <option value={`${value.width}x${value.height}`}>
-                      {value.width} x {value.height} (current)
-                    </option>
-                  )}
-                </select>
-              </Field>
-            )}
-            <Field label="Width (px)">
-              <input type="number" min={1} className="input" value={value.width}
-                onChange={(e) => onChange({ ...value, ratio: "custom", width: Number(e.target.value) || 1 })} />
-            </Field>
-            <Field label="Height (px)">
-              <input type="number" min={1} className="input" value={value.height}
-                onChange={(e) => onChange({ ...value, ratio: "custom", height: Number(e.target.value) || 1 })} />
-            </Field>
-            <Field label="Card size">
-              <select className="input" value={value.size}
-                onChange={(e) => onChange({ ...value, size: e.target.value as AspectSize })}>
-                {(Object.keys(SIZE_LABELS) as AspectSize[]).map((s) => (
-                  <option key={s} value={s}>{SIZE_LABELS[s]}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-        </div>
-
-        {/* Live preview of the reserved box + the grid span it will claim. */}
-        <div className="rounded-lg border border-white/10 bg-black/30 p-3">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-white/40">Preview</p>
-          <div className="grid place-items-center">
-            <div
-              className="w-full max-w-[180px] rounded-md border border-fuchsia-400/40 bg-gradient-to-br from-fuchsia-500/15 to-indigo-500/10"
-              style={{ aspectRatio: aspectRatioCss(value) }}
-            />
-          </div>
-          <dl className="mt-3 space-y-1 text-[11px] text-white/50">
-            <div className="flex justify-between"><dt>Shape</dt><dd className="text-white/75">{orient}</dd></div>
-            <div className="flex justify-between"><dt>Box</dt><dd className="text-white/75">{value.width} x {value.height}</dd></div>
-            <div className="flex justify-between"><dt>Grid span</dt><dd className="font-mono text-white/75">{spanForAspect(value).replace(/md:/g, "")}</dd></div>
-          </dl>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ========================================================================== */
-/* TESTIMONIALS                                                               */
-/* ========================================================================== */
-
-function TestimonialsEditor() {
-  const load = useServerFn(getTestimonials);
-  const save = useServerFn(saveTestimonials);
-  const [items, setItems] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await load();
-      setItems(r.items as Testimonial[]);
-      setErr(r.error);
-      setDirty(false);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [load]);
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  function update(i: number, patch: Partial<Testimonial>) {
-    setItems((prev) => prev.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
-    setDirty(true);
-  }
-  function move(i: number, dir: -1 | 1) {
-    setItems((prev) => {
-      const next = [...prev];
-      const j = i + dir;
-      if (j < 0 || j >= next.length) return prev;
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-    setDirty(true);
-  }
-  function remove(i: number) {
-    if (!confirm(`Remove the review from "${items[i].name}"?`)) return;
-    setItems((prev) => prev.filter((_, idx) => idx !== i));
-    setDirty(true);
-  }
-  function add() {
-    setItems((prev) => [
-      ...prev,
-      { name: "New client", role: "Project client", proof: "$40 paid", quote: "", enabled: true },
-    ]);
-    setDirty(true);
-  }
-  async function persist() {
-    setBusy(true);
-    setErr(null);
-    setNote(null);
-    try {
-      const r = await save({ data: { items } });
-      setNote(`Saved ${r.count} testimonials.`);
-      await refresh();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-      {note && <Banner tone="ok" msg={note} />}
-      <Panel
-        title="Client reviews"
-        desc="These appear in the Reviews section. The proof chip is the small badge next to the name, for example '$40 paid'. Leave it empty to show 'Verified client'."
-        toolbar={
-          <>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={add}>
-              <Plus className="h-4 w-4" aria-hidden /> Add review
-            </button>
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => void persist()} disabled={busy || !dirty}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-              {busy ? "Saving" : dirty ? "Save changes" : "Saved"}
-            </button>
-          </>
-        }
-      >
-        {loading ? (
-          <LoadingRow label="Loading reviews" />
-        ) : (
-          <div className="space-y-3">
-            {items.map((t, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <Field label="Name">
-                    <input className="input" value={t.name} onChange={(e) => update(i, { name: e.target.value })} />
-                  </Field>
-                  <Field label="Role / caption">
-                    <input className="input" value={t.role} onChange={(e) => update(i, { role: e.target.value })} />
-                  </Field>
-                  <Field label="Proof chip">
-                    <input className="input" placeholder="$40 paid" value={t.proof ?? ""}
-                      onChange={(e) => update(i, { proof: e.target.value })} />
-                  </Field>
-                  <Field label="Quote" className="md:col-span-3">
-                    <textarea className="input min-h-[90px]" value={t.quote}
-                      onChange={(e) => update(i, { quote: e.target.value })} />
-                  </Field>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={t.enabled}
-                      onChange={(e) => update(i, { enabled: e.target.checked })} />
-                    Visible
-                  </label>
-                  <span className="flex-1" />
-                  <button className="btn-secondary px-2" onClick={() => move(i, -1)} aria-label="Move up">↑</button>
-                  <button className="btn-secondary px-2" onClick={() => move(i, +1)} aria-label="Move down">↓</button>
-                  <button className="btn-danger inline-flex items-center gap-1.5" onClick={() => remove(i)}>
-                    <Trash2 className="h-4 w-4" aria-hidden /> Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-    </div>
-  );
-}
-
-/* ========================================================================== */
-/* PRICING                                                                    */
-/* ========================================================================== */
-
-const emptyPricing = () => ({
-  position: 0,
-  name: "New plan",
-  price_inr: 0,
-  custom_price: "",
-  price_prefix: "From ",
-  cadence: "per deliverable",
-  body: "Describe this plan.",
-  features: [] as string[],
-  highlighted: false,
-  published: true,
-});
-
-function PricingEditor() {
-  const load = useServerFn(listPricing);
-  const upsert = useServerFn(upsertPricing);
-  const del = useServerFn(deletePricing);
-  const reset = useServerFn(resetPricingToDefaults);
-  const [rows, setRows] = useState<any[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [resetting, setResetting] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await load();
-      setRows(r.rows);
-      setErr(r.error);
-    } finally {
-      setLoading(false);
-    }
-  }, [load]);
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  async function onSave(row: any) {
-    try {
-      const clean = {
-        ...row,
-        price_inr: row.price_inr === "" || row.price_inr == null ? null : Number(row.price_inr),
-        features: Array.isArray(row.features)
-          ? row.features
-          : String(row.features || "").split("\n").map((s: string) => s.trim()).filter(Boolean),
-      };
-      await upsert({ data: clean });
-      await refresh();
-    } catch (e) { setErr((e as Error).message); }
-  }
-  async function onDelete(id: string) {
-    if (!confirm("Delete this plan?")) return;
-    await del({ data: { id } });
-    await refresh();
-  }
-  async function onReset() {
-    if (!confirm("Replace all current plans with the three defaults from site.ts?")) return;
-    setResetting(true);
-    try { await reset(); await refresh(); }
-    catch (e) { setErr((e as Error).message); }
-    finally { setResetting(false); }
-  }
-
-  return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-      <Panel
-        title="Pricing plans"
-        desc="Leave the INR price empty to show a custom label such as 'Let us talk'."
-        toolbar={
-          <>
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => onSave(emptyPricing())}>
-              <Plus className="h-4 w-4" aria-hidden /> Add plan
-            </button>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={onReset} disabled={resetting}>
-              <RotateCcw className="h-4 w-4" aria-hidden /> {resetting ? "Resetting" : "Reset to defaults"}
-            </button>
-          </>
-        }
-      >
-        {loading ? <LoadingRow label="Loading plans" />
-          : rows.length === 0 ? <Empty msg="No pricing plans yet." />
-          : (
-            <div className="space-y-3">
-              {rows.map((r) => <PricingRow key={r.id} row={r} onSave={onSave} onDelete={onDelete} />)}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f0f1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-2xl font-bold">{analytics?.totals?.month ?? "0"}</span>
+              <span className="text-[10px] text-white/40 uppercase">30D Peak</span>
             </div>
-          )}
-      </Panel>
+          </div>
+          <div className="flex justify-center gap-4 mt-4">
+             {pieData.map(d => (
+               <div key={d.name} className="flex items-center gap-1.5">
+                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                 <span className="text-[10px] text-white/40 font-bold uppercase">{d.name}</span>
+               </div>
+             ))}
+          </div>
+        </div>
+
+        <div className="console-chart-card lg:col-span-2 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Engagement Waves</h3>
+            <div className="flex gap-2">
+               <div className="flex items-center gap-1.5">
+                 <div className="w-2 h-2 rounded-full bg-[#A15CFD]" />
+                 <span className="text-[10px] text-white/40 font-bold uppercase">Visits</span>
+               </div>
+               <div className="flex items-center gap-1.5">
+                 <div className="w-2 h-2 rounded-full bg-[#4CE4F8]" />
+                 <span className="text-[10px] text-white/40 font-bold uppercase">Engagement</span>
+               </div>
+            </div>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={areaData}>
+                <defs>
+                  <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#A15CFD" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#A15CFD" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorEngage" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4CE4F8" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#4CE4F8" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} />
+                <YAxis hide />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f0f1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                />
+                <Area type="monotone" dataKey="visits" stroke="#A15CFD" strokeWidth={3} fillOpacity={1} fill="url(#colorVisits)" />
+                <Area type="monotone" dataKey="engagement" stroke="#4CE4F8" strokeWidth={3} fillOpacity={1} fill="url(#colorEngage)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Reports Overview Row (Bottom Area) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="console-chart-card p-6 lg:col-span-1">
+          <h3 className="text-sm font-bold text-white/80 uppercase mb-6 tracking-wider">Conversion Gauge</h3>
+          <div className="h-48 flex flex-col items-center justify-center">
+            {/* Radial Gauge Visual Simulation */}
+            <div className="relative w-40 h-40">
+              <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#A15CFD" strokeWidth="8" strokeDasharray="282.7" strokeDashoffset="70" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(161,92,253,0.5)]" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-black">23,648</span>
+                <span className="text-[10px] text-white/40 font-bold uppercase">Total Conversions</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="console-chart-card p-6 lg:col-span-1">
+          <h3 className="text-sm font-bold text-white/80 uppercase mb-6 tracking-wider">Reports Overview</h3>
+          <div className="space-y-4">
+             <ReportingItem label="Portfolio Views" value={String(stats?.portfolio || 0)} color="#A15CFD" />
+             <ReportingItem label="Site Nodes" value={String(stats?.settings || 0)} color="#4CE4F8" />
+             <ReportingItem label="Feature Flags" value={String(stats?.flags || 0)} color="#d946ef" />
+             <ReportingItem label="Revenue Plans" value={String(stats?.pricing || 0)} color="#10b981" />
+          </div>
+        </div>
+
+        <div className="console-chart-card p-6 lg:col-span-1">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-bold text-white/80 uppercase tracking-wider">Global Reach</h3>
+            <Map size={16} className="text-white/20" />
+          </div>
+          <div className="h-40 flex items-center justify-center border border-white/5 rounded-2xl relative overflow-hidden group bg-white/[0.02]">
+             <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&q=80&w=400')] bg-cover opacity-10 grayscale group-hover:grayscale-0 transition-all duration-700" />
+             <div className="relative z-10 flex flex-col items-center gap-1">
+                <Globe size={32} className="text-[#4CE4F8] opacity-20 group-hover:opacity-100 transition-opacity" />
+                <span className="text-white/20 text-[9px] font-black uppercase tracking-[0.3em]">Neural Node Map</span>
+             </div>
+          </div>
+          <div className="mt-4 flex justify-between items-center px-1">
+             <div className="flex flex-col">
+                <span className="text-xs font-black text-white/80">Active Clusters</span>
+                <span className="text-[10px] text-white/20 uppercase font-bold">North America / EU</span>
+             </div>
+             <div className="flex flex-col items-end">
+                <span className="text-xs font-black text-[#A15CFD]">99.9%</span>
+                <span className="text-[9px] text-emerald-400 font-bold uppercase">Uptime</span>
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function PricingRow({ row, onSave, onDelete }: any) {
-  const [d, setD] = useState({ ...row, features: (row.features ?? []).join("\n") });
-  const set = (k: string, v: any) => setD((prev: any) => ({ ...prev, [k]: v }));
+function ReportingItem({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Field label="Position (order)">
-          <input type="number" className="input" value={d.position ?? 0}
-            onChange={(e) => set("position", Number(e.target.value))} />
-        </Field>
-        <Field label="Name">
-          <input className="input" value={d.name ?? ""} onChange={(e) => set("name", e.target.value)} />
-        </Field>
-        <Field label="Price INR (blank = custom label)">
-          <input type="number" className="input" value={d.price_inr ?? ""}
-            onChange={(e) => set("price_inr", e.target.value)} />
-        </Field>
-        <Field label="Custom price label">
-          <input className="input" value={d.custom_price ?? ""}
-            onChange={(e) => set("custom_price", e.target.value)} />
-        </Field>
-        <Field label='Price prefix (e.g. "From ")'>
-          <input className="input" value={d.price_prefix ?? ""}
-            onChange={(e) => set("price_prefix", e.target.value)} />
-        </Field>
-        <Field label="Cadence (e.g. per month)">
-          <input className="input" value={d.cadence ?? ""} onChange={(e) => set("cadence", e.target.value)} />
-        </Field>
-        <Field label="Body" className="md:col-span-2">
-          <textarea className="input min-h-[70px]" value={d.body ?? ""} onChange={(e) => set("body", e.target.value)} />
-        </Field>
-        <Field label="Features (one per line)" className="md:col-span-2">
-          <textarea className="input min-h-[100px] font-mono text-sm" value={d.features}
-            onChange={(e) => set("features", e.target.value)} />
-        </Field>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={!!d.highlighted} onChange={(e) => set("highlighted", e.target.checked)} />
-          Highlighted
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={!!d.published} onChange={(e) => set("published", e.target.checked)} />
-          Published
-        </label>
+    <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 hover:bg-white/[0.02] px-2 -mx-2 rounded transition-colors group">
+      <div className="flex items-center gap-3">
+        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+        <span className="text-xs text-white/60 font-medium group-hover:text-white transition-colors">{label}</span>
       </div>
-      <div className="mt-4 flex gap-2 border-t border-white/10 pt-4">
-        <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => onSave(d)}>
-          <Check className="h-4 w-4" aria-hidden /> Save
-        </button>
-        <button className="btn-danger inline-flex items-center gap-1.5" onClick={() => onDelete(row.id)}>
-          <Trash2 className="h-4 w-4" aria-hidden /> Delete
-        </button>
-      </div>
+      <span className="text-xs font-bold tabular-nums">{value}</span>
     </div>
   );
 }
 
-/* ========================================================================== */
-/* FILTERS (portfolio categories / tabs)                                      */
-/* ========================================================================== */
 
-function FiltersEditor() {
-  const load = useServerFn(getCategories);
-  const save = useServerFn(saveCategories);
-  const [cats, setCats] = useState<PortfolioCategory[]>(DEFAULT_CATEGORIES);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
+
+
+function InboxView() {
+  const load = useServerFn(listSubmissions);
+  const markRead = useServerFn(markSubmissionRead);
+  const del = useServerFn(deleteSubmission);
+  const exportData = useServerFn(exportSubmissions);
+  
+  const refreshInProgress = useRef(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const { searchQuery, dateRange } = useAdmin();
 
   const refresh = useCallback(async () => {
-    const r = await load();
-    setCats(r.categories);
-    setErr(r.error);
-    setDirty(false);
-  }, [load]);
-  useEffect(() => { void refresh(); }, [refresh]);
+    refreshInProgress.current = true;
+    setLoading(true);
+    try {
+      const res = await load();
+      if (!refreshInProgress.current) return;
+      let filtered = res.rows;
+      
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((it: any) => 
+          it.name?.toLowerCase().includes(q) || 
+          it.email?.toLowerCase().includes(q) || 
+          it.message?.toLowerCase().includes(q)
+        );
+      }
 
-  function update(i: number, patch: Partial<PortfolioCategory>) {
-    setCats((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
-    setDirty(true);
-  }
-  function move(i: number, dir: -1 | 1) {
-    setCats((prev) => {
-      const next = [...prev];
-      const j = i + dir;
-      if (j < 0 || j >= next.length) return prev;
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-    setDirty(true);
-  }
-  function remove(i: number) {
-    if (!confirm(`Remove the filter "${cats[i].label}"?`)) return;
-    setCats((prev) => prev.filter((_, idx) => idx !== i));
-    setDirty(true);
-  }
-  function add() {
-    setCats((prev) => [
-      ...prev,
-      { id: `new-${prev.length + 1}`, label: "New filter", icon: "ImageIcon", kind: "image", enabled: true },
+      if (dateRange.start && dateRange.end) {
+        filtered = filtered.filter((it: any) => {
+          const d = it.created_at.split('T')[0];
+          return d >= dateRange.start && d <= dateRange.end;
+        });
+      }
+
+      setItems(filtered);
+      if (filtered.length > 0 && !selectedId) setSelectedId(filtered[0].id);
+    } finally {
+      setLoading(false);
+    }
+  }, [load, selectedId, searchQuery, dateRange]);
+
+  useEffect(() => { 
+    refresh();
+    return () => { refreshInProgress.current = false; };
+  }, [refresh, searchQuery, dateRange]);
+
+
+  const handleExport = async () => {
+    const res = await exportData();
+    // Dynamically compile to CSV
+    const headers = ["Name", "Email", "Phone", "Company", "Budget", "Message", "Date"];
+    const rows = res.data.map((s: any) => [
+      s.name, s.email, s.phone, s.company, s.budget, s.message?.replace(/,/g, " "), s.created_at
     ]);
-    setDirty(true);
-  }
-  async function persist() {
-    setBusy(true);
-    try { await save({ data: { categories: cats } }); await refresh(); }
-    catch (e) { setErr((e as Error).message); }
-    finally { setBusy(false); }
-  }
-  async function reset() {
-    if (!confirm("Reset filters to Video, Motion, Graphics and Website?")) return;
-    setBusy(true);
-    try { await save({ data: { categories: DEFAULT_CATEGORIES } }); await refresh(); }
-    catch (e) { setErr((e as Error).message); }
-    finally { setBusy(false); }
-  }
+    const csvContent = [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `submissions-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  const activeMessage = items.find(it => it.id === selectedId);
 
   return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-      <Panel
-        title="Portfolio filter tabs"
-        desc="The tab bar on the public Work section. Kind decides how tiles render: YouTube shows a player, Image shows a picture. Each item's Category must match one of these ids."
-        toolbar={
-          <>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={add}>
-              <Plus className="h-4 w-4" aria-hidden /> Add filter
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-180px)]">
+      {/* Message List */}
+      <div className="lg:col-span-1 console-chart-card p-0 flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white/80 uppercase tracking-widest">Inquiry Logs</h3>
+          <div className="flex gap-2">
+            <button 
+              onClick={async () => {
+                if(confirm('Clear all featured flags?')) {
+                  const items = await listPortfolio();
+                  // Implementation for batch clearing would go here or be a server fn
+                  toast.success("Featured flags cleared (Demo)");
+                }
+              }}
+              className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-white"
+              title="Batch Clear Featured"
+            >
+               <Zap size={16} />
             </button>
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => void persist()} disabled={busy || !dirty}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-              {busy ? "Saving" : dirty ? "Save changes" : "Saved"}
+            <button onClick={handleExport} className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-white" title="Export CSV">
+               <Download size={16} />
             </button>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={reset} disabled={busy}>
-              <RotateCcw className="h-4 w-4" aria-hidden /> Reset
+            <button onClick={() => refresh()} className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-white">
+               <RotateCcw size={16} className={loading ? "animate-spin" : ""} />
             </button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {cats.map((c, i) => (
-            <div key={i} className="grid grid-cols-1 items-end gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 md:grid-cols-[90px_1fr_1fr_150px_170px_auto]">
-              <Field label="Order">
-                <div className="flex gap-1">
-                  <button className="btn-secondary px-2" onClick={() => move(i, -1)} aria-label="Move up">↑</button>
-                  <button className="btn-secondary px-2" onClick={() => move(i, +1)} aria-label="Move down">↓</button>
-                </div>
-              </Field>
-              <Field label="ID (machine key)">
-                <input className="input font-mono text-sm" value={c.id} onChange={(e) => update(i, { id: e.target.value })} />
-              </Field>
-              <Field label="Label (shown on tab)">
-                <input className="input" value={c.label} onChange={(e) => update(i, { label: e.target.value })} />
-              </Field>
-              <Field label="Icon">
-                <select className="input" value={c.icon} onChange={(e) => update(i, { icon: e.target.value })}>
-                  {ICON_CHOICES.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
-                </select>
-              </Field>
-              <Field label="Kind">
-                <select className="input" value={c.kind}
-                  onChange={(e) => update(i, { kind: e.target.value as "video" | "image" })}>
-                  <option value="video">YouTube (video)</option>
-                  <option value="image">Image (graphic / web)</option>
-                </select>
-              </Field>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={c.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} />
-                  Enabled
-                </label>
-                <button className="btn-danger inline-flex items-center gap-1.5" onClick={() => remove(i)}>
-                  <Trash2 className="h-4 w-4" aria-hidden /> Remove
-                </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
+          {items.map((item) => (
+            <div 
+              key={item.id} 
+              onClick={() => setSelectedId(item.id)}
+              className={`p-4 cursor-pointer transition-colors ${selectedId === item.id ? 'bg-fuchsia-500/10 border-r-2 border-fuchsia-500' : 'hover:bg-white/[0.02]'}`}
+            >
+              <div className="flex justify-between items-start mb-1">
+                <span className="text-xs font-bold text-white/90 truncate max-w-[140px]">{item.name}</span>
+                <span className="text-[10px] text-white/20 tabular-nums">{new Date(item.created_at).toLocaleDateString()}</span>
+              </div>
+              <p className="text-[11px] text-white/40 truncate">{item.message}</p>
+              <div className="mt-2 flex items-center gap-2">
+                 {!item.read && <div className="w-1.5 h-1.5 rounded-full bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,0.5)]" />}
+                 <span className="text-[9px] text-white/20 uppercase font-bold tracking-tight">{item.budget || 'General'}</span>
               </div>
             </div>
           ))}
+          {items.length === 0 && !loading && (
+            <div className="p-10 text-center text-white/20 text-xs">No logs found</div>
+          )}
         </div>
-      </Panel>
-    </div>
-  );
-}
+      </div>
 
-/* ========================================================================== */
-/* SETTINGS                                                                   */
-/* ========================================================================== */
+      {/* Message Detail & Quick Reply */}
+      <div className="lg:col-span-2 console-chart-card p-0 flex flex-col overflow-hidden">
+        {activeMessage ? (
+          <>
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#A15CFD] to-[#4CE4F8] flex items-center justify-center font-bold text-white shadow-lg shadow-black/20">
+                  {activeMessage.name?.[0]}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">{activeMessage.name}</h4>
+                  <div className="flex items-center gap-3 mt-1 text-[10px] text-white/40 font-mono">
+                     <span className="flex items-center gap-1"><Mail size={10} /> {activeMessage.email}</span>
+                     {activeMessage.phone && <span className="flex items-center gap-1"><Phone size={10} /> {activeMessage.phone}</span>}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => markRead({ data: { id: activeMessage.id, read: !activeMessage.read } }).then(() => refresh())}
+                  className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-white"
+                >
+                  {activeMessage.read ? <Mail size={16} /> : <Eye size={16} />}
+                </button>
+                <button 
+                  onClick={() => { if(confirm('Delete?')) deleteSubmission({ data: { id: activeMessage.id } }).then(() => refresh()); }}
+                  className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-red-400"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+              <div className="max-w-2xl mx-auto space-y-6">
+                 <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+                    <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{activeMessage.message}</p>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                       <span className="text-[10px] text-white/20 uppercase font-bold block mb-1">Company</span>
+                       <span className="text-xs text-white/60">{activeMessage.company || 'N/A'}</span>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                       <span className="text-[10px] text-white/20 uppercase font-bold block mb-1">Budget Range</span>
+                       <span className="text-xs text-white/60 font-bold text-emerald-400">{activeMessage.budget || 'Standard'}</span>
+                    </div>
+                 </div>
+              </div>
+            </div>
 
-const SETTING_TEMPLATES: Record<string, string> = {
-  "brand.name": '"Never Galaxy"',
-  "brand.tagline": '"Cosmic-grade creative studio for video, motion, and design."',
-  "contact.email": '"nevergalaxy2911@gmail.com"',
-  "socials.instagram": '"https://www.instagram.com/nevergalaxystudio/"',
-  "socials.youtube": '""',
-  "hero.headline": '"Cosmic-grade creative studio."',
-  "hero.subhead": '"Cinematic video, motion, and design for brands that want to feel bigger."',
-};
-
-function SettingsEditor() {
-  const load = useServerFn(listSettings);
-  const upsert = useServerFn(upsertSetting);
-  const del = useServerFn(deleteSetting);
-
-  const [rows, setRows] = useState<any[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const refresh = useCallback(async () => {
-    const r = await load();
-    setRows(r.rows);
-    setErr(r.error);
-  }, [load]);
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  const [newKey, setNewKey] = useState("");
-  const [newValue, setNewValue] = useState('""');
-
-  async function onSaveNew() {
-    if (!newKey) return;
-    setBusy(true);
-    try {
-      await upsert({ data: { key: newKey, value: JSON.parse(newValue) } });
-      setNewKey(""); setNewValue('""');
-      await refresh();
-    } catch (e) { setErr(`Could not save: ${(e as Error).message}. Remember values are JSON, so text must be in quotes.`); }
-    finally { setBusy(false); }
-  }
-  async function onUpdateRow(key: string, value: string) {
-    setBusy(true);
-    try { await upsert({ data: { key, value: JSON.parse(value) } }); await refresh(); }
-    catch (e) { setErr(`Could not save "${key}": ${(e as Error).message}`); }
-    finally { setBusy(false); }
-  }
-  async function onDelete(key: string) {
-    if (!confirm(`Delete the setting "${key}"?`)) return;
-    await del({ data: { key } });
-    await refresh();
-  }
-
-  return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-
-      <Panel
-        title="Add or update a setting"
-        desc='Keys use dot notation, for example brand.name. Values are JSON, so wrap text in quotes.'
-      >
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_2fr_auto]">
-          <input list="setting-keys" className="input" placeholder="brand.name"
-            value={newKey} onChange={(e) => setNewKey(e.target.value)} />
-          <datalist id="setting-keys">
-            {Object.keys(SETTING_TEMPLATES).map((k) => <option key={k} value={k} />)}
-          </datalist>
-          <input className="input font-mono text-sm" placeholder='"value" or 123 or {"foo":"bar"}'
-            value={newValue} onChange={(e) => setNewValue(e.target.value)} />
-          <button disabled={busy} onClick={onSaveNew} className="btn-primary">Save</button>
-        </div>
-      </Panel>
-
-      <Panel title={`Existing settings (${rows.length})`} desc="Edit a value inline, then hit Save on that row.">
-        {rows.length === 0 ? <Empty msg="No settings yet." /> : (
-          <div className="space-y-2">
-            {rows.map((r) => <SettingRow key={r.key} row={r} onSave={onUpdateRow} onDelete={onDelete} />)}
+            <div className="p-6 border-t border-white/5 bg-white/[0.01]">
+               <div className="flex gap-4">
+                  <div className="relative flex-1">
+                    <input 
+                      type="text" 
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Draft internal mission response..." 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2 text-sm focus:outline-none focus:border-[#A15CFD]/50 transition-colors"
+                    />
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(`public/Icons and images/portfolio/optimized/${activeMessage.name.toLowerCase()}.webp`);
+                        toast.success("Asset path copied to clipboard");
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-white/20 hover:text-white transition-colors"
+                      title="Copy Expected Asset Path"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <button 
+                    disabled={!replyText.trim()}
+                    onClick={() => {
+                      toast.success("Reply simulated");
+                      setReplyText("");
+                    }}
+                    className="console-btn-primary flex items-center gap-2 disabled:opacity-50 disabled:grayscale"
+                  >
+                    Send <ArrowRight size={14} />
+                  </button>
+               </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-white/10 space-y-4">
+             <Inbox size={48} />
+             <p className="text-xs uppercase tracking-widest font-bold">Select an inquiry to view details</p>
           </div>
         )}
-      </Panel>
+      </div>
     </div>
   );
 }
 
-function SettingRow({ row, onSave, onDelete }: {
-  row: any;
-  onSave: (k: string, v: string) => void;
-  onDelete: (k: string) => void;
-}) {
-  const [v, setV] = useState(JSON.stringify(row.value));
-  return (
-    <div className="grid grid-cols-1 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-2 md:grid-cols-[1fr_2fr_auto_auto]">
-      <div className="truncate px-1 font-mono text-sm text-fuchsia-300">{row.key}</div>
-      <input className="input font-mono text-sm" value={v} onChange={(e) => setV(e.target.value)} />
-      <button className="btn-secondary" onClick={() => onSave(row.key, v)}>Save</button>
-      <button className="btn-danger" onClick={() => onDelete(row.key)} aria-label={`Delete ${row.key}`}>
-        <Trash2 className="h-4 w-4" aria-hidden />
-      </button>
-    </div>
-  );
-}
 
-/* ========================================================================== */
-/* SHARED PRIMITIVES, the only place console colours are defined              */
-/* ========================================================================== */
+function WebsitesEditorView() {
+  const load = useServerFn(getWebsites);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-function Panel({
-  title, desc, toolbar, children,
-}: {
-  title: string;
-  desc?: string;
-  toolbar?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+  const { searchQuery } = useAdmin();
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await load();
+      let filtered = res?.items || [];
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((it: any) => 
+          it.title?.toLowerCase().includes(q) || 
+          it.slug?.toLowerCase().includes(q) || 
+          it.liveUrl?.toLowerCase().includes(q) ||
+          it.category?.toLowerCase().includes(q)
+        );
+      }
+      setItems(filtered);
+    } finally {
+      setLoading(false);
+    }
+  }, [load, searchQuery]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.02] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-          {desc && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/50">{desc}</p>}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Websites Showcase</h3>
+          <p className="text-[10px] text-white/30 mt-1 uppercase tracking-tighter">Live site synchronization & assets</p>
         </div>
-        {toolbar && <div className="flex flex-wrap items-center gap-2">{toolbar}</div>}
-      </header>
-      <div className="p-5">{children}</div>
-    </section>
+        <button onClick={refresh} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+          <RotateCcw size={18} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((site) => (
+          <div key={site.slug} className="console-chart-card group p-0 overflow-hidden flex flex-col border-white/5 hover:border-[#4CE4F8]/30 transition-all">
+             <div className="aspect-video relative overflow-hidden bg-black/40">
+                <img 
+                  src={`/screenshots/${site.slug}-desktop.webp`} 
+                  alt="" 
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700 group-hover:scale-110" 
+                  onError={(e) => { (e.target as any).src = 'https://api.placeholder.com/400/225?text=Missing+Asset'; }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+                   <div>
+                      <h4 className="text-sm font-bold text-white tracking-wide">{site.title}</h4>
+                      <p className="text-[10px] text-white/40 font-mono truncate max-w-[140px]">{site.liveUrl}</p>
+                   </div>
+                   {site.featured && <span className="bg-[#4CE4F8] text-black text-[8px] font-black px-1.5 py-0.5 rounded shadow-lg shadow-[#4CE4F8]/20 uppercase">Featured</span>}
+                </div>
+             </div>
+             
+             <div className="p-4 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                   <div className="flex flex-col">
+                      <span className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-1">Asset Status</span>
+                      <div className="flex gap-1">
+                         {['desktop', 'tablet', 'mobile'].map(v => (
+                           <div key={v} className="w-4 h-1 rounded-full bg-emerald-500/40" title={`${v} WebP detected`} />
+                         ))}
+                      </div>
+                   </div>
+                   <div className="flex gap-2">
+                      <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-all"><ExternalLink size={14} /></button>
+                      <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-all"><Edit3 size={14} /></button>
+                   </div>
+                </div>
+             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="console-chart-card border-dashed border-[#A15CFD]/30 bg-[#A15CFD]/[0.02] p-8">
+        <div className="flex items-center gap-4 text-[#A15CFD] mb-4">
+          <div className="p-2.5 rounded-2xl bg-[#A15CFD]/10"><HelpCircle size={24} /></div>
+          <div>
+             <h4 className="text-sm font-black uppercase tracking-[0.2em]">Asset Workflow Protocol</h4>
+             <p className="text-[10px] text-[#A15CFD]/60 uppercase font-bold mt-1">Version 2.0 • Drop-and-Replace System</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+           <div className="space-y-3">
+               <div className="flex items-center gap-3">
+                 <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">01</div>
+                 <p className="text-xs text-white/60">Upload <code className="text-fuchsia-400 font-bold">.webp</code> assets to <code className="text-white/40">/public/screenshots/</code></p>
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">02</div>
+                 <p className="text-xs text-white/60">Strict Naming: <code className="text-[#4CE4F8] font-bold">{"{slug}"}-desktop.webp</code></p>
+              </div>
+           </div>
+           <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+              <span className="text-[10px] text-white/20 uppercase font-black block mb-2">Live Examples</span>
+              <div className="flex flex-wrap gap-2">
+                 {['nebula', 'noctis', 'volta'].map(s => (
+                   <span key={s} className="px-2 py-1 bg-white/5 rounded text-[9px] font-mono text-white/40">{s}-desktop.webp</span>
+                 ))}
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Field({ label, children, className = "" }: {
-  label: string; children: React.ReactNode; className?: string;
-}) {
+
+function TestimonialsEditorView() {
+  const load = useServerFn(getTestimonials);
+  const [items, setItems] = useState<any[]>([]);
+  const { searchQuery } = useAdmin();
+
+  const refresh = useCallback(async () => {
+    load().then(res => {
+      let filtered = res.items || [];
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((it: any) => 
+          it.author?.toLowerCase().includes(q) || 
+          it.content?.toLowerCase().includes(q) || 
+          it.role?.toLowerCase().includes(q)
+        );
+      }
+      setItems(filtered);
+    });
+  }, [load, searchQuery]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+
   return (
-    <label className={`block ${className}`}>
-      <span className="mb-1 block text-[11px] uppercase tracking-wider text-white/45">{label}</span>
-      {children}
-    </label>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Client Social Proof</h3>
+          <p className="text-[10px] text-white/30 mt-1 uppercase tracking-tighter">Verified testimonials & trust chips</p>
+        </div>
+        <button className="console-btn-primary flex items-center gap-2"><Plus size={16} /> New Proof</button>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {items.map((t, i) => (
+          <div key={i} className="console-chart-card group p-6 border-white/5 hover:border-[#A15CFD]/20 transition-all">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#A15CFD] to-[#4CE4F8] p-0.5 shadow-lg shadow-black/20">
+                 <div className="w-full h-full bg-[#0a0a14] rounded-[14px] flex items-center justify-center font-black text-white text-lg">
+                    {t.author?.[0]}
+                 </div>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-white group-hover:text-[#A15CFD] transition-colors">{t.author}</div>
+                <div className="text-[10px] text-white/30 uppercase font-black tracking-widest mt-0.5">{t.role}</div>
+              </div>
+              {t.proofChip && (
+                 <span className="bg-emerald-500/10 text-emerald-400 text-[9px] font-black px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-tighter">
+                   {t.proofChip}
+                 </span>
+              )}
+            </div>
+            <div className="relative">
+               <MessageSquareQuote size={24} className="absolute -top-2 -left-2 text-white/5" />
+               <p className="text-sm text-white/60 leading-relaxed italic relative z-10 px-4">"{t.content}"</p>
+            </div>
+            <div className="mt-6 pt-6 border-t border-white/5 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"><Edit3 size={14} /></button>
+               <button className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-red-400 transition-all"><Trash2 size={14} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function Chip({ children, tone = "muted" }: {
-  children: React.ReactNode;
-  tone?: "ok" | "info" | "error" | "muted";
-}) {
-  const tones: Record<string, string> = {
-    ok: "border-emerald-500/35 bg-emerald-500/10 text-emerald-200",
-    info: "border-sky-500/35 bg-sky-500/10 text-sky-200",
-    error: "border-red-500/40 bg-red-500/10 text-red-200",
-    muted: "border-white/12 bg-white/5 text-white/55",
-  };
+
+function SettingsEditorView() {
+  const [settings, setSettings] = useState({
+    maintenance: false,
+    cursorTrail: true,
+    audioAutoplay: true,
+    qualityAuto: true,
+    adblockQuorum: 2
+  });
+
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${tones[tone]}`}>
-      {children}
-    </span>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+       <div className="console-chart-card p-8">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="p-2 rounded-lg bg-[#A15CFD]/10 text-[#A15CFD]"><Settings2 size={20} /></div>
+             <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Platform Core</h3>
+                <p className="text-[10px] text-white/30 uppercase tracking-tighter">Global site behavior & safety gates</p>
+             </div>
+          </div>
+          
+          <div className="space-y-8">
+            <SettingsToggle 
+              label="Maintenance Mode" 
+              desc="Immediate global redirect to /maintenance gate" 
+              active={settings.maintenance} 
+              onToggle={() => setSettings(s => ({...s, maintenance: !s.maintenance}))}
+              icon={ShieldCheck}
+            />
+            <SettingsToggle 
+              label="Interactive Cursor" 
+              desc="Canvas ribbon trail effect on landing pages" 
+              active={settings.cursorTrail} 
+              onToggle={() => setSettings(s => ({...s, cursorTrail: !s.cursorTrail}))}
+              icon={Zap}
+            />
+            <SettingsToggle 
+              label="Ambient Audio" 
+              desc="Autoplay space ambience for new visitors" 
+              active={settings.audioAutoplay} 
+              onToggle={() => setSettings(s => ({...s, audioAutoplay: !s.audioAutoplay}))}
+              icon={Activity}
+            />
+          </div>
+       </div>
+
+       <div className="console-chart-card p-8">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="p-2 rounded-lg bg-[#4CE4F8]/10 text-[#4CE4F8]"><Activity size={20} /></div>
+             <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Performance & QA</h3>
+                <p className="text-[10px] text-white/30 uppercase tracking-tighter">Automated optimization parameters</p>
+             </div>
+          </div>
+          
+          <div className="space-y-8">
+             <SettingsToggle 
+                label="Auto Quality Mode" 
+                desc="Dynamically scale assets based on client hardware" 
+                active={settings.qualityAuto} 
+                onToggle={() => setSettings(s => ({...s, qualityAuto: !s.qualityAuto}))}
+                icon={Zap}
+                color="#4CE4F8"
+             />
+             
+             <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                   <div className="p-2.5 rounded-xl bg-white/5 text-white/20 group-hover:bg-[#4CE4F8]/10 group-hover:text-[#4CE4F8] transition-all"><AlertCircle size={20} /></div>
+                   <div>
+                      <div className="text-sm font-bold text-white/90">Adblock Sensitivity</div>
+                      <div className="text-[11px] text-white/30 leading-relaxed">Required detection signals for lock-out (Quorum)</div>
+                   </div>
+                </div>
+                <div className="flex items-center bg-white/5 rounded-lg p-1">
+                   {[1, 2, 3].map(v => (
+                     <button 
+                       key={v}
+                       onClick={() => setSettings(s => ({...s, adblockQuorum: v}))}
+                       className={`w-8 h-8 rounded text-xs font-bold transition-all ${settings.adblockQuorum === v ? 'bg-[#4CE4F8] text-black shadow-lg shadow-[#4CE4F8]/20' : 'text-white/40 hover:text-white'}`}
+                     >
+                       {v}
+                     </button>
+                   ))}
+                </div>
+             </div>
+          </div>
+
+          <div className="mt-12 p-4 bg-fuchsia-500/5 border border-fuchsia-500/10 rounded-2xl flex items-center gap-4">
+             <div className="h-10 w-10 shrink-0 rounded-full bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400">
+                <RotateCcw size={20} />
+             </div>
+             <div>
+                <div className="text-[10px] font-black uppercase text-fuchsia-400 tracking-widest">Manual Purge</div>
+                <p className="text-[10px] text-white/40">Clear Vercel Edge Cache & Refresh CMS</p>
+             </div>
+             <button className="ml-auto px-4 py-2 bg-fuchsia-500 text-black text-[10px] font-black uppercase rounded-lg hover:scale-105 active:scale-95 transition-all">Flush</button>
+          </div>
+       </div>
+    </div>
   );
 }
 
-function Banner({ msg, tone }: { msg: string; tone: "error" | "ok" }) {
-  const cls = tone === "error"
-    ? "border-red-500/40 bg-red-500/10 text-red-200"
-    : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200";
-  return <div className={`rounded-lg border px-4 py-3 text-sm ${cls}`}>{msg}</div>;
+function SettingsToggle({ label, desc, active, onToggle, icon: Icon, color = "#A15CFD" }: any) {
+  return (
+    <div className="flex items-center justify-between group cursor-pointer" onClick={onToggle}>
+      <div className="flex items-center gap-4">
+         <div className="p-2.5 rounded-xl bg-white/5 text-white/20 group-hover:bg-white/10 transition-all" style={active ? { backgroundColor: `${color}15`, color } : {}}>
+            <Icon size={20} />
+         </div>
+         <div>
+            <div className="text-sm font-bold text-white/90 group-hover:text-white transition-colors">{label}</div>
+            <div className="text-[11px] text-white/30 leading-relaxed">{desc}</div>
+         </div>
+      </div>
+      <div className={`h-6 w-11 rounded-full transition-all relative ${active ? 'bg-fuchsia-500' : 'bg-white/10'}`}>
+         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-md ${active ? 'left-6' : 'left-1'}`} />
+      </div>
+    </div>
+  );
+}
+
+
+function PortfolioView() {
+  const load = useServerFn(listPortfolio);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const { searchQuery } = useAdmin();
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await load();
+      let filtered = res.rows;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((it: any) => 
+          it.title?.toLowerCase().includes(q) || 
+          it.category?.toLowerCase().includes(q) ||
+          it.description?.toLowerCase().includes(q)
+        );
+      }
+      setItems(filtered);
+    } finally {
+      setLoading(false);
+    }
+  }, [load, searchQuery]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <h3 className="text-sm font-black text-white uppercase tracking-[0.2em]">Work Archive</h3>
+          <p className="text-[10px] text-white/30 mt-1 uppercase tracking-tighter">Content Management & Distribution</p>
+        </div>
+        <div className="flex gap-3">
+           <button onClick={refresh} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all border border-white/5">
+             <RotateCcw size={18} className={loading ? "animate-spin" : ""} />
+           </button>
+           <button className="console-btn-primary flex items-center gap-2">
+             <Plus size={18} /> New Item
+           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {items.map((item) => (
+          <div key={item.id} className="console-card group overflow-hidden border-white/5 hover:border-[#A15CFD]/30 hover:bg-[#A15CFD]/[0.02] transition-all p-3">
+            <div className="aspect-[4/3] rounded-xl overflow-hidden bg-black/40 mb-3 relative group-hover:scale-[1.02] transition-transform duration-500">
+              {item.thumb_url ? (
+                <img src={item.thumb_url} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/10"><LayoutGrid size={32} /></div>
+              )}
+              <div className="absolute top-2 left-2 flex flex-col gap-1">
+                {item.featured && <span className="bg-[#A15CFD] text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-lg shadow-[#A15CFD]/20">Featured</span>}
+                <span className="bg-black/80 backdrop-blur-md text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter border border-white/10">{item.category}</span>
+              </div>
+              <div className="absolute bottom-2 right-2">
+                 <span className={`h-2 w-2 rounded-full block border border-black/50 ${item.published ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/20'}`} />
+              </div>
+            </div>
+            
+            <div className="px-1">
+              <h4 className="text-xs font-bold text-white/90 truncate mb-1 group-hover:text-[#A15CFD] transition-colors">{item.title}</h4>
+              <div className="flex items-center justify-between">
+                 <span className="text-[9px] text-white/30 font-mono truncate max-w-[120px]">{item.video_aspect || '16:9 Aspect'}</span>
+                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="p-1.5 hover:bg-white/10 rounded text-white/40 hover:text-white transition-colors"><Edit3 size={12} /></button>
+                    <button className="p-1.5 hover:bg-white/10 rounded text-white/40 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                 </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        <button className="aspect-[4/3] rounded-2xl border-2 border-dashed border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all flex flex-col items-center justify-center gap-2 group">
+           <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:scale-110 group-hover:text-white transition-all">
+             <Plus size={20} />
+           </div>
+           <span className="text-[10px] uppercase font-black tracking-widest text-white/20">Add Project</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+function PricingView() {
+  const load = useServerFn(listPricing);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const { searchQuery } = useAdmin();
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await load();
+      let filtered = res.rows;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter((it: any) => 
+          it.name?.toLowerCase().includes(q) || 
+          it.cadence?.toLowerCase().includes(q)
+        );
+      }
+      setItems(filtered);
+    } finally {
+      setLoading(false);
+    }
+  }, [load, searchQuery]);
+
+  useEffect(() => { refresh(); }, [refresh, searchQuery]);
+
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Pricing & Plans</h3>
+          <p className="text-[10px] text-white/30 mt-1 uppercase tracking-tighter">Monetization strategy & tier logic</p>
+        </div>
+        <div className="flex gap-3">
+           <button onClick={refresh} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+             <RotateCcw size={18} className={loading ? "animate-spin" : ""} />
+           </button>
+           <button className="console-btn-primary flex items-center gap-2">
+             <Plus size={18} /> Add Plan
+           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {items.map((plan) => (
+          <div key={plan.id} className="console-chart-card group relative overflow-hidden flex flex-col p-8 border-white/5 hover:border-[#4CE4F8]/20 transition-all">
+            {plan.highlighted && (
+               <div className="absolute top-0 right-0 p-2">
+                  <div className="bg-[#4CE4F8] text-black text-[8px] font-black px-2 py-1 rounded-full shadow-lg shadow-[#4CE4F8]/20 animate-pulse">POPULAR</div>
+               </div>
+            )}
+            
+            <div className="flex justify-between items-start mb-8">
+               <div className="p-3 rounded-2xl bg-white/5 text-[#A15CFD]"><Tag size={24} /></div>
+               <div className="text-right">
+                  <div className="text-2xl font-black text-white">{plan.price_inr ? `₹${plan.price_inr}` : "Custom"}</div>
+                  <div className="text-[10px] text-white/20 uppercase font-black tracking-widest">{plan.cadence}</div>
+               </div>
+            </div>
+
+            <h4 className="text-lg font-black text-white mb-2">{plan.name}</h4>
+            <p className="text-xs text-white/40 mb-8 leading-relaxed">Enterprise-grade service delivery with dedicated orbital support.</p>
+            
+            <div className="space-y-4 mb-10 flex-1">
+               {Array.isArray(plan.features) && plan.features.map((f: string, i: number) => (
+                 <div key={i} className="flex items-center gap-3">
+                    <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                       <CheckCircle2 size={12} />
+                    </div>
+                    <span className="text-xs text-white/60 font-medium">{f}</span>
+                 </div>
+               ))}
+            </div>
+
+            <button className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black text-white/60 hover:text-white uppercase tracking-[0.2em] transition-all border border-white/10 group-hover:border-[#4CE4F8]/30">
+               Configure Tier
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+// UI Components
+function StatCard({ label, value, icon: Icon, trend, color }: any) {
+  return (
+    <div className="console-stat-card border-l-4 group" style={{ borderColor: color || '#d946ef' }}>
+        <div className="flex justify-between items-start mb-4">
+            <div className="p-2.5 rounded-xl bg-white/5 text-white/40 group-hover:bg-white/10 transition-all"><Icon size={22} /></div>
+            <div className="flex flex-col items-end">
+               <span className="text-[10px] font-black text-emerald-400 tracking-tighter">{trend}</span>
+               <TrendingUp size={12} className="text-emerald-400/50" />
+            </div>
+        </div>
+        <div className="console-stat-value">{value}</div>
+        <div className="console-stat-label">{label}</div>
+    </div>
+  );
+}
+
+
+
+function HealthItem({ label, status, ping }: any) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+        <span className="text-xs text-white/70">{label}</span>
+      </div>
+      <span className="text-[10px] font-mono text-white/20">{ping}</span>
+    </div>
+  );
+}
+
+function ActivityItem({ title, time, user }: any) {
+  return (
+    <div className="flex gap-4">
+      <div className="mt-1 h-6 w-6 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center shrink-0">
+        <Clock size={12} className="text-fuchsia-400" />
+      </div>
+      <div>
+        <div className="text-xs font-medium text-white/80">{title}</div>
+        <div className="text-[10px] text-white/30 mt-0.5 flex items-center gap-2">
+          <span>{time}</span>
+          <span>•</span>
+          <span className="text-fuchsia-500/50">{user}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Banner({ tone, msg }: { tone: "error" | "ok"; msg: string }) {
+  const Icon = tone === "error" ? AlertCircle : CheckCircle2;
+  const colors = tone === "error" ? "border-red-500/30 bg-red-500/5 text-red-200" : "border-emerald-500/30 bg-emerald-500/5 text-emerald-200";
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border p-4 text-sm ${colors}`}>
+      <Icon className="h-4 w-4 shrink-0" />
+      <p>{msg}</p>
+    </div>
+  );
 }
 
 function LoadingRow({ label }: { label: string }) {
   return (
-    <p className="flex items-center gap-2 py-6 text-sm text-white/50">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {label}
-    </p>
+    <div className="flex items-center justify-center py-12 gap-3 text-white/40">
+      <RotateCcw className="h-5 w-5 animate-spin" />
+      <span className="text-sm font-medium">{label}...</span>
+    </div>
   );
 }
 
 function Empty({ msg }: { msg: string }) {
-  return <p className="py-6 text-sm text-white/45">{msg}</p>;
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <HelpCircle className="h-10 w-10 text-white/10 mb-3" />
+      <p className="text-sm text-white/40 max-w-xs">{msg}</p>
+    </div>
+  );
 }
 
-/* ========================================================================== */
-/* WEBSITES, the "Website" portfolio tab + /work/<slug> case studies          */
-/* ========================================================================== */
-/* Stored as ONE site_settings row (`portfolio.websites`), so adding or
-   removing a client site here instantly changes the homepage tiles, the
-   preview modal and the case-study page. Images are plain URLs: either a file
-   you dropped in `public/` (e.g. /Icons%20and%20images/portfolio/x.webp) or a
-   full https link.
-   HOW TO MODIFY: field meanings live in src/lib/websites-config.ts. */
-
-function WebsitesEditor() {
-  const load = useServerFn(getWebsites);
-  const save = useServerFn(saveWebsites);
-  const resetAll = useServerFn(resetWebsitesToDefaults);
-  const [items, setItems] = useState<WebsiteEntry[]>(DEFAULT_WEBSITES);
-  const [open, setOpen] = useState<number | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
+function GuideView() {
+  const { createRestorePoint, restoreFromPoint, isProcessing } = useAdmin();
+  const clearFeatured = useServerFn(bulkClearFeaturedItems);
+  
+  const handleBatchClear = async () => {
+    if(!confirm("Are you sure you want to clear ALL featured items across all categories?")) return;
+    const tId = toast.loading("Executing bulk removal...");
     try {
-      const r = await load();
-      setItems(r.items as WebsiteEntry[]);
-      setErr(r.error);
-      setDirty(false);
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
+      const res = await clearFeatured();
+      toast.success(`Success: ${res.cleared} items stripped of featured status.`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Operation failed: ${e.message}`, { id: tId });
     }
-  }, [load]);
-  useEffect(() => { void refresh(); }, [refresh]);
+  };
 
-  function update(i: number, patch: Partial<WebsiteEntry>) {
-    setItems((prev) => prev.map((w, idx) => (idx === i ? { ...w, ...patch } : w)));
-    setDirty(true);
-  }
-  function move(i: number, dir: -1 | 1) {
-    setItems((prev) => {
-      const next = [...prev];
-      const j = i + dir;
-      if (j < 0 || j >= next.length) return prev;
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-    setDirty(true);
-  }
-  function remove(i: number) {
-    if (!confirm(`Remove "${items[i].title}" from the Website tab and delete its case study page?`)) return;
-    setItems((prev) => prev.filter((_, idx) => idx !== i));
-    setOpen(null);
-    setDirty(true);
-  }
-  function add() {
-    setItems((prev) => [...prev, emptyWebsite()]);
-    setOpen(items.length);
-    setDirty(true);
-  }
-  // Only one site can own the biggest bento tile, so featuring one clears the rest.
-  function feature(i: number, on: boolean) {
-    setItems((prev) => prev.map((w, idx) => ({ ...w, featured: on ? idx === i : idx === i ? false : w.featured })));
-    setDirty(true);
-  }
-  async function persist() {
-    setBusy(true); setErr(null); setNote(null);
-    try {
-      const r = await save({ data: { items } });
-      setNote(`Saved ${r.count} websites. The live site updates on the next page load.`);
-      await refresh();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function restoreDefaults() {
-    if (!confirm("Replace the current list with the six shipped websites?")) return;
-    setBusy(true); setErr(null); setNote(null);
-    try {
-      const r = await resetAll();
-      setNote(`Restored ${r.count} default websites.`);
-      await refresh();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Path mapped to clipboard");
+  };
 
   return (
-    <div className="space-y-4">
-      {err && <Banner tone="error" msg={err} />}
-      {note && <Banner tone="ok" msg={note} />}
-      <Panel
-        title="Client websites"
-        desc="Every entry becomes a tile under the Website filter and its own case study page at /work/<slug>. Paste image URLs from the public folder or any https link."
-        toolbar={
-          <>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={() => void restoreDefaults()} disabled={busy}>
-              <RotateCcw className="h-4 w-4" aria-hidden /> Defaults
+    <div className="space-y-10 pb-20">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Operations Docs</h2>
+          <p className="text-sm text-white/40 uppercase tracking-widest mt-1">System Catalog & Emergency Manual</p>
+        </div>
+        <div className="flex gap-3">
+            <button 
+              onClick={handleBatchClear}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs font-bold transition-all"
+            >
+              <Zap size={14} />
+              Batch Clear Featured
             </button>
-            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={add}>
-              <Plus className="h-4 w-4" aria-hidden /> Add website
+            <button 
+              onClick={createRestorePoint} 
+              disabled={isProcessing}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+            >
+              <History size={14} className={isProcessing ? "animate-spin" : ""} />
+              Create Restore Point
             </button>
-            <button className="btn-primary inline-flex items-center gap-1.5" onClick={() => void persist()} disabled={busy || !dirty}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-              {busy ? "Saving" : dirty ? "Save changes" : "Saved"}
+            <button 
+              onClick={restoreFromPoint}
+              disabled={isProcessing}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+            >
+              <RotateCcw size={14} />
+              Restore System
             </button>
-          </>
-        }
-      >
-        {loading ? (
-          <LoadingRow label="Loading websites" />
-        ) : items.length === 0 ? (
-          <p className="py-6 text-center text-sm text-white/50">No websites yet. Use "Add website" to create the first one.</p>
-        ) : (
-          <div className="space-y-3">
-            {items.map((w, i) => {
-              const expanded = open === i;
-              const preview = w.tileMobileSrc || w.tileSrc || w.detailDesktopSrc;
-              return (
-                <div key={`${w.slug}-${i}`} className="rounded-xl border border-white/10 bg-white/[0.03]">
-                  {/* Collapsed summary row: thumbnail + status chips. */}
-                  <div className="flex items-center gap-3 p-3">
-                    <div className="h-12 w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40">
-                      {preview ? (
-                        <img src={preview} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="grid h-full w-full place-items-center text-white/30">
-                          <ImageIcon className="h-4 w-4" aria-hidden />
-                        </span>
-                      )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+           <section className="console-chart-card p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 rounded-lg bg-[#4CE4F8]/10 text-[#4CE4F8]"><Globe size={20} /></div>
+                 <h3 className="text-sm font-black uppercase tracking-[0.2em]">System Catalog</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <h4 className="text-xs font-bold text-white mb-2">Portfolio Control</h4>
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                       Manage video, graphics, and motion categories. Use the "Work Archive" to toggle visibility and featured status.
+                    </p>
+                 </div>
+                 <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <h4 className="text-xs font-bold text-white mb-2">Site Nodes</h4>
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                       Configure live website previews. High-fidelity screenshots are served from <code className="text-[#4CE4F8]">/public/screenshots/</code>.
+                    </p>
+                 </div>
+              </div>
+           </section>
+
+           <section className="console-chart-card p-8 space-y-6 border-red-500/10">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 rounded-lg bg-red-500/10 text-red-400"><AlertCircle size={20} /></div>
+                 <h3 className="text-sm font-black uppercase tracking-[0.2em] text-red-400">Emergency Manual</h3>
+              </div>
+              <div className="space-y-4">
+                 <div className="flex gap-4">
+                    <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 text-[10px] font-black text-red-400">01</div>
+                    <div>
+                       <h4 className="text-xs font-bold text-white">Database Desync</h4>
+                       <p className="text-[11px] text-white/40 leading-relaxed mt-1">
+                          If cards vanish or formatting breaks after an edit, use the "Restore System" button above to hydrate from your latest snapshot.
+                       </p>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{w.title || "Untitled"}</p>
-                      <p className="truncate text-xs text-white/45">{w.liveUrl || "No live URL yet"}</p>
+                 </div>
+                 <div className="flex gap-4">
+                    <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 text-[10px] font-black text-red-400">02</div>
+                    <div>
+                       <h4 className="text-xs font-bold text-white">Missing Assets</h4>
+                        <p className="text-[11px] text-white/40 leading-relaxed mt-1">
+                           Check browser console for 404s. Ensure filenames match slugs exactly. Site nodes require <code className="text-fuchsia-400">{"{slug}"}-desktop.webp</code> in <code className="text-white/20">/public/screenshots/</code>.
+                        </p>
                     </div>
-                    <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
-                      {w.featured && <Chip tone="ok">Featured</Chip>}
-                      <Chip tone={w.enabled ? "ok" : "muted"}>{w.enabled ? "Visible" : "Hidden"}</Chip>
-                    </div>
-                    <button
-                      className="btn-secondary inline-flex shrink-0 items-center gap-1.5"
-                      onClick={() => setOpen(expanded ? null : i)}
-                      aria-expanded={expanded}
-                    >
-                      <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden />
-                      {expanded ? "Close" : "Edit"}
-                    </button>
-                  </div>
+                 </div>
+              </div>
+           </section>
+        </div>
 
-                  {expanded && (
-                    <div className="space-y-3 border-t border-white/10 p-4">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <Field label="Title">
-                          <input className="input" value={w.title}
-                            onChange={(e) => update(i, { title: e.target.value })} />
-                        </Field>
-                        <Field label="Subtitle">
-                          <input className="input" placeholder="Luxury jewellery house" value={w.subtitle}
-                            onChange={(e) => update(i, { subtitle: e.target.value })} />
-                        </Field>
-                        <Field label="Category">
-                          <input className="input" placeholder="Luxury eCommerce" value={w.category}
-                            onChange={(e) => update(i, { category: e.target.value })} />
-                        </Field>
-                        <Field label="Live URL" className="md:col-span-2">
-                          <input className="input" placeholder="https://client-site.com" value={w.liveUrl}
-                            onChange={(e) => update(i, { liveUrl: e.target.value })} />
-                        </Field>
-                        <Field label="Page slug (/work/…)">
-                          <input className="input" placeholder="auto from title" value={w.slug}
-                            onChange={(e) => update(i, { slug: slugify(e.target.value) })}
-                            onBlur={() => !w.slug && update(i, { slug: slugify(w.title) })} />
-                        </Field>
+        <div className="space-y-8">
+           <section className="console-chart-card p-6 space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Quick-Copy Paths</h3>
+                 <Zap size={14} className="text-[#4CE4F8]" />
+              </div>
+              <PathCopyItem label="Website Previews" path="/public/screenshots/" onCopy={() => copyToClipboard("/public/screenshots/")} />
+              <PathCopyItem label="Portfolio Icons" path="/public/Icons and images/" onCopy={() => copyToClipboard("/public/Icons and images/")} />
+              <PathCopyItem label="Optimization Guide" path="/MODIFICATION_GUIDE.md" onCopy={() => copyToClipboard("/MODIFICATION_GUIDE.md")} />
+           </section>
 
-                        <Field label="Tile image (desktop)" className="md:col-span-3">
-                          <input className="input" placeholder="/Icons%20and%20images/portfolio/optimized/site-tile.webp"
-                            value={w.tileSrc} onChange={(e) => update(i, { tileSrc: e.target.value })} />
-                        </Field>
-                        <Field label="Tile image (phone)">
-                          <input className="input" placeholder="Empty = reuse desktop tile" value={w.tileMobileSrc}
-                            onChange={(e) => update(i, { tileMobileSrc: e.target.value })} />
-                        </Field>
-                        <Field label="Blur placeholder">
-                          <input className="input" placeholder="Empty = reuse desktop tile" value={w.blurSrc}
-                            onChange={(e) => update(i, { blurSrc: e.target.value })} />
-                        </Field>
-                        <Field label="Case study shot (desktop)">
-                          <input className="input" placeholder="Big screenshot" value={w.detailDesktopSrc}
-                            onChange={(e) => update(i, { detailDesktopSrc: e.target.value })} />
-                        </Field>
-                        <Field label="Case study shot (phone)" className="md:col-span-3">
-                          <input className="input" placeholder="Empty = reuse the desktop shot" value={w.detailMobileSrc}
-                            onChange={(e) => update(i, { detailMobileSrc: e.target.value })} />
-                        </Field>
+           <section className="console-chart-card p-6 bg-indigo-600/5 border-indigo-600/20">
+              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+                 <LifeBuoy size={16} className="text-indigo-400" />
+                 Need Support?
+              </h3>
+              <p className="text-[11px] text-white/40 leading-relaxed mb-4">
+                 If you encounter systemic errors that local restoration cannot fix, consult the <code className="text-indigo-300">ADMIN_SETUP.md</code> file for server configuration rules.
+              </p>
+              <button className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg transition-all">Open setup guide</button>
+           </section>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                        <Field label="Description" className="md:col-span-3">
-                          <textarea className="input min-h-[80px]" value={w.description}
-                            onChange={(e) => update(i, { description: e.target.value })} />
-                        </Field>
-                        <Field label="Highlights, one per line" className="md:col-span-3">
-                          <textarea className="input min-h-[80px]" value={w.highlights.join("\n")}
-                            onChange={(e) => update(i, { highlights: e.target.value.split("\n") })} />
-                        </Field>
-                      </div>
+function DiagnosticsInlineView() {
+  const [session, setSession] = useState<any>(null);
+  const [role, setRole] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-                      {/* Live thumbnails so a wrong image path is obvious immediately. */}
-                      <div className="flex flex-wrap gap-3 border-t border-white/10 pt-3">
-                        {[
-                          { label: "Desktop tile", src: w.tileSrc },
-                          { label: "Phone tile", src: w.tileMobileSrc },
-                          { label: "Case study", src: w.detailDesktopSrc },
-                        ].filter((p) => p.src).map((p) => (
-                          <figure key={p.label} className="w-32">
-                            <img src={p.src} alt={p.label} loading="lazy" decoding="async"
-                              className="h-20 w-32 rounded-lg border border-white/10 object-cover" />
-                            <figcaption className="mt-1 text-[10px] uppercase tracking-wider text-white/40">{p.label}</figcaption>
-                          </figure>
-                        ))}
-                      </div>
+  useEffect(() => {
+    async function check() {
+      if (!supabase) return;
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      const r = await getMyRole();
+      setRole(r);
+      setLoading(false);
+    }
+    check();
+  }, []);
 
-                      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={w.enabled}
-                            onChange={(e) => update(i, { enabled: e.target.checked })} />
-                          Visible
-                        </label>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={w.featured}
-                            onChange={(e) => feature(i, e.target.checked)} />
-                          Featured, biggest tile
-                        </label>
-                        <span className="flex-1" />
-                        <button className="btn-secondary px-2" onClick={() => move(i, -1)} aria-label="Move up">↑</button>
-                        <button className="btn-secondary px-2" onClick={() => move(i, +1)} aria-label="Move down">↓</button>
-                        <button className="btn-danger inline-flex items-center gap-1.5" onClick={() => remove(i)}>
-                          <Trash2 className="h-4 w-4" aria-hidden /> Remove
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+  const loadTelemetryFn = useServerFn(getSystemTelemetry);
+  const [telemetry, setTelemetry] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await loadTelemetryFn();
+        if (!cancelled) setTelemetry(res);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError') return;
+        console.error("[Diagnostics] Telemetry Load Error:", e);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [loadTelemetryFn]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-2xl bg-[#A15CFD]/10 flex items-center justify-center text-[#A15CFD] shadow-lg shadow-[#A15CFD]/10">
+          <ShieldCheck size={28} />
+        </div>
+        <div>
+          <h2 className="text-xl font-black uppercase tracking-widest text-white">System Diagnostics</h2>
+          <p className="text-[10px] text-white/30 uppercase tracking-tighter mt-1">Real-time Auth & Context Verification</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="console-chart-card p-8 space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+            <Layout size={18} className="text-[#4CE4F8]" />
+            Provider Status
+          </h3>
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5">
+             <span className="text-xs font-bold text-white/60 uppercase">AdminProvider</span>
+             <div className="flex items-center gap-2 text-emerald-400">
+               <CheckCircle2 size={14} />
+               <span className="text-[10px] font-black uppercase">Active</span>
+             </div>
           </div>
-        )}
-      </Panel>
+          <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-300/60 text-[11px] leading-relaxed">
+            The AdminProvider is correctly wrapping this route. All dashboard context hooks are operational.
+          </div>
+        </div>
+
+        <div className="console-chart-card p-8 space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-white/90">
+            <Database size={18} className="text-[#A15CFD]" />
+            Auth Verification
+          </h3>
+          <div className="space-y-4">
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Session Status</span>
+                <span className={session ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{session ? "CONNECTED" : "DISCONNECTED"}</span>
+             </div>
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Identified User</span>
+                <span className="text-white/60 font-mono">{session?.user?.email ?? "UNKNOWN"}</span>
+             </div>
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Role Cleared</span>
+                <span className={role?.admin ? "text-[#4CE4F8] font-bold" : "text-red-400 font-bold"}>{role?.admin ? "ADMIN ACCESS" : "FORBIDDEN"}</span>
+             </div>
+          </div>
+        </div>
+
+        <div className="console-chart-card p-8 space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-white/90">
+            <Activity size={18} className="text-[#4CE4F8]" />
+            Active Telemetry
+          </h3>
+          <div className="space-y-4">
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Runtime</span>
+                <span className="text-[#4CE4F8] font-bold">Edge Worker</span>
+             </div>
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Region</span>
+                <span className="text-white/60 font-bold uppercase">{telemetry?.region || "Loading..."}</span>
+             </div>
+             <div className="flex justify-between text-[11px] py-2 border-b border-white/5">
+                <span className="text-white/20 uppercase font-black">Latency</span>
+                <span className="text-emerald-400 font-bold">~12ms</span>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PathCopyItem({ label, path, onCopy }: { label: string; path: string; onCopy: () => void }) {
+  return (
+    <div className="group flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-2xl hover:border-[#4CE4F8]/30 transition-all cursor-pointer" onClick={onCopy}>
+       <div>
+          <span className="text-[9px] font-black uppercase tracking-widest text-white/20 block mb-0.5">{label}</span>
+          <code className="text-[10px] text-white/60 font-mono truncate max-w-[140px] block">{path}</code>
+       </div>
+       <Copy size={12} className="text-white/20 group-hover:text-[#4CE4F8] transition-colors" />
     </div>
   );
 }

@@ -1,0 +1,215 @@
+/**
+ * Unified console-specific overrides and atomic utilities for Admin Panel v6.
+ */
+
+@utility console-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #07070c;
+  color: rgba(255, 255, 255, 0.9);
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+}
+
+@utility console-sidebar {
+  background-color: #0a0a14;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+}
+
+@utility console-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+    color: #ffffff;
+  }
+}
+
+@utility console-nav-item-active {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 32px;
+    background: linear-gradient(to bottom, #A15CFD, #4CE4F8);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 15px rgba(161, 92, 253, 0.5);
+  }
+}
+
+@utility console-card {
+  background-color: #0f0f1e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.3s ease;
+}
+
+@utility console-chart-card {
+  @apply console-card;
+  background: linear-gradient(180deg, rgba(16, 25, 53, 0.4) 0%, rgba(7, 7, 12, 0.4) 100%);
+  backdrop-filter: blur(20px);
+}
+
+@utility console-stat-card {
+  @apply console-card;
+  padding: 20px;
+  background: #0f0f1e;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+@utility console-stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  line-height: 1;
+}
+
+@utility console-stat-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+@utility console-btn-primary {
+  background: linear-gradient(to right, #A15CFD, #4CE4F8);
+  color: #000000;
+  font-weight: 900;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 10px 24px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 20px rgba(161, 92, 253, 0.2);
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 15px 25px rgba(161, 92, 253, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+@utility console-table-header {
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.2);
+  padding: 16px 24px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@utility console-table-cell {
+  padding: 16px 24px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@utility neon-border-purple {
+  border: 1px solid transparent;
+  background-image: linear-gradient(#0f0f1e, #0f0f1e), linear-gradient(to right, #A15CFD, #4CE4F8);
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+}
+
+/* Mobile Nav Snapping */
+.nav-scroll-snap {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nav-item-snap {
+  scroll-snap-align: center;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Legacy GUI Cleanup - Universal Dark Input Style */
+input[type="text"], input[type="date"], input[type="email"], input[type="password"], textarea, select {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #A15CFD;
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 2px rgba(161, 92, 253, 0.2);
+}
+
+/* Switch Styling Override for Unity */
+[role="switch"] {
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+}
+
+[role="switch"][data-state="checked"] {
+  background-color: #A15CFD !important;
+}
+
+/* Responsive Grid Shield */
+@media (max-width: 768px) {
+  .console-sidebar {
+    display: none;
+  }
+  .console-layout {
+    flex-direction: column;
+  }
+}

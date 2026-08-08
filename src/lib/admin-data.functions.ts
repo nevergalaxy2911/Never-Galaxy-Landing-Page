@@ -384,6 +384,25 @@ export const getHealth = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* EXPORT UTILITY                                                             */
+/* -------------------------------------------------------------------------- */
+
+export const exportSubmissions = createServerFn({ method: "POST" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+  
+  const { data, error } = await supabaseAdmin
+    .from("contact_submissions")
+    .select("*")
+    .order("created_at", { ascending: false });
+    
+  if (error) throw new Error(error.message);
+  return { data: data ?? [] };
+});
+
+
+/* -------------------------------------------------------------------------- */
 /* PORTFOLIO CATEGORIES (filter tabs)                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -467,4 +486,16 @@ export const resetWebsitesToDefaults = createServerFn({ method: "POST" }).handle
   );
   if (error) throw new Error(error.message);
   return { ok: true, count: DEFAULT_WEBSITES.length };
+});
+
+export const bulkClearFeaturedItems = createServerFn({ method: "POST" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+  const { error, count } = await supabaseAdmin
+    .from("portfolio_items")
+    .update({ featured: false }, { count: "exact" })
+    .eq("featured", true);
+  if (error) throw new Error(error.message);
+  return { ok: true, cleared: count ?? 0 };
 });

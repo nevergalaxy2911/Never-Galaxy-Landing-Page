@@ -23,7 +23,8 @@ export function AnnouncementBar() {
     const boot = async () => {
       try {
         const r = await getPublicFlag({ data: { key: "announcement_bar" } });
-        if (cancelled || r.enabled !== true) return;
+        if (cancelled) return;
+        if (r.enabled !== true) return;
         const v = (r.value ?? {}) as AnnValue;
         const text = (v.text ?? "").trim();
         if (!text) return;

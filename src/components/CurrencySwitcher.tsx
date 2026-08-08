@@ -186,7 +186,7 @@ export function CurrencySwitcher() {
         className="cur-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                            \n                                            now add the button along side instagram while matching the theme.\nadd preview images in website and also in light mode change the color contrast(pink and black doesnt look good yk coz its not visible. )\nthen change the website sample layout to bento grid or something similar such that the featured card looks like it featured and the whole layout looks clean and not something that was placed randomly"
+        aria-label="'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                            \n                                            save everyimage to local storage so when i download the source code there should be all the image files."
       >
         <span className="cur-symbol">{currency.symbol.trim()}</span>
         <span className="cur-code">{currency.code}</span>

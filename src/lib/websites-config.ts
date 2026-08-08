@@ -99,24 +99,32 @@ export function sanitizeWebsites(value: unknown): WebsiteEntry[] {
     const title = str(r.title, 120);
     const liveUrl = str(r.liveUrl, 500);
     if (!title && !liveUrl) continue;
-    let slug = slugify(str(r.slug, 60) || title || liveUrl);
-    if (!slug) continue;
-    // Keep slugs unique so /work/<slug> can never be ambiguous.
-    let n = 2;
-    while (seen.has(slug)) slug = `${slugify(str(r.slug, 60) || title)}-${n++}`;
-    seen.add(slug);
+    const rawSlug = slugify(str(r.slug, 60) || title || liveUrl);
+    if (!rawSlug) continue;
 
-    const tileSrc = str(r.tileSrc, 500);
+    // Keep slugs unique so /work/<slug> can never be ambiguous.
+    let uniqueSlug = rawSlug;
+    let n = 2;
+    while (seen.has(uniqueSlug)) uniqueSlug = `${rawSlug}-${n++}`;
+    seen.add(uniqueSlug);
+
+    // UNIFORM NAMING CONVENTION: Derived hardcoded paths
+    const hardcodedDesktop = `/screenshots/${uniqueSlug}-desktop.webp`;
+    const hardcodedTablet = `/screenshots/${uniqueSlug}-tablet.webp`;
+    const hardcodedMobile = `/screenshots/${uniqueSlug}-mobile.webp`;
+
+    const tileSrc = str(r.tileSrc, 500) || hardcodedDesktop;
     const detailDesktopSrc = str(r.detailDesktopSrc, 500) || tileSrc;
+
     out.push({
-      slug,
-      title: title || slug,
+      slug: uniqueSlug,
+      title: title || uniqueSlug,
       subtitle: str(r.subtitle, 140),
       category: str(r.category, 80),
       liveUrl,
       tileSrc,
-      tileTabletSrc: str(r.tileTabletSrc, 500) || undefined,
-      tileMobileSrc: str(r.tileMobileSrc, 500) || tileSrc,
+      tileTabletSrc: str(r.tileTabletSrc, 500) || hardcodedTablet,
+      tileMobileSrc: str(r.tileMobileSrc, 500) || hardcodedMobile,
       blurSrc: str(r.blurSrc, 500) || tileSrc,
       detailDesktopSrc,
       detailMobileSrc: str(r.detailMobileSrc, 500) || detailDesktopSrc,

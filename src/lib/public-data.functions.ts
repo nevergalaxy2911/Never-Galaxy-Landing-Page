@@ -123,8 +123,6 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
     try {
       const sb = await client();
       if (!sb) return null;
-      // Items and their per-item card shapes are fetched together so the grid
-      // can reserve the right box on the very first paint (no layout shift).
       const [itemsRes, aspectsRes] = await Promise.all([
         sb
           .from("portfolio_items")

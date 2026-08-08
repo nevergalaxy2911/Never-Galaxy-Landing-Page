@@ -6,6 +6,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
+import { BarChart3, AlertCircle, Zap, Globe, MousePointer2, History, ArrowRight } from "lucide-react";
 import { getAnalyticsSummary, getDayAnalytics } from "@/lib/analytics.functions";
 import { getPortfolioClickStats } from "@/lib/portfolio-clicks.functions";
 
@@ -22,133 +23,189 @@ function AnalyticsPage() {
   const [s, setS] = useState<Summary | null>(null);
   const [clicks, setClicks] = useState<ClickStats | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    load().then((r) => {
-      if (!r.ok) setErr(r.reason ?? "Failed to load analytics");
-      setS(r);
-    }).catch((e) => setErr((e as Error).message));
-    loadClicks().then(setClicks).catch(() => {});
+    let cancelled = false;
+    setLoading(true);
+    
+    const run = async () => {
+      try {
+        const [sum, clickData] = await Promise.all([load(), loadClicks()]);
+        if (cancelled) return;
+        setS(sum);
+        setClicks(clickData);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError' || e?.message?.toLowerCase().includes('aborted')) return;
+        setErr(e.message || "Failed to load neural analytics data.");
+        console.error("[Analytics] Fetch Error:", e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
   }, [load, loadClicks]);
 
-  if (err) return <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">{err}</div>;
-  if (!s) return <p className="text-white/50 text-sm">Loading analytics…</p>;
-  if (!s.ok) return <p className="text-white/50 text-sm">{s.reason}</p>;
+  if (err) return (
+    <div className="p-10">
+      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+        <AlertCircle size={40} className="text-red-400 mx-auto mb-4" />
+        <h2 className="text-lg font-black uppercase text-white mb-2">Telemetry Failure</h2>
+        <p className="text-sm text-white/40 mb-6">{err}</p>
+        <button onClick={() => window.location.reload()} className="console-btn-primary">Reconnect Node</button>
+      </div>
+    </div>
+  );
+
+  if (loading || !s) return (
+    <div className="p-10 space-y-8 animate-pulse">
+      <div className="h-8 w-48 bg-white/5 rounded-lg" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Array.from({length: 5}).map((_, i) => <div key={i} className="h-24 bg-white/5 rounded-2xl" />)}
+      </div>
+      <div className="h-64 bg-white/5 rounded-2xl" />
+    </div>
+  );
 
   const { totals, daily, topPaths, events } = s;
-  const maxDaily = Math.max(1, ...daily.map((d) => d.total));
+  const maxDaily = Math.max(1, ...(daily || []).map((d) => d.total));
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Analytics</h1>
+    <div className="w-full p-6 lg:p-10 space-y-10 animate-in fade-in duration-700">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-2xl bg-[#4CE4F8]/10 flex items-center justify-center text-[#4CE4F8] shadow-lg shadow-[#4CE4F8]/10">
+          <BarChart3 size={28} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black uppercase tracking-widest text-white">Neural Analytics</h1>
+          <p className="text-[10px] text-white/30 uppercase tracking-tighter mt-1">Global Traffic & Interaction Intelligence</p>
+        </div>
+      </div>
 
-      {/* Totals */}
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Visits (24h)" value={totals.day} />
-        <Stat label="Visits (7d)" value={totals.week} />
-        <Stat label="Visits (30d)" value={totals.month} accent />
-        <Stat label="Blocked (30d)" value={totals.blocked} />
-        <Stat label="Block rate" value={`${totals.blockRate}%`} />
+      {/* Totals Grid */}
+      <section className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Stat label="Visits (24h)" value={totals?.day ?? 0} color="#A15CFD" />
+        <Stat label="Visits (7d)" value={totals?.week ?? 0} color="#4CE4F8" />
+        <Stat label="Visits (30d)" value={totals?.month ?? 0} accent color="#d946ef" />
+        <Stat label="Blocked (30d)" value={totals?.blocked ?? 0} color="#f43f5e" />
+        <Stat label="Block Rate" value={`${totals?.blockRate ?? 0}%`} color="#f59e0b" />
       </section>
 
-      {/* 14-day chart — smooth area line + subtle grid + hover tooltips.
-          Uses SVG for crisp scaling and precise proportions. */}
+      {/* 14-day chart */}
       <section>
         <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-lg font-semibold">Visits, last 14 days</h2>
-          <span className="text-xs text-white/50 tabular-nums">
-            Peak {maxDaily} · Avg {Math.round(daily.reduce((a, d) => a + d.total, 0) / Math.max(1, daily.length))}
+          <h2 className="text-sm font-black uppercase tracking-widest">Visits, last 14 days</h2>
+          <span className="text-[10px] text-white/30 font-black uppercase tracking-widest tabular-nums">
+            Peak {maxDaily} · Avg {Math.round((daily || []).reduce((a, d) => a + d.total, 0) / Math.max(1, daily?.length ?? 0))}
           </span>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-          <VisitsChart daily={daily} maxDaily={maxDaily} />
-          <div className="flex justify-between mt-2 text-[10px] text-white/40 tabular-nums">
-            <span>{daily[0]?.date}</span>
-            <span>{daily[Math.floor(daily.length / 2)]?.date}</span>
-            <span>{daily[daily.length - 1]?.date}</span>
+        <div className="console-chart-card p-6 bg-white/[0.02]">
+          <VisitsChart daily={daily || []} maxDaily={maxDaily} />
+          <div className="flex justify-between mt-4 text-[10px] text-white/20 font-black uppercase tracking-widest tabular-nums px-2">
+            <span>{daily?.[0]?.date}</span>
+            <span>{daily?.[Math.floor((daily?.length ?? 0) / 2)]?.date}</span>
+            <span>{daily?.[(daily?.length ?? 0) - 1]?.date}</span>
           </div>
-          <div className="flex flex-wrap gap-4 mt-3 text-xs text-white/60">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gradient-to-b from-fuchsia-400 to-fuchsia-600" /> Visits</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-500/70" /> Blocked</span>
+          <div className="flex flex-wrap gap-6 mt-6 pt-6 border-t border-white/5 px-2">
+            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40">
+              <span className="w-2 h-2 rounded-full bg-[#A15CFD] shadow-[0_0_8px_rgba(161,92,253,0.5)]" /> 
+              Neural Visits
+            </span>
+            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40">
+              <span className="w-2 h-2 rounded-full bg-[#f43f5e] shadow-[0_0_8px_rgba(244,63,94,0.5)]" /> 
+              Signal Blocked
+            </span>
           </div>
         </div>
       </section>
 
-      {/* Per-day drilldown: pick a date, see hour-by-hour traffic and the
-          exact visit log with times. */}
+      {/* Per-day drilldown */}
       <DayDrilldown />
 
+      {/* Data Panels */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-[#4CE4F8]/10 text-[#4CE4F8]"><Globe size={18} /></div>
+            <h2 className="text-sm font-black uppercase tracking-widest">Global Entry Points</h2>
+          </div>
+          <div className="console-chart-card p-0 overflow-hidden divide-y divide-white/5">
+            {(!topPaths || topPaths.length === 0) && <p className="p-10 text-white/20 text-xs text-center uppercase tracking-widest font-black">No neural data</p>}
+            {topPaths?.map((p) => (
+              <div key={p.path} className="flex items-center px-6 py-4 hover:bg-white/[0.02] transition-colors group">
+                <code className="text-[#4CE4F8] text-xs font-mono flex-1 truncate group-hover:text-white transition-colors">{p.path}</code>
+                <span className="text-white/60 tabular-nums font-black text-xs">{p.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-
-      {/* Top paths */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Top paths (30d)</h2>
-        <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10">
-          {topPaths.length === 0 && <p className="px-4 py-6 text-white/50 text-sm text-center">No visits recorded yet.</p>}
-          {topPaths.map((p) => (
-            <div key={p.path} className="flex items-center px-4 py-2.5 text-sm">
-              <code className="text-fuchsia-300 flex-1 truncate">{p.path}</code>
-              <span className="text-white/60 tabular-nums">{p.count}</span>
+        {/* Portfolio outbound clicks (30d) */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-[#A15CFD]/10 text-[#A15CFD]"><MousePointer2 size={18} /></div>
+              <h2 className="text-sm font-black uppercase tracking-widest">Interactions (30d)</h2>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Portfolio outbound clicks (30d) */}
-      <section>
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-lg font-semibold">Portfolio site clicks (30d)</h2>
-          <span className="text-xs text-white/50 tabular-nums">
-            Total {clicks?.ok ? clicks.total30 : 0}
-          </span>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-          {!clicks && <p className="px-4 py-6 text-white/50 text-sm text-center">Loading…</p>}
-          {clicks && !clicks.ok && <p className="px-4 py-6 text-white/50 text-sm text-center">{clicks.reason}</p>}
-          {clicks && clicks.ok && clicks.byItem.length === 0 && (
-            <p className="px-4 py-6 text-white/50 text-sm text-center">No portfolio clicks recorded yet.</p>
-          )}
-          {clicks && clicks.ok && clicks.byItem.length > 0 && (
-            <table className="w-full text-sm">
-              <thead className="text-[10px] uppercase tracking-widest text-white/40">
-                <tr>
-                  <th className="text-left px-4 py-2">Site</th>
-                  <th className="text-right px-2 py-2">Tile</th>
-                  <th className="text-right px-2 py-2">Preview</th>
-                  <th className="text-right px-2 py-2">Visit</th>
-                  <th className="text-right px-4 py-2">Total</th>
-                  <th className="text-right px-4 py-2">Last</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {clicks.byItem.map((it) => (
-                  <tr key={it.slug}>
-                    <td className="px-4 py-2">
-                      <a href={it.url} target="_blank" rel="noopener noreferrer" className="text-fuchsia-300 hover:underline">{it.title || it.slug}</a>
-                    </td>
-                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.tile}</td>
-                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.preview}</td>
-                    <td className="text-right px-2 py-2 tabular-nums text-white/70">{it.visit}</td>
-                    <td className="text-right px-4 py-2 tabular-nums font-semibold">{it.total}</td>
-                    <td className="text-right px-4 py-2 tabular-nums text-white/40 text-xs">{new Date(it.lastAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            <span className="text-[10px] text-white/20 font-black uppercase tabular-nums">
+              Total {clicks?.ok ? clicks.total30 : 0}
+            </span>
+          </div>
+          <div className="console-chart-card p-0 overflow-hidden">
+            {!clicks && <p className="p-10 text-white/20 text-xs text-center animate-pulse uppercase tracking-widest font-black">Scanning Node...</p>}
+            {clicks && !clicks.ok && <p className="p-10 text-red-400/60 text-xs text-center font-black">{clicks.reason}</p>}
+            {clicks && clicks.ok && clicks.byItem.length === 0 && (
+              <p className="p-10 text-white/20 text-xs text-center uppercase tracking-widest font-black">No clicks detected</p>
+            )}
+            {clicks && clicks.ok && clicks.byItem.length > 0 && (
+              <div className="overflow-x-auto custom-scrollbar">
+                <table className="w-full text-left">
+                  <thead className="console-table-header">
+                    <tr>
+                      <th className="px-6 py-4">Site</th>
+                      <th className="px-4 py-4 text-center">Visits</th>
+                      <th className="px-6 py-4 text-right">Last Peak</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {clicks.byItem.map((it) => (
+                      <tr key={it.slug} className="hover:bg-white/[0.02] transition-colors group">
+                        <td className="px-6 py-4">
+                          <a href={it.url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-white/80 hover:text-[#A15CFD] transition-colors">
+                            {it.title || it.slug}
+                          </a>
+                        </td>
+                        <td className="px-4 py-4 text-center tabular-nums text-xs font-black text-[#4CE4F8]">
+                          {it.total}
+                        </td>
+                        <td className="px-6 py-4 text-right tabular-nums text-[10px] text-white/20 uppercase font-black">
+                          {new Date(it.lastAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       {/* System events */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
-        <div className="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/10 max-h-96 overflow-auto">
-          {events.length === 0 && <p className="px-4 py-6 text-white/50 text-sm text-center">No events yet.</p>}
-          {events.map((e, i) => (
-            <div key={i} className="px-4 py-2 text-xs flex items-center gap-3">
-              <span className="text-fuchsia-300 font-mono">{e.kind}</span>
-              <span className="text-white/40 flex-1 truncate">{JSON.stringify(e.payload)}</span>
-              <span className="text-white/40 tabular-nums">{new Date(e.created_at).toLocaleString()}</span>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><History size={18} /></div>
+          <h2 className="text-sm font-black uppercase tracking-widest">Neural Activity Stream</h2>
+        </div>
+        <div className="console-chart-card p-0 overflow-hidden max-h-96 custom-scrollbar overflow-y-auto divide-y divide-white/5">
+          {(!events || events.length === 0) && <p className="p-10 text-white/20 text-xs text-center uppercase tracking-widest font-black">No recent events</p>}
+          {events?.map((e, i) => (
+            <div key={i} className="px-6 py-4 flex items-center gap-4 group hover:bg-white/[0.01] transition-colors">
+              <span className="text-[#A15CFD] text-[10px] font-black uppercase tracking-widest min-w-[100px]">{e.kind.replace(/_/g, ' ')}</span>
+              <span className="text-white/40 text-[10px] flex-1 truncate font-mono">{JSON.stringify(e.payload)}</span>
+              <span className="text-white/20 tabular-nums text-[10px] font-black uppercase">{new Date(e.created_at).toLocaleTimeString()}</span>
             </div>
           ))}
         </div>
@@ -157,20 +214,16 @@ function AnalyticsPage() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
+function Stat({ label, value, accent, color }: { label: string; value: number | string; accent?: boolean; color?: string }) {
   return (
-    <div className={`rounded-xl border p-4 ${accent ? "border-fuchsia-500/40 bg-fuchsia-500/10" : "border-white/10 bg-white/5"}`}>
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="text-xs text-white/60 mt-1">{label}</div>
+    <div className={`console-stat-card border-none group relative overflow-hidden ${accent ? "bg-[#A15CFD]/5" : "bg-white/[0.02]"}`}>
+      {accent && <div className="absolute top-0 right-0 p-2"><Zap size={10} className="text-[#A15CFD] animate-pulse" /></div>}
+      <div className="text-2xl font-black tabular-nums" style={{ color: color || '#ffffff' }}>{value}</div>
+      <div className="text-[10px] text-white/20 font-black uppercase tracking-widest mt-1 group-hover:text-white/40 transition-colors">{label}</div>
     </div>
   );
 }
 
-/* ---------------------------------------------------------------------------
- * VisitsChart — SVG area+line for smooth reading, plus stacked "blocked"
- * markers. Uses viewBox for crisp scaling on any width; horizontal grid
- * lines quantise the eye; hover shows date + counts via native <title>.
- * ------------------------------------------------------------------------- */
 function VisitsChart({ daily, maxDaily }: { daily: { date: string; total: number; blocked: number }[]; maxDaily: number }) {
   const W = 700, H = 180, PAD_L = 32, PAD_R = 8, PAD_T = 10, PAD_B = 20;
   const iw = W - PAD_L - PAD_R;
@@ -182,49 +235,36 @@ function VisitsChart({ daily, maxDaily }: { daily: { date: string; total: number
 
   const pts = daily.map((d, i) => `${x(i)},${y(d.total)}`).join(" ");
   const area = `${PAD_L},${PAD_T + ih} ${pts} ${x(n - 1)},${PAD_T + ih}`;
-
-  // 4 gridlines including baseline
   const gridVals = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxDaily * f));
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-44" role="img" aria-label="Daily visits and blocked visits, last 14 days">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-44" role="img" aria-label="Daily visits and blocked visits">
       <defs>
         <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"  stopColor="rgb(232 121 249)" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="rgb(232 121 249)" stopOpacity="0" />
+          <stop offset="0%"  stopColor="#A15CFD" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#A15CFD" stopOpacity="0" />
         </linearGradient>
       </defs>
-
-      {/* Gridlines + Y labels */}
       {gridVals.map((v, i) => {
         const gy = y(v);
         return (
           <g key={i}>
-            <line x1={PAD_L} x2={W - PAD_R} y1={gy} y2={gy} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <text x={PAD_L - 6} y={gy + 3} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.4)" className="tabular-nums">{v}</text>
+            <line x1={PAD_L} x2={W - PAD_R} y1={gy} y2={gy} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+            <text x={PAD_L - 6} y={gy + 3} textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.2)" className="tabular-nums font-black">{v}</text>
           </g>
         );
       })}
-
-      {/* Filled area under the visits line */}
       <polygon points={area} fill="url(#visitsFill)" />
-
-      {/* Visits polyline */}
-      <polyline points={pts} fill="none" stroke="rgb(232 121 249)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-
-      {/* Blocked markers (small red dots stacked at the same x) */}
+      <polyline points={pts} fill="none" stroke="#A15CFD" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
       {daily.map((d, i) => d.blocked > 0 ? (
-        <circle key={`b-${i}`} cx={x(i)} cy={y(d.blocked)} r={3} fill="rgb(239 68 68)" opacity={0.85}>
+        <circle key={`b-${i}`} cx={x(i)} cy={y(d.blocked)} r={3} fill="#f43f5e" opacity={0.6}>
           <title>{`${d.date}: ${d.blocked} blocked`}</title>
         </circle>
       ) : null)}
-
-      {/* Visit points + hover targets */}
       {daily.map((d, i) => (
         <g key={`p-${i}`}>
-          <circle cx={x(i)} cy={y(d.total)} r={2.5} fill="rgb(232 121 249)" />
-          {/* Wide invisible target for hover tooltips */}
-          <rect x={x(i) - step / 2} y={PAD_T} width={step} height={ih} fill="transparent">
+          <circle cx={x(i)} cy={y(d.total)} r={2} fill="#A15CFD" />
+          <rect x={x(i) - step / 2} y={PAD_T} width={step} height={ih} fill="transparent" className="cursor-crosshair">
             <title>{`${d.date}\n${d.total} visits · ${d.blocked} blocked`}</title>
           </rect>
         </g>
@@ -233,17 +273,6 @@ function VisitsChart({ daily, maxDaily }: { daily: { date: string; total: number
   );
 }
 
-/* ---------------------------------------------------------------------------
- * DayDrilldown — pick any calendar day and inspect it in detail.
- *
- * HOW TO MODIFY:
- *  • Rows shown in the log        -> the `.slice(0, 500)` cap lives server-side
- *                                    in getDayAnalytics (src/lib/analytics.functions.ts).
- *  • Time format                  -> `fmtTime` below.
- *  • Add a column (device, geo…)  -> add the column to page_views in
- *                                    SUPABASE_SETUP.sql, return it from
- *                                    getDayAnalytics, then render it here.
- * ------------------------------------------------------------------------- */
 type DayData = Awaited<ReturnType<typeof getDayAnalytics>>;
 
 function todayLocalISO() {
@@ -262,19 +291,24 @@ function DayDrilldown() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const fetchDay = useCallback(
-    (d: string) => {
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
       setBusy(true);
       setErr(null);
-      loadDay({ data: { date: d, tzOffsetMinutes: new Date().getTimezoneOffset() } })
-        .then((r) => setDay(r))
-        .catch((e) => setErr((e as Error).message))
-        .finally(() => setBusy(false));
-    },
-    [loadDay],
-  );
-
-  useEffect(() => { fetchDay(date); }, [date, fetchDay]);
+      try {
+        const r = await loadDay({ data: { date, tzOffsetMinutes: new Date().getTimezoneOffset() } });
+        if (!cancelled) setDay(r);
+      } catch (e: any) {
+        if (cancelled || e?.name === 'AbortError') return;
+        setErr(e.message || "Temporal scan failed.");
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [date, loadDay]);
 
   const shift = (days: number) => {
     const d = new Date(`${date}T12:00:00`);
@@ -286,14 +320,16 @@ function DayDrilldown() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-semibold">Day drilldown</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-[#d946ef]/10 text-[#d946ef]"><Zap size={18} /></div>
+          <h2 className="text-sm font-black uppercase tracking-widest">Temporal Drilldown</h2>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => shift(-1)}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm hover:bg-white/10"
-            aria-label="Previous day"
+            className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs hover:bg-white/10 transition-colors text-white/40"
           >
             ‹
           </button>
@@ -302,83 +338,86 @@ function DayDrilldown() {
             value={date}
             max={todayLocalISO()}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm [color-scheme:dark]"
-            aria-label="Pick a date"
+            className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2 text-[10px] font-black uppercase tracking-widest [color-scheme:dark] outline-none focus:border-[#A15CFD] transition-colors"
           />
           <button
             type="button"
             onClick={() => shift(1)}
             disabled={date >= todayLocalISO()}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-sm hover:bg-white/10 disabled:opacity-30"
-            aria-label="Next day"
+            className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs hover:bg-white/10 transition-colors text-white/40 disabled:opacity-20"
           >
             ›
           </button>
           <button
             type="button"
             onClick={() => setDate(todayLocalISO())}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm hover:bg-white/10"
+            className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors text-white/60 ml-2"
           >
-            Today
+            Sync Now
           </button>
         </div>
       </div>
 
-      {err && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">{err}</div>
-      )}
-
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-5">
-        {busy && !day && <p className="text-white/50 text-sm">Loading day…</p>}
-        {day && !day.ok && <p className="text-white/50 text-sm">{day.reason}</p>}
+      <div className="console-chart-card p-8 space-y-10">
+        {busy && !day && <p className="p-10 text-white/20 text-xs text-center animate-pulse uppercase tracking-widest font-black">Scanning Chrono-Node...</p>}
+        {day && !day.ok && <p className="text-red-400 text-xs font-black uppercase tracking-widest">{day.reason}</p>}
 
         {day?.ok && (
           <>
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
-              <span className="text-2xl font-semibold tabular-nums">{day.total}</span>
-              <span className="text-white/60">visits on {day.date}</span>
-              {day.peakHour !== null && (
-                <span className="text-white/40 text-xs tabular-nums">
-                  Busiest hour {String(day.peakHour).padStart(2, "0")}:00
-                </span>
+            <div className="flex flex-wrap items-baseline gap-x-10 gap-y-4">
+              <div className="flex flex-col">
+                <span className="text-3xl font-black tabular-nums text-[#A15CFD]">{day.total}</span>
+                <span className="text-[10px] text-white/20 font-black uppercase tracking-widest mt-1">Daily Signals</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-3xl font-black tabular-nums text-white/80">{day.peakHour !== null ? `${String(day.peakHour).padStart(2, "0")}:00` : '--:--'}</span>
+                <span className="text-[10px] text-white/20 font-black uppercase tracking-widest mt-1">Peak Intensity</span>
+              </div>
+              {day.truncated && (
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  <AlertCircle size={12} />
+                  <span className="text-[9px] font-black uppercase">Capped @ 2000</span>
+                </div>
               )}
-              {day.truncated && <span className="text-amber-300/80 text-xs">Capped at 2000 rows</span>}
             </div>
 
-            {/* Hour-by-hour bars, 00:00 to 23:00 in the admin's local time. */}
+            {/* Hourly chart */}
             <div>
-              <div className="flex items-end gap-[3px] h-28">
+              <div className="flex items-end gap-[3px] h-32 px-2">
                 {day.hourly.map((h) => (
-                  <div key={h.hour} className="flex-1 flex items-end h-full" title={`${String(h.hour).padStart(2, "0")}:00 · ${h.count} visits`}>
+                  <div key={h.hour} className="flex-1 flex items-end h-full group" title={`${String(h.hour).padStart(2, "0")}:00 · ${h.count} visits`}>
                     <div
-                      className="w-full rounded-t bg-gradient-to-t from-fuchsia-700/60 to-fuchsia-400"
+                      className="w-full rounded-t-sm bg-gradient-to-t from-[#A15CFD]/20 to-[#A15CFD] group-hover:to-[#4CE4F8] transition-all duration-300"
                       style={{ height: `${Math.max(h.count > 0 ? 4 : 1, (h.count / maxHour) * 100)}%` }}
                     />
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between mt-1 text-[10px] text-white/40 tabular-nums">
-                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+              <div className="flex justify-between mt-4 px-2 text-[9px] text-white/10 font-black uppercase tracking-[0.2em] tabular-nums">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:59</span>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <MiniList title="Pages" rows={day.topPaths} empty="No pages" />
-              <MiniList title="Referrers" rows={day.topReferrers} empty="No referrers" />
+            <div className="grid md:grid-cols-2 gap-8">
+              <MiniList title="Entry Nodes" rows={day.topPaths} empty="No signals" />
+              <MiniList title="Source Origins" rows={day.topReferrers} empty="No origins" />
             </div>
 
-            {/* Exact visit log with times */}
+            {/* Visit log */}
             <div>
-              <h3 className="text-sm font-semibold mb-2">Visit log</h3>
-              <div className="rounded-lg border border-white/10 divide-y divide-white/10 max-h-96 overflow-auto">
+              <div className="flex items-center gap-2 mb-4">
+                <ArrowRight size={14} className="text-[#A15CFD]" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40">Neural Signal Log</h3>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-black/20 divide-y divide-white/5 max-h-96 overflow-auto custom-scrollbar">
                 {day.visits.length === 0 && (
-                  <p className="px-4 py-6 text-white/50 text-sm text-center">No visits on this day.</p>
+                  <p className="p-10 text-white/10 text-xs text-center uppercase tracking-widest font-black">Null Stream</p>
                 )}
                 {day.visits.map((v, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-1.5 text-xs">
-                    <span className="tabular-nums text-white/50 w-20 shrink-0">{fmtTime(v.at)}</span>
-                    <code className="text-fuchsia-300 flex-1 truncate">{v.path}</code>
-                    <span className="text-white/40 truncate max-w-[9rem]">{v.referrer ?? "direct"}</span>
+                  <div key={i} className="flex items-center gap-6 px-6 py-3 hover:bg-white/[0.01] transition-colors">
+                    <span className="tabular-nums text-[10px] font-black text-white/20 w-20 shrink-0 uppercase">{fmtTime(v.at)}</span>
+                    <code className="text-[#4CE4F8] text-[10px] font-mono flex-1 truncate">{v.path}</code>
+                    <span className="text-white/20 text-[9px] font-black uppercase truncate max-w-[12rem]">{v.referrer ?? "DIRECT_LINK"}</span>
                   </div>
                 ))}
               </div>
@@ -392,14 +431,14 @@ function DayDrilldown() {
 
 function MiniList({ title, rows, empty }: { title: string; rows: { key: string; count: number }[]; empty: string }) {
   return (
-    <div className="rounded-lg border border-white/10">
-      <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-white/40">{title}</div>
-      <div className="divide-y divide-white/10">
-        {rows.length === 0 && <p className="px-3 py-4 text-white/40 text-xs text-center">{empty}</p>}
-        {rows.map((r) => (
-          <div key={r.key} className="flex items-center px-3 py-1.5 text-xs">
-            <span className="flex-1 truncate text-white/70">{r.key}</span>
-            <span className="tabular-nums text-white/50">{r.count}</span>
+    <div className="rounded-2xl border border-white/5 bg-black/20 overflow-hidden">
+      <div className="px-6 py-3 border-b border-white/5 bg-white/[0.01] text-[9px] font-black uppercase tracking-widest text-white/40">{title}</div>
+      <div className="divide-y divide-white/5">
+        {(!rows || rows.length === 0) && <p className="p-8 text-white/10 text-[10px] text-center uppercase tracking-widest font-black">{empty}</p>}
+        {rows?.map((r) => (
+          <div key={r.key} className="flex items-center px-6 py-3 hover:bg-white/[0.01] transition-colors">
+            <span className="flex-1 truncate text-[10px] font-black text-white/60 uppercase tracking-tighter">{r.key}</span>
+            <span className="tabular-nums text-[10px] font-black text-[#A15CFD]">{r.count}</span>
           </div>
         ))}
       </div>
