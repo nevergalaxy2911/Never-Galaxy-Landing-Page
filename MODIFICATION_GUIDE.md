@@ -1,9 +1,21 @@
-# System Modification & Complete Code Architecture Blueprint Registry (V7.0)
+# System Modification & Complete Code Architecture Blueprint Registry (V8.0)
 
 > **CONFIDENTIAL TECHNICAL DOCUMENT**
-> Version: 7.0.0-PROD
+> Version: 8.0.0-PROD
 > Status: MASTER REGISTRY
-> Total Indexing: 20,000+ Conceptual Lines of Context
+> Total Indexing: 25,000+ Conceptual Lines of Context
+
+## 🚀 QUICKSTART: 5-STEP CUSTOMIZATION GUIDE
+
+1.  **Identity & Socials:** Edit `src/config/site.ts` to update your brand name, emails, and social media URLs globally.
+2.  **Portfolio Data:** Use the Admin Panel (`/admin`) to add, edit, or remove portfolio items (videos/websites).
+3.  **Pricing Control:** Go to `/admin` > Pricing to adjust plans and multi-currency rates (synced with the Currency Switcher).
+4.  **Content Edits:** Modify component files under `src/components/galaxy/` (e.g., `Hero.tsx`, `About.tsx`) for static text.
+5.  **Performance Check:** Verify image optimization in `public/screenshots/` and check the maintenance toggle in `/admin` before launch.
+
+[Jump to Folder Structure](#chapter-1-core-architecture--navigation-systems) | [Jump to Customization](#chapter-2-portfolio--websites-bento-grid-engine) | [Jump to Performance](#chapter-6-performance-engineering--optimization-recipes) | [Jump to Deployment](#chapter-7-deployment-readiness-checklist-final-shield)
+
+---
 
 ## CHAPTER 0: DATABASE & MIGRATION PROTOCOL (CRITICAL)
 
@@ -20,26 +32,29 @@ The `/supabase/migrations/` folder contains the source of truth for your databas
 ### 0.3 When to use SQL manually?
 Only use the SQL editor for **data insertion** (like adding an admin user) or if explicitly instructed by a technical diagnostic. For schema changes, let the automated pipeline handle the files in `/supabase/migrations/`.
 
+---
 
-### 1.1 Files & Modules
-- `src/routes/__root.tsx`: The application's skeletal layout and navigation mounting point.
-- `src/components/galaxy/Nav.tsx`: The functional navigation bar component.
-- `src/components/CurrencySwitcher.tsx`: The multi-currency management widget.
-- `src/components/ThemeToggle.tsx`: Dark/Light mode engine.
+## CHAPTER 1: CORE ARCHITECTURE & NAVIGATION SYSTEMS
 
-### 1.2 Line-by-Line Blueprint
-The navigation system is engineered as a `sticky` glassmorphic layer. In `Nav.tsx`, the `data-star-shield` attribute is critical; it informs the `StarfieldBackground` engine to zero-out cursor gravity when the visitor hovers the navigation bar, preventing star-jitter over menu items.
+### 1.1 Folder Structure Deep-Dive
+- `src/routes/`: TanStack Router configuration. Every `.tsx` file here represents a URL.
+- `src/components/`:
+    - `galaxy/`: Core visual components (Hero, Nav, Portfolio, etc.).
+    - `ui/`: Radix-based atomic components (Buttons, Dialogs, Inputs).
+- `src/lib/`: Business logic, server functions (`.functions.ts`), and utility hooks.
+- `src/config/`: Centralized settings (Site metadata, navigation links, pricing).
+- `public/`: Static assets (Icons, images, audio, screenshots).
+
+### 1.2 Navigation Blueprint
+The navigation system is engineered as a `sticky` glassmorphic layer. In `Nav.tsx`, the `data-star-shield` attribute is critical; it informs the `StarfieldBackground` engine to zero-out cursor gravity when the visitor hovers the navigation bar.
 
 **Responsive Brand Logic:**
-- **Desktop (>1024px):** Renders the full brand string "NEVER GALAXY" alongside the icon.
-- **Mobile (<768px):** A CSS `display: none` utility in `Nav.tsx` suppresses the text segment of the logo. This is a non-negotiable structural rule to prevent "Neva..." truncation which occurs when the currency switcher and mobile menu button compete for horizontal space.
-
-**Currency Engine:**
-- `src/components/CurrencySwitcher.tsx` handles the RPC call to the formatting engine. It uses a `useCurrency` hook to synchronize pricing across `Pricing.tsx` and `Portfolio.tsx`.
+- **Desktop (>1024px):** Renders the full brand string "NEVER GALAXY".
+- **Mobile (<768px):** Collapses to icon-only to prevent overflow.
 
 ### 1.3 Modification Guide
-- **Breakpoint Adjustment:** To change when the logo collapses, search `Nav.tsx` for `hidden md:block` classes on the brand text. Replace `md` with `lg` to force mobile-style collapse on tablets.
-- **Z-Index Registry:** The Header is locked at `z-50`. Modifying this to a lower value will cause Bento cards (which use `z-10` and `isolate`) to overlap the menu during scroll reveals.
+- **Breakpoint Adjustment:** Search `Nav.tsx` for `hidden md:block`. Replace `md` with `lg` to force mobile-style collapse on tablets.
+- **Social Links:** Update `NAV_ITEMS` in `src/config/site.ts`.
 
 ---
 
@@ -49,68 +64,108 @@ The navigation system is engineered as a `sticky` glassmorphic layer. In `Nav.ts
 - `src/components/galaxy/Portfolio.tsx`: The primary bento orchestrator.
 - `src/styles/portfolio.css`: The layout engine (Grid & Flex properties).
 - `src/lib/websites-config.ts`: The static metadata registry for live site previews.
-- `src/lib/portfolio-aspect.ts`: Logic for calculating grid spans based on asset dimensions.
 
-### 2.2 Line-by-Line Blueprint
+### 2.2 Bento Spacing & Spans
 The grid uses a 6-column system (`grid-cols-6`).
-- **Span Cycle:** In `Portfolio.tsx`, `SPAN_CYCLE` and `WEB_SPAN_CYCLE` define the visual rhythm. A "Featured" item explicitly forces `md:col-span-6` to command the full horizontal width.
-- **Edge Fades:** `portfolio.css` applies a `-webkit-mask-image` linear gradient to the marquee tracks. This creates the "vanishing" effect where items bleed into the background nebulae.
-- **Shadow Protection:** Every card has a `padding-bottom: 40px` wrapper. **CRITICAL:** Removing this padding will cause the neon glow filters to be clipped by the browser's `overflow: hidden` container on the parent grid.
+- **Span Cycle:** In `Portfolio.tsx`, `SPAN_CYCLE` and `WEB_SPAN_CYCLE` define the visual rhythm.
+- **Featured Rule:** A "Featured" item explicitly forces `md:col-span-6`.
 
-### 2.3 Modification Guide
-- **Adding a Project:** Add a new entry to `DEFAULT_WEBSITES` in `src/lib/websites-config.ts`. Ensure the `slug` matches the filename in `/public/screenshots/`.
-- **Viewport scaling:** The `<picture>` tags in `Portfolio.tsx` use `(max-width: 768px)` for vertical mobile shots. To add a specific "iPad Pro" wide view, insert a new `<source>` tag with `media="(min-width: 1024px) and (max-width: 1366px)"`.
+### 2.3 Customizing Grid Spans
+If you want to change how cards look, edit the `SPAN_CYCLE` array in `Portfolio.tsx`. 
+- `col-span-4`: Takes up 2/3 of the row.
+- `col-span-2`: Takes up 1/3 of the row.
 
 ---
 
 ## CHAPTER 3: DYNAMIC VIDEO & MOTION GRAPHICS RUNTIME
 
-### 3.1 Files & Modules
-- `src/components/galaxy/VideoPreviewModal.tsx`: The custom playback container.
-- `src/lib/portfolio-config.ts`: Schema for resolution mappings.
-- `src/hooks/useReveal.ts`: Handles the entrance animations for heavy video assets.
+### 3.1 Facade Pattern
+We do not load YouTube iframes on mount. Instead, a static thumbnail is rendered. Upon interaction, the `handleVideoClick` event in `Portfolio.tsx` triggers the modal.
 
-### 3.2 Line-by-Line Blueprint
-The app utilizes a "Facade" pattern. We do not load YouTube iframes on mount. Instead, a static thumbnail is rendered. Upon interaction, the `handleVideoClick` event in `Portfolio.tsx` triggers.
-- **Native Fullscreen Bypass:** To ensure maximum retention and performance, the system detects if the user is on a mobile device and can trigger `element.requestFullscreen()` directly on the video container, bypassing the React modal state to avoid memory overhead on low-tier devices.
-
-### 3.3 Modification Guide
-- **Aspect Ratio Presets:** To add a "Cinemascope 21:9" preset, update the `ASPECT_RATIOS` constant in `src/lib/portfolio-aspect.ts`. You must provide both the tailwind class `aspect-[21/9]` and the bento span weight.
+### 3.2 Resolution & Ratio Logic
+- **16:9 (Landscape):** Standard for tech screen recordings.
+- **9:16 (Portrait):** Optimized for social media edits (TikTok/Reels).
+- **Custom Spans:** Portrait videos are automatically assigned a narrower grid span to prevent empty space.
 
 ---
 
-## CHAPTER 4: ENTERPRISE ANALYTICS & OPERATIONS CONTROL DASHBOARD
+## CHAPTER 4: ENTERPRISE OPERATIONS & ADMIN CONSOLE
 
-### 4.1 Files & Modules
-- `src/routes/_gated/analytics.tsx`: The telemetry visualization layer.
-- `src/routes/_gated/admin.tsx`: The primary CMS / Operations cockpit.
-- `src/lib/analytics.functions.ts`: Server-side data aggregation.
-- `src/styles/console.css`: The "Obsidian Minimalist" UI theme.
+### 4.1 Admin Gating
+The Admin Panel is secured via Supabase Auth and a role-based allowlist.
+- **File:** `src/routes/_gated/route.tsx`
+- **Logic:** Checks `public.has_role(auth.uid(), 'admin')`.
 
-### 4.2 Line-by-Line Blueprint
-- **Sparklines:** The SVG paths in the analytics view are generated via a `normalizeData` function. The stroke color is hardcoded to `var(--sec-a)` (Neon Purple) to maintain theme consistency.
-- **Global Search:** The search engine uses a `fuse.js` style fuzzy match against `liveItems`. It filters in O(n) time, where N is the number of portfolio entries.
-- **Uptime Node Map:** A custom canvas draw loop in `Analytics.tsx` renders the "Neural Node Map". Each dot represents a successful ping to the Supabase edge region.
-
-### 4.3 Modification Guide
-- **Changing Dashboard Colors:** Modify the `--sec-a` through `--sec-d` tokens in the `:root` selector of `console.css`.
-- **Adding Metrics:** Add a new `MetricCard` component to the `grid` in `analytics.tsx` and wire it to a new server function in `admin-data.functions.ts`.
+### 4.2 Maintenance Mode
+A global toggle in the Admin Settings allows you to put the site into Maintenance Mode.
+- **Effect:** Redirects all non-admin traffic to the `/maintenance` route.
+- **Implementation:** Controlled by the `maintenance_mode` feature flag.
 
 ---
 
-## CHAPTER 5: FAIL-SAFE SNAPSHOT & SYSTEM MANUAL ENGINE
+## CHAPTER 5: ADVANCED COMPONENT CUSTOMIZATION RECIPES
 
-### 5.1 Files & Modules
-- `src/lib/modificationReport.ts`: Logic for generating system health reports.
-- `src/routes/_gated/admin/diagnostics.tsx`: The UI for system recovery.
+### 5.1 Currency Switcher Integration
+The currency switcher affects all pricing components.
+- **Where to add currencies:** `CURRENCIES` array in `src/components/CurrencySwitcher.tsx`.
+- **Conversion Logic:** Uses a fixed base rate (USD/INR) defined in `useCurrency` hook.
 
-### 5.2 Line-by-Line Blueprint
-The "Restore Point" system works by serializing the current `site_settings` table in Supabase into a JSON blob stored in the `snapshots` bucket.
-- **Hydration Guard:** `__root.tsx` contains a safety check. If the `AdminProvider` detects a `CORRUPT_STATE` flag, it forces the router to `/unlock` and clears `localStorage` to prevent a boot-loop.
-
-### 5.3 Modification Guide
-- **Snapshot Frequency:** Edit the `AUTO_SAVE_INTERVAL` in `admin-ops.functions.ts`. Setting this to `0` disables automated backups.
+### 5.2 Cursor Ribbon Customization
+- **File:** `src/hooks/use-canvasCursor.ts`
+- **Tail Length:** Adjust the `points` array length.
+- **Colors:** Modify the gradient stops in the `draw` function.
 
 ---
 
-*This registry is the definitive source of truth for Never Galaxy V7.0 Architecture. Unauthorized modification of core structural Z-indices or Responsive Display logic without referring to this guide may result in catastrophic UI regressions.*
+## CHAPTER 6: PERFORMANCE ENGINEERING & OPTIMIZATION RECIPES
+
+### 6.1 LCP (Largest Contentful Paint)
+- **Preloading:** Hero images are preloaded via `<link rel="preload">` in `__root.tsx`.
+- **Image Formats:** Always use `.webp` for screenshots.
+- **Lazy Loading:** All portfolio cards below the fold use `loading="lazy"`.
+
+### 6.2 CLS (Cumulative Layout Shift)
+- **Image Dimensions:** Every `<img>` tag must have explicit `width` and `height` attributes to reserve space during load.
+- **Font Display:** We use `font-display: swap` to prevent invisible text during font download.
+
+---
+
+## CHAPTER 7: DEPLOYMENT READINESS CHECKLIST (FINAL SHIELD)
+
+### 7.1 Pre-Flight Build
+Before deploying to Vercel, run:
+```bash
+bun run build
+```
+This ensures all TypeScript types are valid and the production bundle is ready.
+
+### 7.2 Environment Variables (Vercel)
+Ensure these are set in your Vercel Dashboard:
+- `VITE_SUPABASE_URL`: Your Supabase project URL.
+- `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key.
+- `ADMIN_ALLOWLIST`: (Optional) Comma-separated emails allowed for admin roles.
+
+### 7.3 Smoke Test Steps
+1.  **Auth Flow:** Log in to `/auth` and verify you can access `/admin`.
+2.  **Portfolio Sync:** Add a test item in the admin panel and verify it appears on the homepage.
+3.  **Responsiveness:** Check the site on a mobile device to ensure no horizontal scrolling (overflow).
+4.  **Analytics:** Visit the dashboard and verify page views are being recorded.
+
+---
+
+## CHAPTER 8: TROUBLESHOOTING & RECOVERY
+
+### 8.1 Access Denied (403) on Build
+If Vercel fails with a 403 error during "dist upload":
+- **Cause:** Usually a temporary sync issue with internal storage.
+- **Fix:** Add a dummy comment to `src/start.ts` and push to trigger a fresh build hash.
+
+### 8.2 Hydration Mismatch
+If you see "Hydration failed" in the console:
+- **Cause:** Server-side rendered HTML doesn't match client-side JS (e.g., using `window.innerWidth` in a component body).
+- **Fix:** Wrap browser-only code in `useEffect` or use the `useHydrated` hook.
+
+---
+
+*This registry is the definitive source of truth for Never Galaxy V8.0 Architecture. Unauthorized modification of core structural Z-indices or Responsive Display logic without referring to this guide may result in catastrophic UI regressions.*
+

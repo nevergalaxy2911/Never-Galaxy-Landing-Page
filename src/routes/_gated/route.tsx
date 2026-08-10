@@ -22,7 +22,7 @@ type State =
   | { kind: "forbidden"; email: string | null }
   | { kind: "ok"; email: string | null };
 
-const BYPASS_AUTH = true; // Gate open. Bypass active.
+const BYPASS_AUTH = false; // Production locked. Secure gate active.
 
 function GatedLayout() {
   const navigate = useNavigate();

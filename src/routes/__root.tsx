@@ -131,6 +131,33 @@ export const Route = createRootRoute({
       return { maintenance: null, serverNow };
     }
   },
+  errorComponent: ({ error }) => {
+    // If it's a known abort error, we don't want to show the full error UI
+    // because the router might just be switching routes.
+    const errStr = String(error).toLowerCase();
+    const isAbort = errStr.includes("aborted") || errStr.includes("abort");
+    
+    if (isAbort) {
+      return null;
+    }
+
+    return (
+      <div className="min-h-screen grid place-items-center bg-black text-white p-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-display mb-4">Something went wrong.</h1>
+          <p className="text-white/60 mb-6">
+            An unexpected error occurred while loading this page.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition-colors"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  },
   notFoundComponent: () => (
     <div className="min-h-screen grid place-items-center bg-background text-foreground sec-violet">
       <div className="text-center">

@@ -14,5 +14,15 @@
 ### Centralized Documentation
 - **Action**: Created `RECORDS.md` (this file) to maintain a persistent log of architectural changes and fixes, ensuring context is never lost across sessions.
 
+
+### Production Readiness & Handoff
+- **Auth Gate**: Flipped `BYPASS_AUTH` to `false` in `src/routes/_gated/route.tsx`. The Admin Panel is now secured by Supabase Auth and the `admin` role check.
+- **SQL Verification**: Confirmed `SUPABASE_SETUP.sql` covers all existing logic.
+- **Documentation**: Verified `MODIFICATION_GUIDE.md` (V7.0) is the exhaustive source of truth for the user.
+
+
+### Admin Bootstrap
+- **SQL Update**: Hardcoded the user ID `b88cdead-a797-489f-b51d-f07f60394a5b` into the `SUPABASE_SETUP.sql` bootstrap section as requested.
+
 ---
 *End of Record*
