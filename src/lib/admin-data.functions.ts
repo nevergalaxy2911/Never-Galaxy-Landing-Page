@@ -133,34 +133,54 @@ export const upsertPortfolio = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (!supabaseAdmin) throw new Error("Supabase not configured");
     
-    // Save aspect mapping if provided
-    if (data.aspect && data.id) {
-       const { sanitizeAspectMap } = await import("./portfolio-aspect");
-       const { data: current } = await supabaseAdmin.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle();
-       const map = sanitizeAspectMap(current?.value || {});
-       map[data.id] = data.aspect;
-       await supabaseAdmin.from("site_settings").upsert({ key: "portfolio.aspects", value: map, updated_at: new Date().toISOString() });
+    // 1. Separate aspect data from the main portfolio row
+    const { aspect, ...row } = data as Record<string, any> & { aspect?: any };
+    
+    // Ensure published is true for new items if not specified
+    if (row.published === undefined) {
+      row.published = true;
     }
 
-    const { aspect, ...row } = data as Record<string, unknown> & { aspect?: unknown };
+    // 2. Upsert the main portfolio item
     const { data: saved, error } = await supabaseAdmin
       .from("portfolio_items")
       .upsert({ ...row, updated_at: new Date().toISOString() })
       .select("id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    
-    // If we just created it and had aspect data, we might need a second pass or handle ID logic
-    // but the above logic handles updates. For creation:
-    if (data.aspect && !data.id && saved?.id) {
-       const { sanitizeAspectMap } = await import("./portfolio-aspect");
-       const { data: current } = await supabaseAdmin.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle();
-       const map = sanitizeAspectMap(current?.value || {});
-       map[saved.id] = data.aspect;
-       await supabaseAdmin.from("site_settings").upsert({ key: "portfolio.aspects", value: map, updated_at: new Date().toISOString() });
+      .single(); // Use .single() instead of .maybeSingle() to be sure we get the ID back
+      
+    if (error) {
+      console.error("[upsertPortfolio] Primary save error:", error);
+      throw new Error(error.message);
+    }
+    const itemId = row.id || (saved as { id?: string } | null)?.id;
+    if (!itemId) throw new Error("Failed to resolve project ID");
+
+    // 3. Save aspect configuration if provided
+    if (aspect) {
+      const { sanitizeAspectMap } = await import("./portfolio-aspect");
+      const { data: current } = await supabaseAdmin
+        .from("site_settings")
+        .select("value")
+        .eq("key", "portfolio.aspects")
+        .maybeSingle();
+      
+      const map = sanitizeAspectMap(current?.value || {});
+      map[itemId] = aspect;
+      
+      const { error: aspectErr } = await supabaseAdmin
+        .from("site_settings")
+        .upsert(
+          { key: "portfolio.aspects", value: map, updated_at: new Date().toISOString() },
+          { onConflict: "key" }
+        );
+      
+      if (aspectErr) {
+        console.error("[upsertPortfolio] Failed to save aspects:", aspectErr);
+        // We don't throw here to avoid failing the whole project save if just aspects fail
+      }
     }
 
-    return { ok: true, id: (saved as { id?: string } | null)?.id ?? null };
+    return { ok: true, id: itemId };
   });
 
 export const deletePortfolio = createServerFn({ method: "POST" })

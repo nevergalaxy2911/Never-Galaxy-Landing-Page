@@ -5,7 +5,21 @@
 > Status: MASTER REGISTRY
 > Total Indexing: 20,000+ Conceptual Lines of Context
 
-## CHAPTER 1: GLOBAL HEADER & NAVIGATION ARCHITECTURE
+## CHAPTER 0: DATABASE & MIGRATION PROTOCOL (CRITICAL)
+
+### 0.1 The Migration Folder
+The `/supabase/migrations/` folder contains the source of truth for your database schema.
+- **20260719...sql**: Core architecture (Users, Roles, Portfolio, Settings, Flags, Analytics).
+- **20260808...sql**: UI enhancements (Portfolio featured flag, video aspect ratios, enhanced inquiries).
+
+### 0.2 Should you run these?
+**NO.** Do not manually run these in the Supabase SQL editor if your site is already working.
+- **Lovable Cloud** manages these automatically. When you deploy, the platform detects the migration files and applies them to your production database.
+- **Manual Execution Risk:** Running them manually can cause "Already Exists" errors or break the automated sync tracked by the migration history table.
+
+### 0.3 When to use SQL manually?
+Only use the SQL editor for **data insertion** (like adding an admin user) or if explicitly instructed by a technical diagnostic. For schema changes, let the automated pipeline handle the files in `/supabase/migrations/`.
+
 
 ### 1.1 Files & Modules
 - `src/routes/__root.tsx`: The application's skeletal layout and navigation mounting point.

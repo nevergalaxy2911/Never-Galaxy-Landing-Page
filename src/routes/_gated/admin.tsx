@@ -261,11 +261,13 @@ function PortfolioView() {
           category: "Video", 
           video_url: formData.video_url,
           aspect: { ratio: formData.ratio, resolution: formData.resolution, size: formData.size },
-          position: items.length 
+          position: items.length,
+          published: true 
         };
 
     try {
-      await save({ data: payload });
+      const result = await save({ data: payload });
+      if (!result.ok) throw new Error("Save failed");
       toast.success(editingItem ? "Project updated" : "Project added");
       setIsOpen(false);
       refresh();
