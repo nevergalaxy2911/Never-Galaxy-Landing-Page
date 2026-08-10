@@ -186,7 +186,7 @@ export function CurrencySwitcher() {
         className="cur-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''\n                                            \n                                            For the code present, I get the error below.\n\nPlease think step-by-step in order to resolve it.\n\`\`\`\nError: aborted\n\n{\n  \"timestamp\": 1786226527106,\n  \"error_type\": \"RUNTIME_ERROR\",\n  \"filename\": \"Unknown file\",\n  \"lineno\": 0,\n  \"colno\": 0,\n  \"stack\": \"Error: aborted\\n    at abortIncoming (node:_http_server:838:17)\\n    at socketOnClose (node:_http_server:832:3)\\n    at Socket.emit (node:events:531:35)\\n    at TCP.<anonymous> (node:net:346:12)\\n    at TCP.callbackTrampoline (node:internal/async_hooks:130:17)\",\n  \"has_blank_screen\": true\n}\n\`\`\``}
+        aria-label="Currency selection"
       >
         <span className="cur-symbol">{currency.symbol.trim()}</span>
         <span className="cur-code">{currency.code}</span>

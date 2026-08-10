@@ -132,7 +132,16 @@ export const upsertPortfolio = createServerFn({ method: "POST" })
     await auth();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (!supabaseAdmin) throw new Error("Supabase not configured");
-    // `aspect` is stored in site_settings, not on the row, so strip it here.
+    
+    // Save aspect mapping if provided
+    if (data.aspect && data.id) {
+       const { sanitizeAspectMap } = await import("./portfolio-aspect");
+       const { data: current } = await supabaseAdmin.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle();
+       const map = sanitizeAspectMap(current?.value || {});
+       map[data.id] = data.aspect;
+       await supabaseAdmin.from("site_settings").upsert({ key: "portfolio.aspects", value: map, updated_at: new Date().toISOString() });
+    }
+
     const { aspect, ...row } = data as Record<string, unknown> & { aspect?: unknown };
     const { data: saved, error } = await supabaseAdmin
       .from("portfolio_items")
@@ -140,6 +149,17 @@ export const upsertPortfolio = createServerFn({ method: "POST" })
       .select("id")
       .maybeSingle();
     if (error) throw new Error(error.message);
+    
+    // If we just created it and had aspect data, we might need a second pass or handle ID logic
+    // but the above logic handles updates. For creation:
+    if (data.aspect && !data.id && saved?.id) {
+       const { sanitizeAspectMap } = await import("./portfolio-aspect");
+       const { data: current } = await supabaseAdmin.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle();
+       const map = sanitizeAspectMap(current?.value || {});
+       map[saved.id] = data.aspect;
+       await supabaseAdmin.from("site_settings").upsert({ key: "portfolio.aspects", value: map, updated_at: new Date().toISOString() });
+    }
+
     return { ok: true, id: (saved as { id?: string } | null)?.id ?? null };
   });
 
@@ -350,6 +370,37 @@ export const purgeOldPageViews = createServerFn({ method: "POST" })
 /* -------------------------------------------------------------------------- */
 /* HEALTH, quick summary for /api-panel                                       */
 /* -------------------------------------------------------------------------- */
+
+export const getSupabaseAlignment = createServerFn({ method: "GET" }).handler(async () => {
+  await auth();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  if (!supabaseAdmin) throw new Error("Supabase not configured");
+
+  const tables = [
+    "user_roles",
+    "site_settings",
+    "pricing_plans",
+    "portfolio_items",
+    "feature_flags",
+    "contact_submissions",
+    "page_views",
+    "system_events",
+    "portfolio_clicks"
+  ];
+
+  const results: Record<string, { exists: boolean; status: string }> = {};
+
+  await Promise.all(tables.map(async (table) => {
+    // Quick probe to check existence and basic permissions
+    const { error } = await supabaseAdmin.from(table).select("*").limit(0);
+    results[table] = {
+      exists: !error || (error.code !== 'PGRST116' && error.code !== '42P01'),
+      status: error ? `Error: ${error.message}` : "Aligned"
+    };
+  }));
+
+  return results;
+});
 
 export const getHealth = createServerFn({ method: "GET" }).handler(async () => {
   await auth();
