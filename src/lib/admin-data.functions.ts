@@ -145,12 +145,12 @@ export const upsertPortfolio = createServerFn({ method: "POST" })
     const { data: saved, error } = await supabaseAdmin
       .from("portfolio_items")
       .upsert({ ...row, updated_at: new Date().toISOString() })
-      .select("id")
-      .single(); // Use .single() instead of .maybeSingle() to be sure we get the ID back
+      .select("*")
+      .single();
       
     if (error) {
       console.error("[upsertPortfolio] Primary save error:", error);
-      throw new Error(error.message);
+      throw new Error(`Supabase Error: ${error.message}${error.hint ? ` (${error.hint})` : ''}`);
     }
     const itemId = row.id || (saved as { id?: string } | null)?.id;
     if (!itemId) throw new Error("Failed to resolve project ID");

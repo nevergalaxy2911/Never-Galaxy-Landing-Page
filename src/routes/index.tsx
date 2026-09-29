@@ -10,7 +10,7 @@ import { CurrencyProvider } from "@/hooks/useCurrency";
 import { Nav } from "@/components/galaxy/Nav";
 import { Hero } from "@/components/galaxy/Hero";
 import { Services } from "@/components/galaxy/Services";
-import { Portfolio } from "@/components/galaxy/Portfolio";
+import { WorkSection } from "@/components/galaxy/WorkSection";
 import { Process } from "@/components/galaxy/Process";
 import { Pricing } from "@/components/galaxy/Pricing";
 import { Testimonials } from "@/components/galaxy/Testimonials";
@@ -147,7 +147,8 @@ function Index() {
             <main>
               <Hero />
               <Services />
-              <Portfolio liveItems={livePortfolio ?? undefined} categories={liveCategories} websites={liveWebsites} />
+              {/* Rebuilt Work grid, fed straight from the /admin manager. */}
+              <WorkSection items={livePortfolio ?? undefined} websites={liveWebsites} />
               {/* Below-fold: paint-deferred via content-visibility:auto (see .cv-auto in styles.css). */}
               <div className="cv-auto"><Process /></div>
               <div className="cv-auto"><Pricing plans={livePricing ?? undefined} /></div>

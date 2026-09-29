@@ -21,6 +21,7 @@ import {
 import { parseYouTubeId } from "@/lib/media-links";
 import {
   DEFAULT_ASPECT,
+  presetById,
   sanitizeAspectMap,
   type AspectConfig,
 } from "@/lib/portfolio-aspect";
@@ -53,8 +54,11 @@ type PortfolioRow = {
   title: string;
   subtitle: string | null;
   url: string | null;
+  media_url?: string | null;
   badge: string | null;
   thumb_url: string | null;
+  aspect_ratio?: string | null;
+  resolution_tag?: string | null;
   featured?: boolean;
 };
 
@@ -68,6 +72,8 @@ export type PublicPortfolioItem = {
   youtubeId?: string;
   /** Card shape chosen in /admin, drives the bento span + media box. */
   aspect: AspectConfig;
+  /** Optional quality badge shown on the tile (4K, 1080p, Vector, ...). */
+  resolutionTag?: string;
   featured?: boolean;
 };
 
@@ -86,8 +92,8 @@ function rowToPlan(r: PricingRow): PricingPlan {
 }
 
 function envUrlKey() {
-  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? import.meta.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   return url && key ? { url, key } : null;
 }
 
@@ -122,35 +128,58 @@ export const getPublicPortfolio = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicPortfolioItem[] | null> => {
     try {
       const sb = await client();
-      if (!sb) return null;
+      if (!sb) {
+        console.warn("[getPublicPortfolio] No Supabase client available");
+        return null;
+      }
       const [itemsRes, aspectsRes] = await Promise.all([
         sb
           .from("portfolio_items")
-          .select("id,category,title,subtitle,url,badge,thumb_url,featured")
+          .select(
+            "id,category,title,subtitle,url,media_url,badge,thumb_url,aspect_ratio,resolution_tag,display_order,position,featured",
+          )
           .eq("published", true)
-          .order("position"),
+          .order("display_order"),
         sb.from("site_settings").select("value").eq("key", "portfolio.aspects").maybeSingle(),
       ]);
       const { data, error } = itemsRes;
-      if (error || !data || data.length === 0) return null;
+      if (error) {
+        console.error("[getPublicPortfolio] Supabase query error:", error);
+        return null;
+      }
+      if (!data || data.length === 0) {
+        console.warn("[getPublicPortfolio] No published items found in database");
+        return null;
+      }
       const aspects = aspectsRes.error
         ? {}
         : sanitizeAspectMap((aspectsRes.data as { value: unknown } | null)?.value);
       return (data as PortfolioRow[]).map((r) => {
-        const url = r.url ?? "";
+        // media_url is the canonical link written by /admin; `url` is its
+        // legacy mirror, kept for rows saved before the rebuild.
+        const url = r.media_url || r.url || "";
+        const ytId = parseYouTubeId(url);
+        // Card shape: the ratio picked in /admin wins; the older per-item
+        // aspects map is the fallback so nothing loses its shape.
+        const preset = r.aspect_ratio ? presetById(r.aspect_ratio) : undefined;
+        const aspect = preset
+          ? { ratio: preset.id, width: preset.width, height: preset.height, size: aspects[r.id]?.size ?? "m" as const }
+          : aspects[r.id] ?? { ...DEFAULT_ASPECT };
         return {
           id: r.id,
           category: r.category,
           title: r.title,
           subtitle: r.subtitle ?? "",
           url,
-          thumbUrl: r.thumb_url ?? "",
-          youtubeId: parseYouTubeId(url),
-          aspect: aspects[r.id] ?? { ...DEFAULT_ASPECT },
+          thumbUrl: r.thumb_url || (ytId ? `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg` : ""),
+          youtubeId: ytId || undefined,
+          aspect,
+          resolutionTag: r.resolution_tag ?? "",
           featured: !!r.featured,
         };
       });
-    } catch {
+    } catch (e) {
+      console.error("[getPublicPortfolio] Unexpected crash:", e);
       return null;
     }
   },
@@ -214,17 +243,28 @@ export const getPublicWebsites = createServerFn({ method: "GET" }).handler(
   async (): Promise<WebsiteEntry[]> => {
     try {
       const sb = await client();
-      if (!sb) return visibleWebsites(DEFAULT_WEBSITES);
+      if (!sb) {
+        console.warn("[getPublicWebsites] No Supabase client available, using fallback");
+        return visibleWebsites(DEFAULT_WEBSITES);
+      }
       const { data, error } = await sb
         .from("site_settings")
         .select("value")
         .eq("key", "portfolio.websites")
         .maybeSingle();
-      if (error || !data) return visibleWebsites(DEFAULT_WEBSITES);
+      if (error) {
+        console.error("[getPublicWebsites] Supabase error:", error);
+        return visibleWebsites(DEFAULT_WEBSITES);
+      }
+      if (!data) {
+        console.warn("[getPublicWebsites] No websites found in database, using fallback");
+        return visibleWebsites(DEFAULT_WEBSITES);
+      }
       const list = sanitizeWebsites((data as { value: unknown }).value);
       const visible = visibleWebsites(list);
       return visible.length ? visible : visibleWebsites(DEFAULT_WEBSITES);
-    } catch {
+    } catch (e) {
+      console.error("[getPublicWebsites] Unexpected crash:", e);
       return visibleWebsites(DEFAULT_WEBSITES);
     }
   },

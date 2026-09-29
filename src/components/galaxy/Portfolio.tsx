@@ -62,20 +62,8 @@ const WEB_SPAN_CYCLE = [
 
 // Static placeholder tiles per category kind, shown when a category has zero
 // live rows so the section never looks empty on a fresh deploy.
-const STATIC_VIDEO_FALLBACK: VideoItem[] = [
-  { id: "sv1", title: "Featured edit",     kind: "New drop incoming", span: SPAN_CYCLE[0] },
-  { id: "sv2", title: "Brand film",        kind: "Coming soon",       span: SPAN_CYCLE[1] },
-  { id: "sv3", title: "Short-form reel",   kind: "Coming soon",       span: SPAN_CYCLE[2] },
-  { id: "sv4", title: "Long-form cut",     kind: "Coming soon",       span: SPAN_CYCLE[3] },
-  { id: "sv5", title: "Launch trailer",    kind: "Coming soon",       span: SPAN_CYCLE[4] },
-];
-const STATIC_IMAGE_FALLBACK: GraphicItem[] = [
-  { id: "sg1", title: "Featured design",  kind: "New drop incoming", span: SPAN_CYCLE[0] },
-  { id: "sg2", title: "Poster",           kind: "Coming soon",       span: SPAN_CYCLE[1] },
-  { id: "sg3", title: "Cover art",        kind: "Coming soon",       span: SPAN_CYCLE[2] },
-  { id: "sg4", title: "Social carousel",  kind: "Coming soon",       span: SPAN_CYCLE[3] },
-  { id: "sg5", title: "Brand mark",       kind: "Coming soon",       span: SPAN_CYCLE[4] },
-];
+const STATIC_VIDEO_FALLBACK: VideoItem[] = [];
+const STATIC_IMAGE_FALLBACK: GraphicItem[] = [];
 
 
 // Browser-level origin warm-up for iframe previews. We keep this tiny and
@@ -518,7 +506,7 @@ function VideoTile({
           <h3 className="font-display uppercase text-lg truncate leading-none portfolio-tile-text">{item.title}</h3>
           <p className="label-mono mt-1.5 text-[10px] opacity-60 tracking-widest portfolio-tile-text">{item.kind}</p>
         </div>
-        <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0 portfolio-tile-text">{item.youtubeId ? "Play" : "Soon"}</span>
+        <span className="label-mono text-[9px] opacity-40 px-2 py-1 rounded border border-white/5 uppercase shrink-0 portfolio-tile-text">{item.youtubeId ? "Play ↗" : "Soon"}</span>
       </div>
     </article>
   );

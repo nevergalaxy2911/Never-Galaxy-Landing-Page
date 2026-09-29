@@ -16,10 +16,11 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as GatedAdminRouteImport } from './routes/_gated/admin'
+import { Route as GatedAdminLegacyRouteImport } from './routes/_gated/admin-legacy'
 import { Route as GatedAnalyticsRouteImport } from './routes/_gated/analytics'
 import { Route as GatedApiPanelRouteImport } from './routes/_gated/api-panel'
+import { Route as GatedDiagnosticsRouteImport } from './routes/_gated/diagnostics'
 import { Route as WorkSlugRouteImport } from './routes/work.$slug'
-import { Route as GatedAdminDiagnosticsRouteImport } from './routes/_gated/admin/diagnostics'
 import { Route as ApiPublicAdblockDiagnosticsRouteImport } from './routes/api/public/adblock-diagnostics'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 
@@ -57,6 +58,11 @@ const GatedAdminRoute = GatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => GatedRouteRoute,
 } as any)
+const GatedAdminLegacyRoute = GatedAdminLegacyRouteImport.update({
+  id: '/admin-legacy',
+  path: '/admin-legacy',
+  getParentRoute: () => GatedRouteRoute,
+} as any)
 const GatedAnalyticsRoute = GatedAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -67,15 +73,15 @@ const GatedApiPanelRoute = GatedApiPanelRouteImport.update({
   path: '/api-panel',
   getParentRoute: () => GatedRouteRoute,
 } as any)
+const GatedDiagnosticsRoute = GatedDiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
+  getParentRoute: () => GatedRouteRoute,
+} as any)
 const WorkSlugRoute = WorkSlugRouteImport.update({
   id: '/work/$slug',
   path: '/work/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
-const GatedAdminDiagnosticsRoute = GatedAdminDiagnosticsRouteImport.update({
-  id: '/diagnostics',
-  path: '/diagnostics',
-  getParentRoute: () => GatedAdminRoute,
 } as any)
 const ApiPublicAdblockDiagnosticsRoute =
   ApiPublicAdblockDiagnosticsRouteImport.update({
@@ -95,11 +101,12 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
-  '/admin': typeof GatedAdminRouteWithChildren
+  '/admin': typeof GatedAdminRoute
+  '/admin-legacy': typeof GatedAdminLegacyRoute
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
+  '/diagnostics': typeof GatedDiagnosticsRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/admin/diagnostics': typeof GatedAdminDiagnosticsRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -109,11 +116,12 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
-  '/admin': typeof GatedAdminRouteWithChildren
+  '/admin': typeof GatedAdminRoute
+  '/admin-legacy': typeof GatedAdminLegacyRoute
   '/analytics': typeof GatedAnalyticsRoute
   '/api-panel': typeof GatedApiPanelRoute
+  '/diagnostics': typeof GatedDiagnosticsRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/admin/diagnostics': typeof GatedAdminDiagnosticsRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -125,11 +133,12 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/unlock': typeof UnlockRoute
-  '/_gated/admin': typeof GatedAdminRouteWithChildren
+  '/_gated/admin': typeof GatedAdminRoute
+  '/_gated/admin-legacy': typeof GatedAdminLegacyRoute
   '/_gated/analytics': typeof GatedAnalyticsRoute
   '/_gated/api-panel': typeof GatedApiPanelRoute
+  '/_gated/diagnostics': typeof GatedDiagnosticsRoute
   '/work/$slug': typeof WorkSlugRoute
-  '/_gated/admin/diagnostics': typeof GatedAdminDiagnosticsRoute
   '/api/public/adblock-diagnostics': typeof ApiPublicAdblockDiagnosticsRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -142,10 +151,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/unlock'
     | '/admin'
+    | '/admin-legacy'
     | '/analytics'
     | '/api-panel'
+    | '/diagnostics'
     | '/work/$slug'
-    | '/admin/diagnostics'
     | '/api/public/adblock-diagnostics'
     | '/api/public/health'
   fileRoutesByTo: FileRoutesByTo
@@ -156,10 +166,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/unlock'
     | '/admin'
+    | '/admin-legacy'
     | '/analytics'
     | '/api-panel'
+    | '/diagnostics'
     | '/work/$slug'
-    | '/admin/diagnostics'
     | '/api/public/adblock-diagnostics'
     | '/api/public/health'
   id:
@@ -171,10 +182,11 @@ export interface FileRouteTypes {
     | '/terms'
     | '/unlock'
     | '/_gated/admin'
+    | '/_gated/admin-legacy'
     | '/_gated/analytics'
     | '/_gated/api-panel'
+    | '/_gated/diagnostics'
     | '/work/$slug'
-    | '/_gated/admin/diagnostics'
     | '/api/public/adblock-diagnostics'
     | '/api/public/health'
   fileRoutesById: FileRoutesById
@@ -242,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedAdminRouteImport
       parentRoute: typeof GatedRouteRoute
     }
+    '/_gated/admin-legacy': {
+      id: '/_gated/admin-legacy'
+      path: '/admin-legacy'
+      fullPath: '/admin-legacy'
+      preLoaderRoute: typeof GatedAdminLegacyRouteImport
+      parentRoute: typeof GatedRouteRoute
+    }
     '/_gated/analytics': {
       id: '/_gated/analytics'
       path: '/analytics'
@@ -256,19 +275,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedApiPanelRouteImport
       parentRoute: typeof GatedRouteRoute
     }
+    '/_gated/diagnostics': {
+      id: '/_gated/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/diagnostics'
+      preLoaderRoute: typeof GatedDiagnosticsRouteImport
+      parentRoute: typeof GatedRouteRoute
+    }
     '/work/$slug': {
       id: '/work/$slug'
       path: '/work/$slug'
       fullPath: '/work/$slug'
       preLoaderRoute: typeof WorkSlugRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_gated/admin/diagnostics': {
-      id: '/_gated/admin/diagnostics'
-      path: '/diagnostics'
-      fullPath: '/admin/diagnostics'
-      preLoaderRoute: typeof GatedAdminDiagnosticsRouteImport
-      parentRoute: typeof GatedAdminRoute
     }
     '/api/public/adblock-diagnostics': {
       id: '/api/public/adblock-diagnostics'
@@ -287,28 +306,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface GatedAdminRouteChildren {
-  GatedAdminDiagnosticsRoute: typeof GatedAdminDiagnosticsRoute
-}
-
-const GatedAdminRouteChildren: GatedAdminRouteChildren = {
-  GatedAdminDiagnosticsRoute: GatedAdminDiagnosticsRoute,
-}
-
-const GatedAdminRouteWithChildren = GatedAdminRoute._addFileChildren(
-  GatedAdminRouteChildren,
-)
-
 interface GatedRouteRouteChildren {
-  GatedAdminRoute: typeof GatedAdminRouteWithChildren
+  GatedAdminRoute: typeof GatedAdminRoute
+  GatedAdminLegacyRoute: typeof GatedAdminLegacyRoute
   GatedAnalyticsRoute: typeof GatedAnalyticsRoute
   GatedApiPanelRoute: typeof GatedApiPanelRoute
+  GatedDiagnosticsRoute: typeof GatedDiagnosticsRoute
 }
 
 const GatedRouteRouteChildren: GatedRouteRouteChildren = {
-  GatedAdminRoute: GatedAdminRouteWithChildren,
+  GatedAdminRoute: GatedAdminRoute,
+  GatedAdminLegacyRoute: GatedAdminLegacyRoute,
   GatedAnalyticsRoute: GatedAnalyticsRoute,
   GatedApiPanelRoute: GatedApiPanelRoute,
+  GatedDiagnosticsRoute: GatedDiagnosticsRoute,
 }
 
 const GatedRouteRouteWithChildren = GatedRouteRoute._addFileChildren(
@@ -329,3 +340,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

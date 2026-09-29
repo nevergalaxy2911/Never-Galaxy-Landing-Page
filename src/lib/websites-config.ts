@@ -114,7 +114,7 @@ export function sanitizeWebsites(value: unknown): WebsiteEntry[] {
     const hardcodedMobile = `/screenshots/${uniqueSlug}-mobile.webp`;
 
     const tileSrc = str(r.tileSrc, 500) || hardcodedDesktop;
-    const detailDesktopSrc = str(r.detailDesktopSrc, 500) || tileSrc;
+    const detailDesktopSrc = str(r.detailDesktopSrc, 500) || str(r.desktopSrc, 500) || tileSrc;
 
     out.push({
       slug: uniqueSlug,
@@ -127,7 +127,7 @@ export function sanitizeWebsites(value: unknown): WebsiteEntry[] {
       tileMobileSrc: str(r.tileMobileSrc, 500) || hardcodedMobile,
       blurSrc: str(r.blurSrc, 500) || tileSrc,
       detailDesktopSrc,
-      detailMobileSrc: str(r.detailMobileSrc, 500) || detailDesktopSrc,
+      detailMobileSrc: str(r.detailMobileSrc, 500) || str(r.mobileSrc, 500) || detailDesktopSrc,
       description: str(r.description, 1000),
       highlights: Array.isArray(r.highlights)
         ? r.highlights.map((h) => str(h, 200)).filter(Boolean).slice(0, 12)
