@@ -24,7 +24,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { ExternalLink, ImageIcon, Play } from "lucide-react";
 import { useReveal } from "@/hooks/useReveal";
-import { aspectRatioCss, spanForAspect } from "@/lib/portfolio-aspect";
+import { orientationOf, type AspectConfig } from "@/lib/portfolio-aspect";
 import type { PublicPortfolioItem } from "@/lib/public-data.functions";
 import { normalizeCategory, tabOf, WORK_TABS, type WorkTab } from "@/lib/work-categories";
 import { DEFAULT_WEBSITES, visibleWebsites, type WebsiteEntry } from "@/lib/websites-config";
@@ -39,7 +39,6 @@ type Tile = {
   subtitle: string;
   tab: Exclude<WorkTab, "all">;
   span: string;
-  ratio?: string;
   image: string;
   href?: string;
   youtubeId?: string;
@@ -64,22 +63,37 @@ type PreviewTarget = {
   youtubeId?: string;
 };
 
-const FALLBACK_SPAN = ["md:col-span-3", "md:col-span-3", "md:col-span-2", "md:col-span-2", "md:col-span-2"];
+/* -----------------------------------------------------------------------------
+ * DETERMINISTIC BENTO SPANS
+ * The grid uses FIXED row heights (md:auto-rows-[200px]) plus dense packing,
+ * and every tile claims whole rows/columns. Because heights are exact
+ * multiples of the row size, tiles always line up — no ragged rows or random
+ * blank gaps under neighbours, whatever mix of ratios is published.
+ *   featured        → full-width hero (6 cols × 3 rows)
+ *   website         → half width, tall (3 × 3, fits the 480px screenshot crop)
+ *   tall (9:16…)    → third width, tall (2 × 3)
+ *   square (1:1…)   → third width, medium (2 × 2)
+ *   wide (16:9…)    → half width, medium (3 × 2)
+ * --------------------------------------------------------------------------- */
+function spanFor(featured: boolean | undefined, tab: Tile["tab"], aspect?: AspectConfig): string {
+  if (featured) return "md:col-span-6 md:row-span-3";
+  if (tab === "website") return "md:col-span-3 md:row-span-3";
+  const o = aspect ? orientationOf(aspect) : "wide";
+  if (o === "tall") return "md:col-span-2 md:row-span-3";
+  if (o === "square") return "md:col-span-2 md:row-span-2";
+  return "md:col-span-3 md:row-span-2";
+}
 
-function itemToTile(it: PublicPortfolioItem, i: number): Tile {
+function itemToTile(it: PublicPortfolioItem): Tile {
   const category = normalizeCategory(it.category);
   const youtubeId = it.youtubeId;
+  const tab = tabOf(category);
   return {
     id: it.id,
     title: it.title,
     subtitle: it.subtitle,
-    tab: tabOf(category),
-    span: it.featured
-      ? "md:col-span-6 md:row-span-3"
-      : it.aspect
-        ? spanForAspect(it.aspect)
-        : FALLBACK_SPAN[i % FALLBACK_SPAN.length],
-    ratio: it.aspect ? aspectRatioCss(it.aspect) : undefined,
+    tab,
+    span: spanFor(it.featured, tab, it.aspect),
     image: it.thumbUrl,
     href: it.url && /^https?:\/\//.test(it.url) ? it.url : undefined,
     youtubeId,
@@ -89,14 +103,14 @@ function itemToTile(it: PublicPortfolioItem, i: number): Tile {
   };
 }
 
-function websiteToTile(s: WebsiteEntry, i: number): Tile {
+function websiteToTile(s: WebsiteEntry): Tile {
   return {
     id: `web-${s.slug}`,
     slug: s.slug,
     title: s.title,
     subtitle: s.subtitle,
     tab: "website",
-    span: s.featured ? "md:col-span-6 md:row-span-3" : FALLBACK_SPAN[i % FALLBACK_SPAN.length],
+    span: spanFor(s.featured, "website"),
     image: s.tileSrc,
     imageTablet: s.tileTabletSrc,
     imageMobile: s.tileMobileSrc,
@@ -203,7 +217,7 @@ export function WorkSection({
         {/* GRID */}
         <div
           ref={grid}
-          className="reveal website-portfolio-grid mt-14 grid auto-rows-[minmax(180px,auto)] grid-cols-1 gap-6 md:grid-cols-6"
+          className="reveal website-portfolio-grid mt-14 grid grid-cols-1 gap-6 md:auto-rows-[200px] md:grid-cols-6"
         >
           {visible.map((t, i) => (
             <WorkTile key={t.id} tile={t} priority={i < 2} onOpen={openTile} />
@@ -263,8 +277,7 @@ function WorkTile({
     >
       <div
         data-web-tile={isWebsite ? "true" : undefined}
-        className="tile-surface relative min-h-[180px] flex-1 overflow-hidden"
-        style={!isWebsite && tile.ratio ? { aspectRatio: tile.ratio, minHeight: 0 } : undefined}
+        className="tile-surface relative aspect-[16/9] min-h-[180px] flex-1 overflow-hidden md:aspect-auto"
       >
         {tile.image ? (
           isWebsite ? (

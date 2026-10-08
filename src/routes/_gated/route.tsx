@@ -8,6 +8,7 @@ import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-rout
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyRole } from "@/lib/auth.functions";
+import { isUnlocked } from "@/lib/gate.functions";
 import { AdminProvider } from "@/components/admin/AdminProvider";
 
 export const Route = createFileRoute("/_gated")({
@@ -37,6 +38,15 @@ function GatedLayout() {
       if (!supabase) return setState({ kind: "unauthenticated" });
       
       try {
+        // Step 1: shared site password (/unlock). Missing or locked -> /unlock.
+        let unlocked = false;
+        try { unlocked = (await isUnlocked()).unlocked; } catch { unlocked = false; }
+        if (cancelled) return;
+        if (!unlocked) {
+          window.location.href = "/unlock?redirect=" + encodeURIComponent(window.location.pathname);
+          return;
+        }
+        // Step 2: admin account sign-in.
         const { data: sess, error: sessErr } = await supabase.auth.getSession();
         if (cancelled) return;
         

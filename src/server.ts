@@ -59,3 +59,11 @@ export default {
     }
   },
 };
+
+// Ignore "aborted" socket-close errors (visitor left or page redirected mid-request).
+// These are harmless and must never blank the screen.
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  const isAbort = (e: unknown) => /aborted|abortincoming|socketonclose/i.test(String((e as Error)?.stack ?? e));
+  process.on("uncaughtException", (e) => { if (!isAbort(e)) console.error(e); });
+  process.on("unhandledRejection", (e) => { if (!isAbort(e)) console.error(e); });
+}

@@ -217,6 +217,17 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 2px rgba(161, 92, 253, 0.2);
 }
 
+/* Dark dropdown popup: native <select> option lists follow the OS theme,
+ * so without this they render white-on-white until an item is hovered. */
+select {
+  color-scheme: dark;
+}
+select option,
+select optgroup {
+  background-color: #0d0d18;
+  color: #ffffff;
+}
+
 /* Switch Styling Override for Unity */
 [role="switch"] {
   background-color: rgba(255, 255, 255, 0.1);

@@ -52,6 +52,11 @@ export const Route = createFileRoute("/_gated/admin")({
 
 const RESOLUTION_TAGS = ["", "1080p", "1440p / 2K", "4K", "Vector", "Print"];
 
+/* The public site only has Video and Website tabs, so the Category dropdown
+ * offers exactly those two. (Old Motion rows are coerced to Video below,
+ * which is where they show publicly anyway.) */
+const ADMIN_CATEGORIES = WORK_CATEGORIES.filter((c) => c.id === "video" || c.id === "website");
+
 type FormState = {
   id: string | null;
   title: string;
@@ -84,7 +89,7 @@ function rowToForm(r: WorkItemRow): FormState {
   return {
     id: r.id,
     title: r.title,
-    category: r.category,
+    category: r.category === "motion" ? "video" : r.category,
     description: r.description,
     mediaUrl: r.mediaUrl,
     thumbUrl: r.thumbUrl,
@@ -385,7 +390,7 @@ function ItemDialog({
               value={form.category}
               onChange={(e) => set("category", normalizeCategory(e.target.value))}
             >
-              {WORK_CATEGORIES.map((c) => (
+              {ADMIN_CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
